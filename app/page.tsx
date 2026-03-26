@@ -2,274 +2,10 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
 import { Send, User, Bot, Activity, Calendar, FileText, Pill, BarChart, MessageSquare, Scissors, DollarSign, Loader2, Trash2, LayoutDashboard, Mic, MicOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { checkPatientRegistration, registerPatient, scheduleAppointment, saveTriage, searchLearnedAnswers, saveLearnedAnswer, checkAvailability, getAvailableSlots, getPatientAppointments, cancelAppointment, rescheduleAppointment, sendAppointmentSummary } from '../lib/db-tools';
-
-const checkPatientRegistrationTool: FunctionDeclaration = {
-  name: 'checkPatientRegistration',
-  description: 'Verifica se um paciente já está cadastrado no banco de dados da clínica usando CPF, Nome ou Telefone.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      cpf: {
-        type: Type.STRING,
-        description: 'O CPF do paciente (apenas números ou com pontuação).',
-      },
-      nome: {
-        type: Type.STRING,
-        description: 'O nome do paciente para busca aproximada.',
-      },
-      telefone: {
-        type: Type.STRING,
-        description: 'O telefone do paciente.',
-      },
-    },
-  },
-};
-
-const registerPatientTool: FunctionDeclaration = {
-  name: 'registerPatient',
-  description: 'Cadastra um novo paciente no banco de dados da clínica.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      nome: {
-        type: Type.STRING,
-        description: 'Nome completo do paciente.',
-      },
-      cpf: {
-        type: Type.STRING,
-        description: 'CPF do paciente.',
-      },
-      telefone: {
-        type: Type.STRING,
-        description: 'Telefone de contato do paciente.',
-      },
-      data_nascimento: {
-        type: Type.STRING,
-        description: 'Data de nascimento do paciente no formato YYYY-MM-DD.',
-      },
-    },
-    required: ['nome', 'cpf'],
-  },
-};
-
-const scheduleAppointmentTool: FunctionDeclaration = {
-  name: 'scheduleAppointment',
-  description: 'Agenda uma nova consulta para um paciente já cadastrado.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      paciente_id: {
-        type: Type.STRING,
-        description: 'O ID (UUID) do paciente retornado pelo banco de dados.',
-      },
-      data_hora: {
-        type: Type.STRING,
-        description: 'Data e hora da consulta no formato ISO 8601 (ex: 2026-03-27T14:30:00Z).',
-      },
-      motivo: {
-        type: Type.STRING,
-        description: 'Motivo da consulta (ex: dor no joelho, retorno, etc).',
-      },
-      especialidade: {
-        type: Type.STRING,
-        description: 'Especialidade médica desejada (ex: Ortopedia Geral, Joelho, Coluna).',
-      },
-    },
-    required: ['paciente_id', 'data_hora'],
-  },
-};
-
-const saveTriageTool: FunctionDeclaration = {
-  name: 'saveTriage',
-  description: 'Salva os dados de uma triagem inicial (sintomas, escala de dor) de um paciente no banco de dados.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      paciente_id: {
-        type: Type.STRING,
-        description: 'O ID (UUID) do paciente retornado pelo banco de dados.',
-      },
-      pain_scale: {
-        type: Type.INTEGER,
-        description: 'Escala de dor de 0 a 10 informada pelo paciente.',
-      },
-      symptoms: {
-        type: Type.STRING,
-        description: 'Descrição dos sintomas relatados (ex: dor no joelho direito, inchaço).',
-      },
-      red_flags: {
-        type: Type.STRING,
-        description: 'Sinais de alerta graves identificados (ex: suspeita de fratura, perda de sensibilidade).',
-      },
-      urgency_classification: {
-        type: Type.STRING,
-        description: 'Classificação de urgência (ex: emergência, urgência, eletiva).',
-      },
-    },
-    required: ['paciente_id', 'pain_scale', 'symptoms'],
-  },
-};
-
-const searchLearnedAnswersTool: FunctionDeclaration = {
-  name: 'searchLearnedAnswers',
-  description: 'Busca no banco de dados respostas aprendidas para perguntas frequentes (FAQ) feitas por usuários.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      keyword: {
-        type: Type.STRING,
-        description: 'Palavra-chave principal da pergunta do usuário (ex: "horário", "convênio", "preparo").',
-      },
-    },
-    required: ['keyword'],
-  },
-};
-
-const saveLearnedAnswerTool: FunctionDeclaration = {
-  name: 'saveLearnedAnswer',
-  description: 'Salva uma nova pergunta e sua respectiva resposta no banco de dados para que o agente aprenda e reutilize no futuro.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      question: {
-        type: Type.STRING,
-        description: 'A pergunta que o usuário fez de forma clara e genérica.',
-      },
-      answer: {
-        type: Type.STRING,
-        description: 'A resposta formulada pelo agente que será salva para o futuro.',
-      },
-      category: {
-        type: Type.STRING,
-        description: 'Categoria da pergunta (ex: "horarios", "convenios", "geral").',
-      },
-    },
-    required: ['question', 'answer', 'category'],
-  },
-};
-
-const getAvailableSlotsTool: FunctionDeclaration = {
-  name: 'getAvailableSlots',
-  description: 'Busca todos os horários disponíveis em uma data específica, considerando o horário de funcionamento, horário de almoço, feriados/bloqueios e agendamentos já existentes.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      date: { type: Type.STRING, description: 'Data desejada no formato YYYY-MM-DD (ex: 2026-03-27).' }
-    },
-    required: ['date'],
-  },
-};
-
-const checkAvailabilityTool: FunctionDeclaration = {
-  name: 'checkAvailability',
-  description: 'Verifica se um horário específico está disponível na agenda da clínica.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      data_hora: { type: Type.STRING, description: 'Data e hora desejada no formato ISO 8601 (ex: 2026-03-27T14:30:00Z).' }
-    },
-    required: ['data_hora'],
-  },
-};
-
-const getPatientAppointmentsTool: FunctionDeclaration = {
-  name: 'getPatientAppointments',
-  description: 'Busca todas as consultas ativas (não canceladas) de um paciente.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      paciente_id: { type: Type.STRING, description: 'O ID (UUID) do paciente.' }
-    },
-    required: ['paciente_id'],
-  },
-};
-
-const cancelAppointmentTool: FunctionDeclaration = {
-  name: 'cancelAppointment',
-  description: 'Cancela uma consulta existente.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta a ser cancelada.' }
-    },
-    required: ['appointment_id'],
-  },
-};
-
-const rescheduleAppointmentTool: FunctionDeclaration = {
-  name: 'rescheduleAppointment',
-  description: 'Reagenda uma consulta existente para um novo horário.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta.' },
-      new_data_hora: { type: Type.STRING, description: 'Nova data e hora no formato ISO 8601.' }
-    },
-    required: ['appointment_id', 'new_data_hora'],
-  },
-};
-
-const sendAppointmentSummaryTool: FunctionDeclaration = {
-  name: 'sendAppointmentSummary',
-  description: 'Gera e simula o envio de um resumo da consulta (lembrete) para o paciente após o agendamento.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta recém-agendada.' }
-    },
-    required: ['appointment_id'],
-  },
-};
-
-const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual inteligente e super rápido de uma clínica de ortopedia.
-Sua comunicação deve ser extremamente direta, empática, simples e voltada para o público leigo (pacientes).
-Seu objetivo principal é resolver o problema do paciente com o MÍNIMO de perguntas possível. Evite burocracia.
-
-REGRA DE OURO: NUNCA mencione sua arquitetura interna, ferramentas, "subagentes" ou processos para o usuário. Você processa tudo internamente de forma invisível. NUNCA faça mais de uma pergunta por mensagem.
-
-DIRETRIZES DE ATENDIMENTO (Foco em Rapidez e Menos Atrito):
-
-1. Dúvidas Gerais e Aprendizado (Prioridade Máxima para Leigos):
-   - Se o paciente fizer uma pergunta geral (ex: "aceita convênio?", "qual o horário de funcionamento?", "onde fica a clínica?"), NÃO peça CPF, nome ou telefone.
-   - Use a ferramenta 'searchLearnedAnswers' IMEDIATAMENTE. Se encontrar a resposta, entregue na hora de forma natural.
-   - Se não encontrar, responda com base no seu conhecimento geral de uma clínica ortopédica e use a ferramenta 'saveLearnedAnswer' para salvar essa nova pergunta e resposta no banco de dados. Assim você aprende para a próxima vez.
-
-2. Agendamento de Consultas (Mostre valor antes de pedir dados):
-   - Se o paciente pedir para agendar, pergunte apenas a preferência de dia/turno e o motivo (ex: "Claro! Para qual dia e turno você prefere? E qual o motivo da consulta?").
-   - Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres PRIMEIRO (ex: "Tenho horários livres amanhã às 09:00 e 10:30. Qual você prefere?").
-   - APENAS QUANDO ele escolher o horário, peça a identificação: "Ótimo! Para confirmar esse horário, qual o seu CPF ou Telefone?" ('checkPatientRegistration').
-   - Se não tiver cadastro, peça o Nome e Telefone juntos ('registerPatient').
-   - Após identificar/cadastrar, use 'scheduleAppointment' para agendar e 'sendAppointmentSummary' para confirmar.
-
-3. Cancelamento e Reagendamento:
-   - Peça o CPF ou Telefone de forma amigável ('checkPatientRegistration').
-   - Use 'getPatientAppointments' para listar as consultas.
-   - Para cancelar, use 'cancelAppointment'.
-   - Para reagendar, busque os horários livres com 'getAvailableSlots' e use 'rescheduleAppointment'.
-
-4. Triagem Oculta (Relato de Dor/Sintomas):
-   - Se o paciente relatar dor, seja muito acolhedor. Faça no máximo UMA pergunta dupla curta (ex: "Sinto muito que esteja com dor. Onde exatamente dói e qual a intensidade de 0 a 10?").
-   - Registre com 'saveTriage'. Se a dor for >= 8 ou houver sinais graves (fratura), oriente a buscar um pronto-socorro.
-   - Caso contrário, ofereça agendamento imediato já mostrando os horários livres de hoje/amanhã ('getAvailableSlots').
-
-5. Regras de Ouro da Conversa:
-   - Linguagem Simples: Zero jargões médicos. Fale como um humano prestativo.
-   - Proatividade: Se o paciente disser "quero para amanhã de manhã", não pergunte o horário. Já busque os horários ('getAvailableSlots') e ofereça as opções.
-   - Respostas Curtas: Pessoas leigas não gostam de ler textos longos. Seja breve.
-
-ESCOPO DE ATUAÇÃO:
-- Agendamento, reagendamento e cancelamento de consultas.
-- Avaliação inicial de sintomas (triagem oculta).
-- Dúvidas gerais (horários, convênios, preparo de exames) com aprendizado contínuo.
-- Suporte a médicos (prontuários, protocolos, laudos) - forneça respostas diretas quando solicitado por um profissional de saúde.
-
-Lembre-se: Você é a interface amigável. Esconda a complexidade. Resolva o problema do usuário da forma mais rápida e fácil possível.`;
 
 type Message = {
   id: string;
@@ -292,33 +28,17 @@ const QUICK_ACTIONS = [
   "📅 Reagendar/Cancelar"
 ];
 
-const TOOL_STATUS_MAP: Record<string, string> = {
-  checkPatientRegistration: 'Verificando cadastro...',
-  registerPatient: 'Realizando cadastro...',
-  scheduleAppointment: 'Agendando consulta...',
-  saveTriage: 'Registrando informações clínicas...',
-  searchLearnedAnswers: 'Buscando informações...',
-  saveLearnedAnswer: 'Atualizando base de conhecimento...',
-  checkAvailability: 'Consultando agenda...',
-  getAvailableSlots: 'Buscando horários disponíveis...',
-  getPatientAppointments: 'Buscando consultas do paciente...',
-  cancelAppointment: 'Cancelando consulta...',
-  rescheduleAppointment: 'Reagendando consulta...',
-  sendAppointmentSummary: 'Gerando resumo da consulta...'
+const INITIAL_MESSAGE: Message = {
+  id: '1',
+  role: 'model',
+  content: 'Olá! Sou o **OrthoAI**, o assistente virtual da clínica. Como posso ajudar você hoje? (Se quiser agendar uma consulta ou tirar dúvidas, é só me dizer!)',
 };
 
 export default function OrthoAI() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'model',
-      content: 'Olá! Sou o **OrthoAI**, o assistente virtual da clínica. Como posso ajudar você hoje? (Se quiser agendar uma consulta ou tirar dúvidas, é só me dizer!)',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [chatSession, setChatSession] = useState<any>(null);
   const [systemStatus, setSystemStatus] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -368,13 +88,7 @@ export default function OrthoAI() {
 
   useEffect(() => {
     const saved = localStorage.getItem('orthoai_messages');
-    let initialMessages: Message[] = [
-      {
-        id: '1',
-        role: 'model',
-        content: 'Olá! Sou o **OrthoAI**, o assistente virtual da clínica. Como posso ajudar você hoje? (Se quiser agendar uma consulta ou tirar dúvidas, é só me dizer!)',
-      },
-    ];
+    let initialMessages: Message[] = [INITIAL_MESSAGE];
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -396,153 +110,54 @@ export default function OrthoAI() {
   }, [messages, isInitialized]);
 
   useEffect(() => {
-    if (!isInitialized) return;
-
-    // Initialize Gemini Chat Session
-    const initChat = async () => {
-      try {
-        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        if (!apiKey) {
-          console.error('Gemini API Key is missing.');
-          return;
-        }
-        const ai = new GoogleGenAI({ apiKey });
-        
-        const history = messages.map(m => ({
-          role: m.role,
-          parts: [{ text: m.content }]
-        }));
-
-        const session = ai.chats.create({
-          model: 'gemini-3-flash-preview',
-          history: history.length > 1 ? history : undefined,
-          config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
-            temperature: 0.2, // Low temperature for deterministic clinical responses
-            tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getAvailableSlotsTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
-          },
-        });
-        setChatSession(session);
-      } catch (error) {
-        console.error('Failed to initialize chat session:', error);
-      }
-    };
-    initChat();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading || !chatSession) return;
+    if (!text.trim() || isLoading) return;
 
     const userMessage = text.trim();
     setInput('');
-    setMessages((prev) => [...prev, { id: Date.now().toString(), role: 'user', content: userMessage }]);
+
+    const updatedMessages: Message[] = [
+      ...messages,
+      { id: Date.now().toString(), role: 'user', content: userMessage },
+    ];
+    setMessages(updatedMessages);
     setIsLoading(true);
     setSystemStatus('Pensando...');
 
     try {
-      let currentMessage: any = { message: userMessage };
-      let isFunctionCall = false;
+      const history = updatedMessages.slice(0, -1).map((m) => ({
+        role: m.role,
+        parts: [{ text: m.content }],
+      }));
 
-      do {
-        isFunctionCall = false;
-        const response = await chatSession.sendMessageStream(currentMessage);
-        
-        let fullResponse = '';
-        const modelMessageId = Date.now().toString();
-        
-        let messageAdded = false;
-        let functionCalls: any[] = [];
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history, message: userMessage }),
+      });
 
-        for await (const chunk of response) {
-          if (chunk.functionCalls) {
-            functionCalls.push(...chunk.functionCalls);
-          }
-          if (chunk.text) {
-            if (!messageAdded) {
-              setMessages((prev) => [...prev, { id: modelMessageId, role: 'model', content: '' }]);
-              messageAdded = true;
-              setSystemStatus(null);
-            }
-            fullResponse += chunk.text;
-            setMessages((prev) => 
-              prev.map((msg) => 
-                msg.id === modelMessageId ? { ...msg, content: fullResponse } : msg
-              )
-            );
-          }
-        }
+      const data = await response.json();
 
-        if (functionCalls.length > 0) {
-          isFunctionCall = true;
-          const functionResponses = [];
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Erro na resposta do servidor.');
+      }
 
-          for (const call of functionCalls) {
-            setSystemStatus(TOOL_STATUS_MAP[call.name] || 'Acessando sistema...');
-            try {
-              let result;
-              const args = call.args as any;
-
-              if (call.name === 'checkPatientRegistration') {
-                result = await checkPatientRegistration(args.cpf, args.nome, args.telefone);
-              } else if (call.name === 'registerPatient') {
-                result = await registerPatient(args.nome, args.cpf, args.telefone, args.data_nascimento);
-              } else if (call.name === 'scheduleAppointment') {
-                result = await scheduleAppointment(args.paciente_id, args.data_hora, args.motivo, args.especialidade);
-              } else if (call.name === 'saveTriage') {
-                result = await saveTriage(args.paciente_id, args.pain_scale, args.symptoms, args.red_flags, args.urgency_classification);
-              } else if (call.name === 'searchLearnedAnswers') {
-                result = await searchLearnedAnswers(args.keyword);
-              } else if (call.name === 'saveLearnedAnswer') {
-                result = await saveLearnedAnswer(args.question, args.answer, args.category);
-              } else if (call.name === 'checkAvailability') {
-                result = await checkAvailability(args.data_hora);
-              } else if (call.name === 'getAvailableSlots') {
-                result = await getAvailableSlots(args.date);
-              } else if (call.name === 'getPatientAppointments') {
-                result = await getPatientAppointments(args.paciente_id);
-              } else if (call.name === 'cancelAppointment') {
-                result = await cancelAppointment(args.appointment_id);
-              } else if (call.name === 'rescheduleAppointment') {
-                result = await rescheduleAppointment(args.appointment_id, args.new_data_hora);
-              } else if (call.name === 'sendAppointmentSummary') {
-                result = await sendAppointmentSummary(args.appointment_id);
-              } else {
-                result = { error: 'Function not found' };
-              }
-
-              functionResponses.push({
-                functionResponse: {
-                  name: call.name,
-                  response: result
-                }
-              });
-            } catch (error: any) {
-              functionResponses.push({
-                functionResponse: {
-                  name: call.name,
-                  response: { error: error.message }
-                }
-              });
-            }
-          }
-
-          setSystemStatus('Analisando dados...');
-          // Pass the function responses back to the model
-          currentMessage = { message: functionResponses };
-        }
-
-      } while (isFunctionCall);
-
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), role: 'model', content: data.text },
+      ]);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: 'model', content: 'Desculpe, encontrei um erro ao processar sua solicitação. Por favor, tente novamente.' },
+        {
+          id: Date.now().toString(),
+          role: 'model',
+          content: 'Desculpe, encontrei um erro ao processar sua solicitação. Por favor, tente novamente.',
+        },
       ]);
     } finally {
       setIsLoading(false);
@@ -556,55 +171,42 @@ export default function OrthoAI() {
   };
 
   const clearChat = () => {
-    const initial = [{
-      id: Date.now().toString(),
-      role: 'model' as const,
-      content: 'Olá! Sou o **OrthoAI**, o assistente virtual da clínica. Como posso ajudar você hoje? (Se quiser agendar uma consulta ou tirar dúvidas, é só me dizer!)',
-    }];
+    const initial = [{ ...INITIAL_MESSAGE, id: Date.now().toString() }];
     setMessages(initial);
     localStorage.setItem('orthoai_messages', JSON.stringify(initial));
-    
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    if (apiKey) {
-      const ai = new GoogleGenAI({ apiKey });
-      const session = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getAvailableSlotsTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
-        },
-      });
-      setChatSession(session);
-    }
   };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Sidebar - Subagents */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex-col hidden md:flex">
+      {/* Sidebar */}
+      <aside className="hidden md:flex w-64 flex-col bg-white border-r border-slate-200 shadow-sm">
         <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center gap-2 text-blue-600 font-bold text-xl">
-            <Activity className="w-6 h-6" />
-            OrthoAI
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-md">
+              <Activity className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-800 text-lg leading-tight">OrthoAI</h1>
+              <p className="text-xs text-slate-500">Assistente Virtual</p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">Atendimento Virtual</p>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Serviços Disponíveis</h3>
-          <div className="space-y-1">
-            {SERVICES.map((service) => (
-              <div key={service.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-default">
-                <div className={`p-1.5 rounded-md bg-slate-100 ${service.color}`}>
-                  <service.icon className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-medium text-slate-700">{service.name}</span>
+
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 py-2">Serviços</p>
+          {SERVICES.map((service) => (
+            <div
+              key={service.id}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors group"
+            >
+              <div className={`w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-white flex items-center justify-center transition-colors ${service.color}`}>
+                <service.icon className="w-4 h-4" />
               </div>
-            ))}
-          </div>
-        </div>
-        
+              <span className="text-sm font-medium text-slate-700">{service.name}</span>
+            </div>
+          ))}
+        </nav>
+
         <div className="p-4 border-t border-slate-200 bg-slate-50">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -625,14 +227,14 @@ export default function OrthoAI() {
             Assistente Virtual
           </div>
           <div className="flex items-center gap-2">
-            <Link 
+            <Link
               href="/dashboard"
               className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-full hover:bg-slate-100"
             >
               <LayoutDashboard className="w-4 h-4" />
               Acessar Dashboard
             </Link>
-            <button 
+            <button
               onClick={clearChat}
               className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-full hover:bg-slate-100"
               title="Limpar conversa"
@@ -657,10 +259,10 @@ export default function OrthoAI() {
               }`}>
                 {message.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
               </div>
-              
+
               <div className={`flex-1 px-4 py-3 rounded-2xl ${
-                message.role === 'user' 
-                  ? 'bg-blue-600 text-white rounded-tr-none' 
+                message.role === 'user'
+                  ? 'bg-blue-600 text-white rounded-tr-none'
                   : 'bg-white border border-slate-200 shadow-sm rounded-tl-none text-slate-800'
               }`}>
                 {message.role === 'user' ? (
@@ -698,7 +300,6 @@ export default function OrthoAI() {
         {/* Input Area */}
         <div className="p-4 bg-white border-t border-slate-200">
           <div className="max-w-4xl mx-auto">
-            
             {messages.length === 1 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {QUICK_ACTIONS.map((action) => (
@@ -733,8 +334,8 @@ export default function OrthoAI() {
                 type="button"
                 onClick={toggleListening}
                 className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
-                  isListening 
-                    ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse' 
+                  isListening
+                    ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
                     : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                 }`}
                 title={isListening ? "Parar gravação" : "Falar por voz"}
@@ -743,7 +344,7 @@ export default function OrthoAI() {
               </button>
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading || !chatSession}
+                disabled={!input.trim() || isLoading}
                 className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
