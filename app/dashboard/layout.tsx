@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Activity, Calendar, AlertCircle, BookOpen, Bot, LayoutDashboard, MessageSquare, Menu, X, Users } from 'lucide-react';
+import { Activity, Calendar, AlertCircle, BookOpen, Bot, LayoutDashboard, MessageSquare, Menu, X, Users, Stethoscope } from 'lucide-react';
 import { Toaster } from 'sonner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -65,6 +65,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
           <Link href="/dashboard/faqs" onClick={closeMobileMenu} className={`flex items-center gap-3 p-3 rounded-lg font-medium transition-colors ${pathname === '/dashboard/faqs' ? 'bg-emerald-50 text-emerald-600' : 'hover:bg-emerald-50 hover:text-emerald-600 text-slate-700'}`}>
             <BookOpen className="w-5 h-5" /> Base de Conhecimento
+          </Link>
+          <Link href="/dashboard/medicos" onClick={closeMobileMenu} className={`flex items-center gap-3 p-3 rounded-lg font-medium transition-colors ${pathname === '/dashboard/medicos' ? 'bg-blue-50 text-blue-600' : 'hover:bg-blue-50 hover:text-blue-600 text-slate-700'}`}>
+            <Stethoscope className="w-5 h-5" /> Médicos
           </Link>
           <Link href="/dashboard/copilot" onClick={closeMobileMenu} className={`flex items-center gap-3 p-3 rounded-lg font-medium transition-colors ${pathname === '/dashboard/copilot' ? 'bg-indigo-50 text-indigo-600' : 'hover:bg-indigo-50 hover:text-indigo-600 text-slate-700'}`}>
             <Bot className="w-5 h-5" /> Copiloto (IA)

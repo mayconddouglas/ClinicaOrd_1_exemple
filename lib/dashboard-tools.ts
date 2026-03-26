@@ -1,5 +1,69 @@
 import { supabase } from './supabase';
 
+export async function getMedicos(search?: string) {
+  try {
+    let query = supabase.from('medicos').select('*');
+    if (search) {
+      query = query.or(`nome.ilike.%${search}%,especialidade.ilike.%${search}%,crm.ilike.%${search}%`);
+    }
+    const { data, error } = await query.order('nome', { ascending: true });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function createMedico(data: {
+  nome: string;
+  crm: string;
+  especialidade: string;
+  telefone?: string;
+  email?: string;
+  bio?: string;
+  disponivel?: boolean;
+}) {
+  try {
+    const { data: novo, error } = await supabase
+      .from('medicos')
+      .insert([{ ...data, disponivel: data.disponivel ?? true }])
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: novo };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateMedico(
+  id: string,
+  data: { nome?: string; crm?: string; especialidade?: string; telefone?: string; email?: string; bio?: string; disponivel?: boolean }
+) {
+  try {
+    const { data: atualizado, error } = await supabase
+      .from('medicos')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: atualizado };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteMedico(id: string) {
+  try {
+    const { error } = await supabase.from('medicos').delete().eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function getDashboardKPIs() {
   try {
     const today = new Date().toISOString().split('T')[0];

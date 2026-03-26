@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, FunctionDeclaration } from '@google/genai';
-import { getDashboardKPIs, getRecentAppointments, getUrgentTriages } from '../../../lib/dashboard-tools';
+import { getDashboardKPIs, getRecentAppointments, getUrgentTriages, getMedicos } from '../../../lib/dashboard-tools';
 
 const SYSTEM_INSTRUCTION = `Você é o **Copiloto OrthoAdmin**, um assistente de IA exclusivo para a equipe médica e recepcionistas da clínica de ortopedia.
 Seu objetivo é ajudar a equipe a extrair informações do banco de dados, resumir triagens, verificar a agenda e auxiliar na gestão.
@@ -27,6 +27,10 @@ const toolDeclarations: FunctionDeclaration[] = [
     name: 'getUrgentTriages',
     description: 'Busca as triagens recentes, ordenadas por nível de dor e urgência.',
   },
+  {
+    name: 'getMedicos',
+    description: 'Lista todos os médicos cadastrados na clínica, com nome, CRM, especialidade e disponibilidade.',
+  },
 ];
 
 async function executeTool(name: string): Promise<any> {
@@ -37,6 +41,8 @@ async function executeTool(name: string): Promise<any> {
       return getRecentAppointments();
     case 'getUrgentTriages':
       return getUrgentTriages();
+    case 'getMedicos':
+      return getMedicos();
     default:
       return { error: 'Função não encontrada.' };
   }

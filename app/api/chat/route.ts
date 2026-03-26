@@ -13,6 +13,8 @@ import {
   cancelAppointment,
   rescheduleAppointment,
   sendAppointmentSummary,
+  getAvailableDoctors,
+  getDoctorsBySpecialty,
 } from '../../../lib/db-tools';
 
 const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual inteligente e super rápido de uma clínica de ortopedia.
@@ -51,11 +53,15 @@ DIRETRIZES DE ATENDIMENTO (Foco em Rapidez e Menos Atrito):
    - Proatividade: Se o paciente disser "quero para amanhã de manhã", não pergunte o horário. Já busque os horários ('getAvailableSlots') e ofereça as opções.
    - Respostas Curtas: Pessoas leigas não gostam de ler textos longos. Seja breve.
 
+6. Consulta de Médicos:
+   - Se o paciente perguntar "quais médicos vocês têm?", "tem ortopedista?", use 'getAvailableDoctors' e apresente os médicos de forma clara.
+   - Se o paciente mencionar uma especialidade (ex: "médico de joelho", "coluna"), use 'getDoctorsBySpecialty' para buscar e apresentar os especialistas disponíveis.
+
 ESCOPO DE ATUAÇÃO:
 - Agendamento, reagendamento e cancelamento de consultas.
 - Avaliação inicial de sintomas (triagem oculta).
 - Dúvidas gerais (horários, convênios, preparo de exames) com aprendizado contínuo.
-- Suporte a médicos (prontuários, protocolos, laudos) - forneça respostas diretas quando solicitado por um profissional de saúde.
+- Consulta de médicos disponíveis e especialidades.
 
 Lembre-se: Você é a interface amigável. Esconda a complexidade. Resolva o problema do usuário da forma mais rápida e fácil possível.`;
 
@@ -206,6 +212,21 @@ const toolDeclarations: FunctionDeclaration[] = [
       required: ['appointment_id'],
     },
   },
+  {
+    name: 'getAvailableDoctors',
+    description: 'Busca todos os médicos disponíveis na clínica.',
+  },
+  {
+    name: 'getDoctorsBySpecialty',
+    description: 'Busca médicos disponíveis por especialidade (ex: Joelho, Coluna, Ortopedia Geral).',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        especialidade: { type: Type.STRING, description: 'A especialidade médica desejada.' },
+      },
+      required: ['especialidade'],
+    },
+  },
 ];
 
 async function executeTool(name: string, args: any): Promise<any> {
@@ -234,6 +255,10 @@ async function executeTool(name: string, args: any): Promise<any> {
       return rescheduleAppointment(args.appointment_id, args.new_data_hora);
     case 'sendAppointmentSummary':
       return sendAppointmentSummary(args.appointment_id);
+    case 'getAvailableDoctors':
+      return getAvailableDoctors();
+    case 'getDoctorsBySpecialty':
+      return getDoctorsBySpecialty(args.especialidade);
     default:
       return { error: 'Função não encontrada.' };
   }

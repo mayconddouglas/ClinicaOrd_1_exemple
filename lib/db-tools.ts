@@ -1,5 +1,36 @@
 import { supabase } from './supabase';
 
+export async function getAvailableDoctors() {
+  try {
+    const { data, error } = await supabase
+      .from('medicos')
+      .select('*')
+      .eq('disponivel', true)
+      .order('nome', { ascending: true });
+
+    if (error) return { error: 'Erro ao buscar médicos disponíveis.' };
+    return { success: true, doctors: data };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function getDoctorsBySpecialty(especialidade: string) {
+  try {
+    const { data, error } = await supabase
+      .from('medicos')
+      .select('*')
+      .ilike('especialidade', `%${especialidade}%`)
+      .eq('disponivel', true)
+      .order('nome', { ascending: true });
+
+    if (error) return { error: 'Erro ao buscar médicos por especialidade.' };
+    return { success: true, doctors: data };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
 export async function checkPatientRegistration(cpf?: string, nome?: string, telefone?: string) {
   try {
     let query = supabase.from('pacientes').select('*');
