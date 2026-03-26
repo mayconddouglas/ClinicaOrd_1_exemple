@@ -1,12 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
-import { Send, User, Bot, Activity, Calendar, FileText, Pill, BarChart, MessageSquare, Scissors, DollarSign, Loader2, Trash2 } from 'lucide-react';
+import { Send, User, Bot, Activity, Calendar, FileText, Pill, BarChart, MessageSquare, Scissors, DollarSign, Loader2, Trash2, LayoutDashboard, Mic, MicOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { checkPatientRegistration, registerPatient, scheduleAppointment, saveTriage, searchLearnedAnswers, saveLearnedAnswer, checkAvailability, getPatientAppointments, cancelAppointment, rescheduleAppointment, sendAppointmentSummary } from '../lib/db-tools';
+import { checkPatientRegistration, registerPatient, scheduleAppointment, saveTriage, searchLearnedAnswers, saveLearnedAnswer, checkAvailability, getAvailableSlots, getPatientAppointments, cancelAppointment, rescheduleAppointment, sendAppointmentSummary } from '../lib/db-tools';
 
 const checkPatientRegistrationTool: FunctionDeclaration = {
   name: 'checkPatientRegistration',
@@ -153,6 +154,18 @@ const saveLearnedAnswerTool: FunctionDeclaration = {
   },
 };
 
+const getAvailableSlotsTool: FunctionDeclaration = {
+  name: 'getAvailableSlots',
+  description: 'Busca todos os horários disponíveis em uma data específica, considerando o horário de funcionamento, horário de almoço, feriados/bloqueios e agendamentos já existentes.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      date: { type: Type.STRING, description: 'Data desejada no formato YYYY-MM-DD (ex: 2026-03-27).' }
+    },
+    required: ['date'],
+  },
+};
+
 const checkAvailabilityTool: FunctionDeclaration = {
   name: 'checkAvailability',
   description: 'Verifica se um horário específico está disponível na agenda da clínica.',
@@ -214,37 +227,41 @@ const sendAppointmentSummaryTool: FunctionDeclaration = {
   },
 };
 
-const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual de uma clínica de ortopedia.
-Sua comunicação deve ser direta, empática, simples e voltada para o público leigo (pacientes), embora você também atenda a equipe médica.
+const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual inteligente e super rápido de uma clínica de ortopedia.
+Sua comunicação deve ser extremamente direta, empática, simples e voltada para o público leigo (pacientes).
+Seu objetivo principal é resolver o problema do paciente com o MÍNIMO de perguntas possível. Evite burocracia.
 
-REGRA DE OURO: NUNCA mencione sua arquitetura interna, "subagentes", "camadas", "diretivas" ou processos de roteamento para o usuário. Para o usuário, você é uma entidade única. Você processa tudo internamente de forma invisível.
+REGRA DE OURO: NUNCA mencione sua arquitetura interna, ferramentas, "subagentes" ou processos para o usuário. Você processa tudo internamente de forma invisível. NUNCA faça mais de uma pergunta por mensagem.
 
-DIRETRIZES DE ATENDIMENTO:
-1. Seja Direto e Conciso: Não dê respostas longas ou explicações desnecessárias. Vá direto ao ponto.
-2. Agendamento de Consultas:
-   - Peça o CPF, Nome ou Telefone do paciente para verificar o cadastro ('checkPatientRegistration').
-   - Se a busca retornar múltiplos pacientes (ex: busca por nome), peça o CPF ou Telefone para confirmar.
-   - Se não cadastrado, peça Nome e Telefone para cadastrar ('registerPatient').
-   - Pergunte o motivo e a preferência de data/horário.
-   - ANTES de agendar, use 'checkAvailability' para garantir que o horário está livre. Se não estiver, sugira alternativas.
-   - Estando livre, use 'scheduleAppointment' para agendar.
-   - APÓS agendar, use 'sendAppointmentSummary' para gerar o resumo e confirme com o paciente.
+DIRETRIZES DE ATENDIMENTO (Foco em Rapidez e Menos Atrito):
+
+1. Dúvidas Gerais e Aprendizado (Prioridade Máxima para Leigos):
+   - Se o paciente fizer uma pergunta geral (ex: "aceita convênio?", "qual o horário de funcionamento?", "onde fica a clínica?"), NÃO peça CPF, nome ou telefone.
+   - Use a ferramenta 'searchLearnedAnswers' IMEDIATAMENTE. Se encontrar a resposta, entregue na hora de forma natural.
+   - Se não encontrar, responda com base no seu conhecimento geral de uma clínica ortopédica e use a ferramenta 'saveLearnedAnswer' para salvar essa nova pergunta e resposta no banco de dados. Assim você aprende para a próxima vez.
+
+2. Agendamento de Consultas (Mostre valor antes de pedir dados):
+   - Se o paciente pedir para agendar, pergunte apenas a preferência de dia/turno e o motivo (ex: "Claro! Para qual dia e turno você prefere? E qual o motivo da consulta?").
+   - Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres PRIMEIRO (ex: "Tenho horários livres amanhã às 09:00 e 10:30. Qual você prefere?").
+   - APENAS QUANDO ele escolher o horário, peça a identificação: "Ótimo! Para confirmar esse horário, qual o seu CPF ou Telefone?" ('checkPatientRegistration').
+   - Se não tiver cadastro, peça o Nome e Telefone juntos ('registerPatient').
+   - Após identificar/cadastrar, use 'scheduleAppointment' para agendar e 'sendAppointmentSummary' para confirmar.
+
 3. Cancelamento e Reagendamento:
-   - Peça o CPF, Nome ou Telefone ('checkPatientRegistration').
-   - Use 'getPatientAppointments' para listar as consultas do paciente. Mostre as opções para ele.
-   - Para cancelar, use 'cancelAppointment' com o ID da consulta escolhida.
-   - Para reagendar, verifique a disponibilidade do novo horário ('checkAvailability') e use 'rescheduleAppointment'.
-4. Triagem Oculta (Relato de Dor/Sintomas): Se o paciente iniciar a conversa relatando dor ou sintomas, inicie a coleta de informações básicas de forma natural e acolhedora, SEM mencionar a palavra "triagem".
-   - Pergunte onde dói, como começou e a intensidade da dor (escala de 0 a 10). Faça uma pergunta por vez para não sobrecarregar o paciente.
-   - Peça o CPF, Nome ou Telefone para identificar o paciente ('checkPatientRegistration') ou cadastre-o se necessário.
-   - Use a ferramenta 'saveTriage' para registrar os sintomas no banco de dados.
-   - Se a dor for >= 8 ou houver sinais graves (fratura, perda de movimento), oriente a buscar um pronto-socorro imediatamente. Caso contrário, sugira agendar uma consulta.
-5. Aprendizado Contínuo (Dúvidas Gerais): Se o usuário fizer uma pergunta geral (ex: horários, convênios, preparo de exames):
-   - PRIMEIRO: Use a ferramenta 'searchLearnedAnswers' para buscar se já existe uma resposta aprendida no banco de dados.
-   - SE ENCONTRAR: Use a resposta encontrada para responder ao usuário (isso economiza processamento).
-   - SE NÃO ENCONTRAR: Formule uma resposta adequada. Em seguida, use a ferramenta 'saveLearnedAnswer' para salvar essa nova pergunta e resposta no banco de dados, aprendendo para a próxima vez.
-6. Linguagem Simples: Evite jargões médicos ao falar com pacientes. Seja acolhedor.
-7. Coleta de Dados: Faça perguntas objetivas e, de preferência, uma por vez para não confundir o usuário.
+   - Peça o CPF ou Telefone de forma amigável ('checkPatientRegistration').
+   - Use 'getPatientAppointments' para listar as consultas.
+   - Para cancelar, use 'cancelAppointment'.
+   - Para reagendar, busque os horários livres com 'getAvailableSlots' e use 'rescheduleAppointment'.
+
+4. Triagem Oculta (Relato de Dor/Sintomas):
+   - Se o paciente relatar dor, seja muito acolhedor. Faça no máximo UMA pergunta dupla curta (ex: "Sinto muito que esteja com dor. Onde exatamente dói e qual a intensidade de 0 a 10?").
+   - Registre com 'saveTriage'. Se a dor for >= 8 ou houver sinais graves (fratura), oriente a buscar um pronto-socorro.
+   - Caso contrário, ofereça agendamento imediato já mostrando os horários livres de hoje/amanhã ('getAvailableSlots').
+
+5. Regras de Ouro da Conversa:
+   - Linguagem Simples: Zero jargões médicos. Fale como um humano prestativo.
+   - Proatividade: Se o paciente disser "quero para amanhã de manhã", não pergunte o horário. Já busque os horários ('getAvailableSlots') e ofereça as opções.
+   - Respostas Curtas: Pessoas leigas não gostam de ler textos longos. Seja breve.
 
 ESCOPO DE ATUAÇÃO:
 - Agendamento, reagendamento e cancelamento de consultas.
@@ -283,6 +300,7 @@ const TOOL_STATUS_MAP: Record<string, string> = {
   searchLearnedAnswers: 'Buscando informações...',
   saveLearnedAnswer: 'Atualizando base de conhecimento...',
   checkAvailability: 'Consultando agenda...',
+  getAvailableSlots: 'Buscando horários disponíveis...',
   getPatientAppointments: 'Buscando consultas do paciente...',
   cancelAppointment: 'Cancelando consulta...',
   rescheduleAppointment: 'Reagendando consulta...',
@@ -303,6 +321,50 @@ export default function OrthoAI() {
   const [chatSession, setChatSession] = useState<any>(null);
   const [systemStatus, setSystemStatus] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'pt-BR';
+
+        recognitionRef.current.onresult = (event: any) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (finalTranscript) {
+            setInput((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
+          }
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error', event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('orthoai_messages');
@@ -357,7 +419,7 @@ export default function OrthoAI() {
           config: {
             systemInstruction: SYSTEM_INSTRUCTION,
             temperature: 0.2, // Low temperature for deterministic clinical responses
-            tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
+            tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getAvailableSlotsTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
           },
         });
         setChatSession(session);
@@ -439,6 +501,8 @@ export default function OrthoAI() {
                 result = await saveLearnedAnswer(args.question, args.answer, args.category);
               } else if (call.name === 'checkAvailability') {
                 result = await checkAvailability(args.data_hora);
+              } else if (call.name === 'getAvailableSlots') {
+                result = await getAvailableSlots(args.date);
               } else if (call.name === 'getPatientAppointments') {
                 result = await getPatientAppointments(args.paciente_id);
               } else if (call.name === 'cancelAppointment') {
@@ -508,7 +572,7 @@ export default function OrthoAI() {
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           temperature: 0.2,
-          tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
+          tools: [{ functionDeclarations: [checkPatientRegistrationTool, registerPatientTool, scheduleAppointmentTool, saveTriageTool, searchLearnedAnswersTool, saveLearnedAnswerTool, checkAvailabilityTool, getAvailableSlotsTool, getPatientAppointmentsTool, cancelAppointmentTool, rescheduleAppointmentTool, sendAppointmentSummaryTool] }],
         },
       });
       setChatSession(session);
@@ -560,14 +624,23 @@ export default function OrthoAI() {
           <div className="hidden md:block text-sm font-medium text-slate-500">
             Assistente Virtual
           </div>
-          <button 
-            onClick={clearChat}
-            className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-full hover:bg-slate-100"
-            title="Limpar conversa"
-          >
-            <Trash2 className="w-4 h-4" />
-            Limpar Chat
-          </button>
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/dashboard"
+              className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-full hover:bg-slate-100"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Acessar Dashboard
+            </Link>
+            <button 
+              onClick={clearChat}
+              className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-full hover:bg-slate-100"
+              title="Limpar conversa"
+            >
+              <Trash2 className="w-4 h-4" />
+              Limpar Chat
+            </button>
+          </div>
         </header>
 
         {/* Messages */}
@@ -656,6 +729,18 @@ export default function OrthoAI() {
                   rows={1}
                 />
               </div>
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  isListening 
+                    ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse' 
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                }`}
+                title={isListening ? "Parar gravação" : "Falar por voz"}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading || !chatSession}

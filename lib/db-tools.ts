@@ -127,6 +127,156 @@ export async function saveLearnedAnswer(question: string, answer: string, catego
   }
 }
 
+export async function getAvailableSlots(dateStr: string) {
+  try {
+    // 1. Parse date and get day of week safely (avoid timezone shift)
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    if (isNaN(date.getTime())) return { error: 'Data inválida. Use o formato YYYY-MM-DD.' };
+    
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // 2. Fetch business hours for this day
+    const { data: hoursData, error: hoursError } = await supabase
+      .from('business_hours')
+      .select('*')
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (hoursError || !hoursData) {
+      return { error: 'Não foi possível carregar os horários de funcionamento.' };
+    }
+
+    if (hoursData.is_closed) {
+      return { success: true, availableSlots: [], message: 'A clínica está fechada neste dia.' };
+    }
+
+    // 3. Fetch schedule blocks (holidays/exceptions) for this date
+    const { data: blocksData, error: blocksError } = await supabase
+      .from('schedule_blocks')
+      .select('*')
+      .eq('block_date', dateStr.split('T')[0]);
+
+    if (blocksError) {
+      console.error('Error fetching blocks:', blocksError);
+    }
+
+    // 4. Fetch existing appointments for this date
+    const startOfDay = new Date(year, month - 1, day);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(year, month - 1, day);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data: apptsData, error: apptsError } = await supabase
+      .from('agendamentos')
+      .select('data_hora')
+      .gte('data_hora', startOfDay.toISOString())
+      .lte('data_hora', endOfDay.toISOString())
+      .neq('status', 'canceled')
+      .neq('status', 'cancelada');
+
+    if (apptsError) {
+      console.error('Error fetching appointments:', apptsError);
+    }
+
+    // 5. Generate slots
+    const availableSlots: string[] = [];
+    const slotDurationMs = (hoursData.slot_duration || 30) * 60000;
+    
+    // Helper to convert HH:MM:SS to Date object on the specific day
+    const timeToDate = (timeStr: string) => {
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      const d = new Date(year, month - 1, day);
+      d.setHours(hours, minutes, seconds || 0, 0);
+      return d;
+    };
+
+    const openTime = timeToDate(hoursData.open_time);
+    const closeTime = timeToDate(hoursData.close_time);
+    const lunchStart = hoursData.lunch_start ? timeToDate(hoursData.lunch_start) : null;
+    const lunchEnd = hoursData.lunch_end ? timeToDate(hoursData.lunch_end) : null;
+
+    let currentSlot = new Date(openTime);
+
+    while (currentSlot.getTime() + slotDurationMs <= closeTime.getTime()) {
+      const slotEnd = new Date(currentSlot.getTime() + slotDurationMs);
+      let isAvailable = true;
+
+      // Check lunch break
+      if (lunchStart && lunchEnd) {
+        if (
+          (currentSlot.getTime() >= lunchStart.getTime() && currentSlot.getTime() < lunchEnd.getTime()) ||
+          (slotEnd.getTime() > lunchStart.getTime() && slotEnd.getTime() <= lunchEnd.getTime()) ||
+          (currentSlot.getTime() <= lunchStart.getTime() && slotEnd.getTime() >= lunchEnd.getTime())
+        ) {
+          isAvailable = false;
+        }
+      }
+
+      // Check schedule blocks
+      if (isAvailable && blocksData) {
+        for (const block of blocksData) {
+          const blockStart = timeToDate(block.start_time);
+          const blockEnd = timeToDate(block.end_time);
+          if (
+            (currentSlot.getTime() >= blockStart.getTime() && currentSlot.getTime() < blockEnd.getTime()) ||
+            (slotEnd.getTime() > blockStart.getTime() && slotEnd.getTime() <= blockEnd.getTime()) ||
+            (currentSlot.getTime() <= blockStart.getTime() && slotEnd.getTime() >= blockEnd.getTime())
+          ) {
+            isAvailable = false;
+            break;
+          }
+        }
+      }
+
+      // Check existing appointments
+      if (isAvailable && apptsData) {
+        for (const appt of apptsData) {
+          const apptTime = new Date(appt.data_hora);
+          // Assuming appointments take exactly 1 slot duration for simplicity
+          const apptEnd = new Date(apptTime.getTime() + slotDurationMs);
+          
+          if (
+            (currentSlot.getTime() >= apptTime.getTime() && currentSlot.getTime() < apptEnd.getTime()) ||
+            (slotEnd.getTime() > apptTime.getTime() && slotEnd.getTime() <= apptEnd.getTime()) ||
+            (currentSlot.getTime() === apptTime.getTime())
+          ) {
+            isAvailable = false;
+            break;
+          }
+        }
+      }
+
+      // Check if slot is in the past (only relevant for today)
+      if (isAvailable && currentSlot.getTime() < new Date().getTime()) {
+        isAvailable = false;
+      }
+
+      if (isAvailable) {
+        // Format to HH:MM
+        const hours = currentSlot.getHours().toString().padStart(2, '0');
+        const minutes = currentSlot.getMinutes().toString().padStart(2, '0');
+        availableSlots.push(`${hours}:${minutes}`);
+      }
+
+      currentSlot = new Date(currentSlot.getTime() + slotDurationMs);
+    }
+
+    return { 
+      success: true, 
+      date: dateStr.split('T')[0],
+      availableSlots,
+      message: availableSlots.length > 0 
+        ? `Encontrados ${availableSlots.length} horários disponíveis.` 
+        : 'Nenhum horário disponível para esta data.'
+    };
+
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
 export async function checkAvailability(data_hora: string) {
   try {
     const { count, error } = await supabase
