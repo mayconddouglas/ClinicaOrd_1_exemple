@@ -68,27 +68,34 @@ export async function getDashboardKPIs() {
   try {
     const today = new Date().toISOString().split('T')[0];
     
-    const { count: appointmentsCount } = await supabase
-      .from('agendamentos')
-      .select('*', { count: 'exact', head: true })
-      .gte('data_hora', `${today}T00:00:00Z`)
-      .lte('data_hora', `${today}T23:59:59Z`);
-
-    const { count: urgentTriagesCount } = await supabase
-      .from('triages')
-      .select('*', { count: 'exact', head: true })
-      .gte('pain_scale', 7);
-
-    const { count: faqsCount } = await supabase
-      .from('learned_faqs')
-      .select('*', { count: 'exact', head: true });
+    const [
+      { count: appointmentsCount },
+      { count: urgentTriagesCount },
+      { count: faqsCount },
+      { count: totalPatients },
+      { count: availableDoctors },
+      { count: pendingTriages },
+    ] = await Promise.all([
+      supabase.from('agendamentos').select('*', { count: 'exact', head: true })
+        .gte('data_hora', `${today}T00:00:00Z`)
+        .lte('data_hora', `${today}T23:59:59Z`),
+      supabase.from('triages').select('*', { count: 'exact', head: true })
+        .gte('pain_scale', 7).neq('status', 'resolvido'),
+      supabase.from('learned_faqs').select('*', { count: 'exact', head: true }),
+      supabase.from('pacientes').select('*', { count: 'exact', head: true }),
+      supabase.from('medicos').select('*', { count: 'exact', head: true }).eq('disponivel', true),
+      supabase.from('triages').select('*', { count: 'exact', head: true }).neq('status', 'resolvido'),
+    ]);
 
     return {
       success: true,
       data: {
         appointmentsToday: appointmentsCount || 0,
         urgentTriages: urgentTriagesCount || 0,
-        learnedFaqs: faqsCount || 0
+        learnedFaqs: faqsCount || 0,
+        totalPatients: totalPatients || 0,
+        availableDoctors: availableDoctors || 0,
+        pendingTriages: pendingTriages || 0,
       }
     };
   } catch (err: any) {
@@ -134,6 +141,47 @@ export async function getLearnedFAQs() {
       .select('*')
       .order('usage_count', { ascending: false });
       
+    if (error) throw error;
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function updateLearnedFAQ(id: string, data: { question?: string; answer?: string; category?: string }) {
+  try {
+    const { error } = await supabase
+      .from('learned_faqs')
+      .update(data)
+      .eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteLearnedFAQ(id: string) {
+  try {
+    const { error } = await supabase
+      .from('learned_faqs')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getAllTriages() {
+  try {
+    const { data, error } = await supabase
+      .from('triages')
+      .select('*, pacientes(nome, telefone, cpf)')
+      .order('pain_scale', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100);
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
