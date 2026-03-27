@@ -2,20 +2,16 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { getAllTriages, updateTriageStatus } from '../../../lib/dashboard-tools';
-import { AlertTriangle, Activity, CheckCircle2, Clock, User, RefreshCw, Filter } from 'lucide-react';
+import { AlertTriangle, Activity, CheckCircle2, Clock, User, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 type FilterType = 'todas' | 'urgentes' | 'moderadas' | 'leves' | 'resolvidas';
-
-function PainBar({ scale }: { scale: number }) {
-  const pct = (scale / 10) * 100;
-  const color = scale >= 8 ? 'bg-red-500' : scale >= 5 ? 'bg-amber-400' : 'bg-emerald-400';
-  return (
-    <div className="w-full bg-slate-100 rounded-full h-2 mt-1">
-      <div className={`${color} h-2 rounded-full`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
 
 export default function TriagesPage() {
   const [triages, setTriages] = useState<any[]>([]);
@@ -36,20 +32,17 @@ export default function TriagesPage() {
 
   const handleMarkResolved = async (id: string) => {
     const res = await updateTriageStatus(id, 'resolvido');
-    if (res.success) {
-      toast.success('Triagem marcada como resolvida');
-      fetchTriages(true);
-    } else {
-      toast.error('Erro ao atualizar triagem');
-    }
+    if (res.success) { toast.success('Triagem marcada como resolvida'); fetchTriages(true); }
+    else toast.error('Erro ao atualizar triagem');
   };
 
   const stats = useMemo(() => ({
     total: triages.length,
     urgentes: triages.filter(t => t.pain_scale >= 8 && t.status !== 'resolvido').length,
     moderadas: triages.filter(t => t.pain_scale >= 5 && t.pain_scale < 8 && t.status !== 'resolvido').length,
-    pendentes: triages.filter(t => t.status !== 'resolvido').length,
+    leves: triages.filter(t => t.pain_scale < 5 && t.status !== 'resolvido').length,
     resolvidas: triages.filter(t => t.status === 'resolvido').length,
+    pendentes: triages.filter(t => t.status !== 'resolvido').length,
   }), [triages]);
 
   const filtered = useMemo(() => {
@@ -62,160 +55,147 @@ export default function TriagesPage() {
     }
   }, [triages, filter]);
 
-  const filterTabs: { key: FilterType; label: string; count: number; dot?: string }[] = [
-    { key: 'todas',      label: 'Todas',     count: stats.total },
-    { key: 'urgentes',   label: 'Urgentes',  count: stats.urgentes,  dot: 'bg-red-500' },
-    { key: 'moderadas',  label: 'Moderadas', count: stats.moderadas, dot: 'bg-amber-400' },
-    { key: 'leves',      label: 'Leves',     count: triages.filter(t => t.pain_scale < 5 && t.status !== 'resolvido').length, dot: 'bg-emerald-400' },
-    { key: 'resolvidas', label: 'Resolvidas',count: stats.resolvidas },
-  ];
-
   if (loading) {
     return (
-      <div className="p-8 flex flex-col items-center justify-center h-full gap-3">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-500"></div>
-        <p className="text-sm text-slate-500">Carregando triagens...</p>
+      <div className="flex h-full items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+          <p className="text-sm">Carregando triagens...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Activity className="w-7 h-7 text-red-500" /> Triagens Clínicas
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Activity className="h-6 w-6 text-rose-500" />
+            Triagens Clínicas
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Acompanhe os relatos de sintomas e identifique urgências.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Acompanhe os relatos de sintomas e identifique urgências.</p>
         </div>
-        <button
-          onClick={() => fetchTriages(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-60 w-fit"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={() => fetchTriages(true)} disabled={refreshing} className="gap-2 flex-shrink-0">
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           Atualizar
-        </button>
+        </Button>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: stats.total, color: 'text-slate-700', bg: 'bg-white border-slate-200' },
-          { label: 'Urgentes (≥8)', value: stats.urgentes, color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
-          { label: 'Pendentes', value: stats.pendentes, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
-          { label: 'Resolvidas', value: stats.resolvidas, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' },
+          { label: 'Total', value: stats.total, className: 'border-border' },
+          { label: 'Urgentes (≥8)', value: stats.urgentes, className: 'border-rose-100 bg-rose-50/50' },
+          { label: 'Pendentes', value: stats.pendentes, className: 'border-amber-100 bg-amber-50/50' },
+          { label: 'Resolvidas', value: stats.resolvidas, className: 'border-emerald-100 bg-emerald-50/50' },
         ].map(s => (
-          <div key={s.label} className={`rounded-2xl border p-4 ${s.bg}`}>
-            <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-            <p className={`text-2xl font-bold mt-0.5 ${s.color}`}>{s.value}</p>
-          </div>
+          <Card key={s.label} className={`shadow-sm ${s.className}`}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
+              <p className="text-2xl font-bold tracking-tight mt-1">{s.value}</p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
-        {filterTabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${filter === tab.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            {tab.dot && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${tab.dot}`} />}
-            {tab.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === tab.key ? 'bg-slate-100 text-slate-600' : 'bg-slate-200 text-slate-500'}`}>{tab.count}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="todas" className="gap-1.5">Todas <Badge variant="secondary" className="text-[10px] h-4 px-1">{stats.total}</Badge></TabsTrigger>
+          <TabsTrigger value="urgentes" className="gap-1.5">Urgentes <Badge variant="secondary" className="text-[10px] h-4 px-1">{stats.urgentes}</Badge></TabsTrigger>
+          <TabsTrigger value="moderadas" className="gap-1.5">Moderadas <Badge variant="secondary" className="text-[10px] h-4 px-1">{stats.moderadas}</Badge></TabsTrigger>
+          <TabsTrigger value="leves" className="gap-1.5">Leves <Badge variant="secondary" className="text-[10px] h-4 px-1">{stats.leves}</Badge></TabsTrigger>
+          <TabsTrigger value="resolvidas" className="gap-1.5">Resolvidas <Badge variant="secondary" className="text-[10px] h-4 px-1">{stats.resolvidas}</Badge></TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Triages list */}
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 py-16 flex flex-col items-center gap-3 text-slate-400">
-            <Filter className="w-10 h-10 opacity-40" />
-            <p className="text-sm">Nenhuma triagem nessa categoria.</p>
-          </div>
-        ) : (
-          filtered.map((triage) => {
+      {filtered.length === 0 ? (
+        <Card className="shadow-sm">
+          <CardContent className="py-16 text-center">
+            <Activity className="mx-auto h-10 w-10 text-muted-foreground/30" />
+            <p className="mt-3 text-sm text-muted-foreground">Nenhuma triagem nessa categoria.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((triage) => {
             const isResolved = triage.status === 'resolvido';
-            const urgencyBorder = isResolved
-              ? 'border-slate-200 bg-white'
-              : triage.pain_scale >= 8
-                ? 'border-red-200 bg-red-50/30'
-                : triage.pain_scale >= 5
-                  ? 'border-amber-200 bg-amber-50/20'
-                  : 'border-slate-200 bg-white';
-            const painColor = triage.pain_scale >= 8 ? 'text-red-600' : triage.pain_scale >= 5 ? 'text-amber-600' : 'text-emerald-600';
+            const isUrgent = triage.pain_scale >= 8;
+            const painColor = isUrgent ? 'text-rose-600' : triage.pain_scale >= 5 ? 'text-amber-600' : 'text-emerald-600';
+            const progressColor = isUrgent ? 'bg-rose-500' : triage.pain_scale >= 5 ? 'bg-amber-400' : 'bg-emerald-400';
 
             return (
-              <div key={triage.id} className={`rounded-2xl border shadow-sm transition-opacity ${urgencyBorder} ${isResolved ? 'opacity-60' : ''}`}>
-                <div className="p-4 md:p-5 flex flex-col md:flex-row gap-4">
-                  {/* Pain indicator */}
-                  <div className="flex items-center md:flex-col md:items-center md:justify-center md:w-20 md:flex-shrink-0 gap-3 md:gap-2">
-                    <div className="text-center">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Dor</span>
-                      <span className={`text-3xl font-black leading-none ${painColor}`}>{triage.pain_scale}</span>
-                      <span className="text-sm font-medium text-slate-400">/10</span>
+              <Card key={triage.id} className={`shadow-sm transition-opacity ${isResolved ? 'opacity-60' : ''} ${!isResolved && isUrgent ? 'border-rose-200' : ''}`}>
+                <CardContent className="p-5">
+                  <div className="flex flex-col md:flex-row gap-5">
+                    {/* Pain score */}
+                    <div className="flex md:flex-col items-center md:justify-center md:w-20 flex-shrink-0 gap-3 md:gap-1">
+                      <div className="text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dor</p>
+                        <p className={`text-3xl font-black leading-none ${painColor}`}>{triage.pain_scale}<span className="text-base font-medium text-muted-foreground">/10</span></p>
+                      </div>
+                      <div className="flex-1 md:w-full">
+                        <Progress value={triage.pain_scale * 10} className={`h-2 [&>div]:${progressColor}`} />
+                      </div>
                     </div>
-                    <div className="flex-1 md:w-full">
-                      <PainBar scale={triage.pain_scale} />
-                    </div>
-                  </div>
 
-                  {/* Content */}
-                  <div className="flex-1 space-y-3 min-w-0">
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm md:text-base font-bold text-slate-900">{triage.pacientes?.nome || 'Paciente Desconhecido'}</h3>
-                            {isResolved && <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Resolvido</span>}
-                            {!isResolved && triage.pain_scale >= 8 && <span className="px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold uppercase">Urgente</span>}
+                    <Separator orientation="vertical" className="hidden md:block h-auto" />
+
+                    {/* Main content */}
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <User className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <p className="text-xs text-slate-400">{triage.pacientes?.telefone}</p>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-bold">{triage.pacientes?.nome || 'Paciente Desconhecido'}</p>
+                              {isResolved && <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700 bg-emerald-50">Resolvido</Badge>}
+                              {!isResolved && isUrgent && <Badge variant="destructive" className="text-[10px]">Urgente</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{triage.pacientes?.telefone}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[11px] gap-1 font-normal">
+                            <Clock className="h-3 w-3" />
+                            {new Date(triage.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </Badge>
+                          {!isResolved && (
+                            <Button size="sm" variant="outline" onClick={() => handleMarkResolved(triage.id)}
+                              className="h-7 gap-1 text-[11px] border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                              <CheckCircle2 className="h-3 w-3" /> Resolver
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400 bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {new Date(triage.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {!isResolved && (
-                          <button
-                            onClick={() => handleMarkResolved(triage.id)}
-                            className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Resolver
-                          </button>
-                        )}
+
+                      <div className="rounded-lg bg-muted/50 p-3 border border-border/50">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sintomas Relatados</p>
+                        <p className="text-sm text-foreground leading-relaxed">{triage.symptoms}</p>
                       </div>
-                    </div>
 
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sintomas Relatados</p>
-                      <p className="text-sm text-slate-700 leading-relaxed">{triage.symptoms}</p>
-                    </div>
-
-                    {triage.red_flags && (
-                      <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl p-3">
-                        <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-[11px] font-semibold text-red-600 uppercase tracking-wider mb-0.5">Sinais de Alerta</p>
-                          <p className="text-sm text-red-700">{triage.red_flags}</p>
+                      {triage.red_flags && (
+                        <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-100 p-3">
+                          <AlertTriangle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600 mb-0.5">Sinais de Alerta</p>
+                            <p className="text-sm text-rose-700">{triage.red_flags}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }
