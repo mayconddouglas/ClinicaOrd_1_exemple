@@ -38,15 +38,20 @@ export default function MedicosPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
-  const fetchMedicos = async () => {
-    setLoading(true);
+  const fetchMedicos = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     const res = await getMedicos();
     if (res.success) setMedicos(res.data || []);
     else toast.error('Erro ao carregar médicos');
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchMedicos(); }, []);
+  useEffect(() => {
+    const init = async () => {
+      await fetchMedicos(false);
+    };
+    init();
+  }, [fetchMedicos]);
 
   const filtered = useMemo(() => {
     let list = medicos;

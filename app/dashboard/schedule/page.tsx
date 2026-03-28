@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Calendar, Clock, Plus, Trash2, AlertCircle, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBusinessHours, updateBusinessHours, getScheduleBlocks, createScheduleBlock, deleteScheduleBlock } from '../../../lib/schedule-tools';
@@ -28,22 +28,28 @@ export default function SchedulePage() {
   const [isAddingBlock, setIsAddingBlock] = useState(false);
   const [newBlock, setNewBlock] = useState({ block_date: '', start_time: '', end_time: '', reason: '' });
 
-  useEffect(() => { fetchBusinessHours(); fetchBlocks(); }, []);
-
-  const fetchBusinessHours = async () => {
-    setLoadingHours(true);
+  const fetchBusinessHours = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoadingHours(true);
     const res = await getBusinessHours();
     if (res.success) setBusinessHours(res.data || []);
     else toast.error('Erro ao carregar horários. Verifique se as tabelas existem no banco.');
     setLoadingHours(false);
-  };
+  }, []);
 
-  const fetchBlocks = async () => {
-    setLoadingBlocks(true);
+  const fetchBlocks = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoadingBlocks(true);
     const res = await getScheduleBlocks();
     if (res.success) setBlocks(res.data || []);
     setLoadingBlocks(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      await fetchBusinessHours(false);
+      await fetchBlocks(false);
+    };
+    init();
+  }, [fetchBusinessHours, fetchBlocks]);
 
   const handleUpdateHour = async (id: number, field: string, value: any) => {
     setBusinessHours(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h));

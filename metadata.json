@@ -1,5 +1,5 @@
 {
   "name": "OrthoAI",
   "description": "Agente de inteligência artificial clínico-operacional especializado em ortopedia.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

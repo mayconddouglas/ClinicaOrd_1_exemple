@@ -26,14 +26,19 @@ export default function FAQsPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchFaqs = async () => {
-    setLoading(true);
+  const fetchFaqs = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     const res = await getLearnedFAQs();
     if (res.success) setFaqs(res.data || []);
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchFaqs(); }, []);
+  useEffect(() => {
+    const init = async () => {
+      await fetchFaqs(false);
+    };
+    init();
+  }, [fetchFaqs]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -134,7 +139,7 @@ export default function FAQsPage() {
         )}
       </div>
 
-      {search && <p className="text-sm text-muted-foreground">{filtered.length} resultado(s) para <strong>"{search}"</strong></p>}
+      {search && <p className="text-sm text-muted-foreground">{filtered.length} resultado(s) para <strong>&quot;{search}&quot;</strong></p>}
 
       {/* FAQ list */}
       {filtered.length === 0 ? (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { getAllTriages, updateTriageStatus } from '../../../lib/dashboard-tools';
 import { AlertTriangle, Activity, CheckCircle2, Clock, User, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,16 +19,21 @@ export default function TriagesPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('todas');
 
-  const fetchTriages = async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
+  const fetchTriages = useCallback(async (silent = false, initial = false) => {
+    if (!silent && !initial) setLoading(true);
+    else if (!initial) setRefreshing(true);
     const res = await getAllTriages();
     if (res.success) setTriages(res.data || []);
     setLoading(false);
     setRefreshing(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchTriages(); }, []);
+  useEffect(() => {
+    const init = async () => {
+      await fetchTriages(false, true);
+    };
+    init();
+  }, [fetchTriages]);
 
   const handleMarkResolved = async (id: string) => {
     const res = await updateTriageStatus(id, 'resolvido');

@@ -54,9 +54,9 @@ export default function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
+  const fetchData = useCallback(async (silent = false, initial = false) => {
+    if (!silent && !initial) setLoading(true);
+    else if (!initial) setRefreshing(true);
     const [kpiRes, apptRes, analyticsRes] = await Promise.all([
       getDashboardKPIs(), getRecentAppointments(), getAnalyticsData()
     ]);
@@ -67,7 +67,12 @@ export default function DashboardOverview() {
     setRefreshing(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const init = async () => {
+      await fetchData(false, true);
+    };
+    init();
+  }, [fetchData]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     const res = await updateAppointmentStatus(id, status);
@@ -79,10 +84,10 @@ export default function DashboardOverview() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-12">
+      <div className="flex h-[80vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <p className="text-sm">Carregando dados da clínica...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm font-medium">Carregando dados do painel...</p>
         </div>
       </div>
     );
@@ -91,41 +96,38 @@ export default function DashboardOverview() {
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-8 lg:space-y-10">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Visão Geral</h1>
-          <p className="mt-1 text-sm text-muted-foreground capitalize">{today}</p>
+          <h2 className="text-3xl font-bold tracking-tight text-neutral-900">Visão Geral</h2>
+          <p className="text-base text-neutral-500 capitalize mt-2">{today}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => fetchData(true)}
           disabled={refreshing}
-          className="gap-2 flex-shrink-0"
+          className="gap-2 self-start md:self-auto bg-white"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Atualizar
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Atualizar Dados
         </Button>
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {KPI_CONFIG.map(({ key, label, icon: Icon, color, bg, border }) => (
-          <Card key={key} className={`border ${border} shadow-sm`}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${bg}`}>
-                  <Icon className={`h-5 w-5 ${color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-muted-foreground leading-none">{label}</p>
-                  <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">
-                    {kpis?.[key] ?? 0}
-                  </p>
-                </div>
+          <Card key={key} className={`border ${border} shadow-sm transition-all hover:shadow-md`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
+              <CardTitle className="text-base font-medium text-neutral-600">
+                {label}
+              </CardTitle>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>
+                <Icon className={`h-5 w-5 ${color}`} />
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-neutral-900">{kpis?.[key] ?? 0}</div>
             </CardContent>
           </Card>
         ))}
@@ -133,49 +135,49 @@ export default function DashboardOverview() {
 
       {/* Charts */}
       {analytics && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-semibold">Distribuição de Dor</CardTitle>
-              </div>
-              <CardDescription className="text-xs">Intensidade relatada pelos pacientes nas triagens</CardDescription>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="shadow-sm flex flex-col">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <TrendingUp className="h-5 w-5 text-neutral-500" />
+                Distribuição de Dor
+              </CardTitle>
+              <CardDescription className="text-sm">Intensidade relatada nas triagens</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-52">
+            <CardContent className="flex-1 pb-8">
+              <div className="h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={50} outerRadius={72} paddingAngle={4} dataKey="value">
+                    <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                       {analytics.painDistribution.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} strokeWidth={0} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(v: any) => [`${v} triagem(s)`, '']} />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: '20px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-semibold">Status das Consultas</CardTitle>
-              </div>
-              <CardDescription className="text-xs">Total de agendamentos por situação</CardDescription>
+          <Card className="shadow-sm flex flex-col">
+            <CardHeader className="pb-6">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Calendar className="h-5 w-5 text-neutral-500" />
+                Status das Consultas
+              </CardTitle>
+              <CardDescription className="text-sm">Total de agendamentos por situação</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-52">
+            <CardContent className="flex-1 pb-8">
+              <div className="h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.appointmentStatus} barSize={32}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: '#f8fafc' }} formatter={(v: any) => [`${v} consulta(s)`, '']} />
-                    <Bar dataKey="value" radius={[5, 5, 0, 0]}>
+                  <BarChart data={analytics.appointmentStatus} barSize={40} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
+                    <RechartsTooltip cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [`${v} consulta(s)`, '']} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {analytics.appointmentStatus.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
@@ -190,101 +192,106 @@ export default function DashboardOverview() {
 
       {/* Appointments Table */}
       <Card className="shadow-sm">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-sm font-semibold">Próximas Consultas</CardTitle>
-              <CardDescription className="mt-0.5 text-xs">{appointments.length} agendamento(s)</CardDescription>
+              <CardTitle className="text-xl font-semibold">Próximas Consultas</CardTitle>
+              <CardDescription className="text-sm mt-1">Você tem {appointments.length} agendamento(s) recentes.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <Separator />
-        {appointments.length === 0 ? (
-          <CardContent className="py-16 text-center">
-            <Calendar className="mx-auto h-10 w-10 text-muted-foreground/30" />
-            <p className="mt-3 text-sm text-muted-foreground">Nenhuma consulta agendada.</p>
-          </CardContent>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-b border-border/50">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data / Hora</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Paciente</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Motivo</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {appointments.map((appt) => {
-                  const status = STATUS_MAP[appt.status] || { label: appt.status, variant: 'outline' as const };
-                  const patientName = appt.pacientes?.nome || 'Desconhecido';
-                  return (
-                    <TableRow key={appt.id} className="group border-b border-border/30">
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                          <div>
-                            <p className="text-xs font-semibold text-foreground">
-                              {new Date(appt.data_hora).toLocaleDateString('pt-BR')}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {new Date(appt.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+        <CardContent className="p-0">
+          {appointments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+                <Calendar className="h-6 w-6 text-neutral-400" />
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-neutral-900">Nenhuma consulta</h3>
+              <p className="mt-1 text-sm text-neutral-500">Não há agendamentos recentes para exibir.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-b border-border/50">
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data / Hora</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Paciente</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Motivo</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {appointments.map((appt) => {
+                    const status = STATUS_MAP[appt.status] || { label: appt.status, variant: 'outline' as const };
+                    const patientName = appt.pacientes?.nome || 'Desconhecido';
+                    return (
+                      <TableRow key={appt.id} className="group border-b border-border/30 hover:bg-neutral-50/50 transition-colors">
+                        <TableCell className="py-5">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <div>
+                              <p className="text-xs font-semibold text-foreground">
+                                {new Date(appt.data_hora).toLocaleDateString('pt-BR')}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {new Date(appt.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className={`text-xs font-bold ${getAvatarColor(patientName)}`}>
-                              {getInitials(patientName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-xs font-medium text-foreground">{patientName}</p>
-                            <p className="text-[11px] text-muted-foreground">{appt.pacientes?.telefone || '—'}</p>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className={`text-xs font-bold ${getAvatarColor(patientName)}`}>
+                                {getInitials(patientName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-xs font-medium text-foreground">{patientName}</p>
+                              <p className="text-[11px] text-muted-foreground">{appt.pacientes?.telefone || '—'}</p>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[180px]">
-                        <p className="text-xs text-foreground truncate">{appt.motivo || <span className="text-muted-foreground/50 italic">Não informado</span>}</p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant} className="text-[11px]">{status.label}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {appt.status === 'pendente' && (
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  onClick={() => handleUpdateStatus(appt.id, 'confirmada')}>
-                                  <CheckCircle2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Confirmar</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                  onClick={() => handleUpdateStatus(appt.id, 'cancelada')}>
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Cancelar</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                        </TableCell>
+                        <TableCell className="max-w-[180px]">
+                          <p className="text-xs text-foreground truncate">{appt.motivo || <span className="text-muted-foreground/50 italic">Não informado</span>}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant} className="text-[11px]">{status.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {appt.status === 'pendente' && (
+                            <div className="flex items-center justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => handleUpdateStatus(appt.id, 'confirmada')}>
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Confirmar</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                    onClick={() => handleUpdateStatus(appt.id, 'cancelada')}>
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Cancelar</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
       </Card>
     </div>
   );
