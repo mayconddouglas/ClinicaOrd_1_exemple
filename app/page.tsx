@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Activity, Calendar, FileText, Pill, BarChart, MessageSquare, Scissors, DollarSign, Loader2, Trash2, LayoutDashboard, Mic, MicOff } from 'lucide-react';
+import { Send, User, Bot, Activity, Calendar, FileText, Pill, BarChart, MessageSquare, Scissors, DollarSign, Loader2, Trash2, LayoutDashboard, Mic, MicOff, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,7 +42,9 @@ export default function OrthoAI() {
   const [systemStatus, setSystemStatus] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -162,6 +164,68 @@ export default function OrthoAI() {
     } finally {
       setIsLoading(false);
       setSystemStatus(null);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setSystemStatus('Analisando exame/imagem...');
+
+    // Add a temporary user message showing the file upload
+    const tempId = Date.now().toString();
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, role: 'user', content: `📎 Enviando arquivo: ${file.name}...` },
+    ]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('patientPhone', 'user_chat'); // Mock phone for demo
+
+      const response = await fetch('/api/upload-exam', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao enviar arquivo.');
+      }
+
+      // Replace temp message with actual success message
+      setMessages((prev) => prev.map(m => 
+        m.id === tempId ? { ...m, content: `📎 Arquivo enviado: **${file.name}**` } : m
+      ));
+
+      // Add AI response with the analysis
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'model',
+          content: `Recebi o seu exame/imagem. Aqui está a minha análise preliminar:\n\n${data.data.aiAnalysis}\n\n*Nota: Esta é uma análise feita por IA e não substitui a avaliação médica. O arquivo já foi anexado ao seu prontuário para o médico avaliar.*`,
+        },
+      ]);
+
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'model',
+          content: `Desculpe, encontrei um erro ao processar seu arquivo: ${error.message}`,
+        },
+      ]);
+    } finally {
+      setIsUploading(false);
+      setSystemStatus(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -315,6 +379,22 @@ export default function OrthoAI() {
             )}
 
             <form onSubmit={handleSubmit} className="relative flex items-end gap-2">
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isLoading}
+                className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 disabled:opacity-50"
+                title="Anexar Exame ou Imagem"
+              >
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+              </button>
               <div className="relative flex-1">
                 <textarea
                   value={input}

@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight
+  ChevronRight, FileText, LogOut
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -25,13 +28,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const navItems = [
   { href: '/dashboard',           label: 'Visão Geral',         icon: LayoutDashboard, accent: 'text-blue-500' },
   { href: '/dashboard/schedule',  label: 'Horários',             icon: Calendar,        accent: 'text-sky-500' },
   { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-violet-500' },
   { href: '/dashboard/triages',   label: 'Triagens',             icon: AlertCircle,     accent: 'text-rose-500' },
-  { href: '/dashboard/faqs',      label: 'Base de Conhecimento', icon: BookOpen,        accent: 'text-emerald-500' },
+  { href: '/dashboard/exames',    label: 'Exames e Laudos',      icon: FileText,        accent: 'text-emerald-500' },
+  { href: '/dashboard/faqs',      label: 'Base de Conhecimento', icon: BookOpen,        accent: 'text-amber-500' },
   { href: '/dashboard/medicos',   label: 'Médicos',              icon: Stethoscope,     accent: 'text-cyan-500' },
 ];
 
@@ -39,11 +44,60 @@ const aiItem = { href: '/dashboard/copilot', label: 'Copiloto IA', icon: Bot, ac
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        
+        if (!session) {
+          window.location.href = '/login'; // Força o redirecionamento se o router.push falhar
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
+        if (mounted) window.location.href = '/login';
+      }
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session && mounted) {
+        window.location.href = '/login';
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full bg-neutral-50 overflow-hidden">
-        <Toaster position="top-right" richColors />
+    <TooltipProvider>
+      <SidebarProvider>
+        <div className="flex h-screen w-full bg-neutral-50 overflow-hidden">
+          <Toaster position="top-right" richColors />
 
         <Sidebar variant="inset" className="border-r border-neutral-200 bg-white">
           <SidebarHeader className="px-4 py-4">
@@ -101,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="p-4">
+          <SidebarFooter className="p-4 space-y-2">
             <Link href="/">
               <Button
                 variant="outline"
@@ -111,6 +165,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="text-sm font-medium">Chat do Paciente</span>
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start gap-2.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm font-medium">Sair do Sistema</span>
+            </Button>
           </SidebarFooter>
         </Sidebar>
 
@@ -129,5 +191,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     </SidebarProvider>
+    </TooltipProvider>
   );
 }

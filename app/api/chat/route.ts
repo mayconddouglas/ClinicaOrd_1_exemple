@@ -15,6 +15,7 @@ import {
   sendAppointmentSummary,
   getAvailableDoctors,
   getDoctorsBySpecialty,
+  escalateToHuman,
 } from '../../../lib/db-tools';
 
 const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual inteligente e super rápido de uma clínica de ortopedia.
@@ -48,12 +49,17 @@ DIRETRIZES DE ATENDIMENTO (Foco em Rapidez e Menos Atrito):
    - Registre com 'saveTriage'. Se a dor for >= 8 ou houver sinais graves (fratura), oriente a buscar um pronto-socorro.
    - Caso contrário, ofereça agendamento imediato já mostrando os horários livres de hoje/amanhã ('getAvailableSlots').
 
-5. Regras de Ouro da Conversa:
+5. Loop de Aprendizado Ativo (Perguntas Desconhecidas):
+   - Se o paciente fizer uma pergunta médica ou administrativa MUITO ESPECÍFICA que você não sabe a resposta e não encontrou no 'searchLearnedAnswers', NÃO INVENTE.
+   - Use a ferramenta 'escalateToHuman' para enviar a pergunta para a equipe da clínica.
+   - Responda ao paciente: "Vou confirmar essa informação médica com a equipe da clínica e já te aviso."
+
+6. Regras de Ouro da Conversa:
    - Linguagem Simples: Zero jargões médicos. Fale como um humano prestativo.
    - Proatividade: Se o paciente disser "quero para amanhã de manhã", não pergunte o horário. Já busque os horários ('getAvailableSlots') e ofereça as opções.
    - Respostas Curtas: Pessoas leigas não gostam de ler textos longos. Seja breve.
 
-6. Consulta de Médicos:
+7. Consulta de Médicos:
    - Se o paciente perguntar "quais médicos vocês têm?", "tem ortopedista?", use 'getAvailableDoctors' e apresente os médicos de forma clara.
    - Se o paciente mencionar uma especialidade (ex: "médico de joelho", "coluna"), use 'getDoctorsBySpecialty' para buscar e apresentar os especialistas disponíveis.
 
@@ -227,6 +233,18 @@ const toolDeclarations: FunctionDeclaration[] = [
       required: ['especialidade'],
     },
   },
+  {
+    name: 'escalateToHuman',
+    description: 'Envia uma pergunta específica que a IA não soube responder para a equipe humana da clínica responder.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        question: { type: Type.STRING, description: 'A pergunta exata do paciente.' },
+        patientPhone: { type: Type.STRING, description: 'O telefone ou identificador do paciente (opcional).' },
+      },
+      required: ['question'],
+    },
+  },
 ];
 
 async function executeTool(name: string, args: any): Promise<any> {
@@ -259,6 +277,8 @@ async function executeTool(name: string, args: any): Promise<any> {
       return getAvailableDoctors();
     case 'getDoctorsBySpecialty':
       return getDoctorsBySpecialty(args.especialidade);
+    case 'escalateToHuman':
+      return escalateToHuman(args.question, args.patientPhone);
     default:
       return { error: 'Função não encontrada.' };
   }

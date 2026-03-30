@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { getMedicos, createMedico, updateMedico, deleteMedico } from '../../../lib/dashboard-tools';
 import { Stethoscope, Plus, Search, Pencil, Trash2, X, Phone, Mail, User, Building2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';

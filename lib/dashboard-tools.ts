@@ -174,6 +174,41 @@ export async function deleteLearnedFAQ(id: string) {
   }
 }
 
+export async function getPendingQuestions() {
+  try {
+    const { data, error } = await supabase
+      .from('pending_questions')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function answerPendingQuestion(id: string, question: string, answer: string, category: string) {
+  try {
+    // 1. Update status to answered
+    const { error: updateError } = await supabase
+      .from('pending_questions')
+      .update({ status: 'answered' })
+      .eq('id', id);
+    if (updateError) throw updateError;
+
+    // 2. Add to learned_faqs
+    const { error: insertError } = await supabase
+      .from('learned_faqs')
+      .insert([{ question, answer, category }]);
+    if (insertError) throw insertError;
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function getAllTriages() {
   try {
     const { data, error } = await supabase

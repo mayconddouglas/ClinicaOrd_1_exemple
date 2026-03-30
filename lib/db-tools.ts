@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseServer as supabase } from './supabase-server';
 
 export async function getAvailableDoctors() {
   try {
@@ -153,6 +153,25 @@ export async function saveLearnedAnswer(question: string, answer: string, catego
     }
 
     return { success: true, saved: data };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function escalateToHuman(question: string, patientPhone: string = 'anonymous') {
+  try {
+    const { data, error } = await supabase
+      .from('pending_questions')
+      .insert([{ question, patient_phone: patientPhone, status: 'pending' }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error escalating to human:', error);
+      return { error: 'Erro ao enviar pergunta para a equipe.' };
+    }
+
+    return { success: true, data };
   } catch (err: any) {
     return { error: err.message };
   }
