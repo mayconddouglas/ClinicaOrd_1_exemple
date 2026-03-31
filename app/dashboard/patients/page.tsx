@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -75,8 +76,7 @@ export default function PatientsPage() {
     finally { setIsSubmitting(false); }
   };
 
-  const handleDelete = async (id: string, nome: string) => {
-    if (!window.confirm(`Excluir "${nome}"? Esta ação não pode ser desfeita.`)) return;
+  const handleDelete = async (id: string) => {
     setDeletingId(id);
     const res = await deletePatient(id);
     if (res.success) { toast.success('Paciente excluído'); fetchPatients(search || undefined); }
@@ -237,13 +237,30 @@ export default function PatientsPage() {
                           <TooltipContent>Editar</TooltipContent>
                         </Tooltip>
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                              disabled={deletingId === patient.id}
-                              onClick={() => handleDelete(patient.id, patient.nome)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TooltipTrigger>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  disabled={deletingId === patient.id}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Paciente?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o paciente "{patient.nome}"? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(patient.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Sim, Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                           <TooltipContent>Excluir</TooltipContent>
                         </Tooltip>
                       </div>
