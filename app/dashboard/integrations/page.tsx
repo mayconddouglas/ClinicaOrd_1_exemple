@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { MessageCircle, CheckCircle2, Copy, ExternalLink, Loader2, Settings, Phone } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function IntegrationsPage() {
