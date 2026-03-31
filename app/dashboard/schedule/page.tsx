@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Calendar, Clock, Plus, Trash2, AlertCircle, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, AlertCircle, ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBusinessHours, updateBusinessHours, getScheduleBlocks, createScheduleBlock, deleteScheduleBlock } from '../../../lib/schedule-tools';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +58,58 @@ export default function SchedulePage() {
     const res = await updateBusinessHours(id, { [field]: value });
     if (!res.success) { toast.error('Erro ao salvar horário'); fetchBusinessHours(); }
     else toast.success('Horário atualizado');
+    setSavingHours(null);
+  };
+
+  const handleCopyMondayToWeek = async () => {
+    const monday = businessHours.find(h => h.day_of_week === 1);
+    if (!monday) return;
+    
+    // Pegar apenas os dias úteis (Terça=2 a Sexta=5)
+    const targetDays = businessHours.filter(h => h.day_of_week >= 2 && h.day_of_week <= 5);
+    
+    if (targetDays.length === 0) return;
+    
+    if (!window.confirm('Deseja copiar os horários de Segunda-feira para todos os dias úteis (Terça a Sexta)?')) return;
+
+    setSavingHours(-1); // Indicador visual de salvamento em lote
+    let hasError = false;
+
+    // Atualiza otimista no frontend
+    setBusinessHours(prev => prev.map(h => {
+      if (h.day_of_week >= 2 && h.day_of_week <= 5) {
+        return { 
+          ...h, 
+          is_closed: monday.is_closed,
+          open_time: monday.open_time,
+          close_time: monday.close_time,
+          lunch_start: monday.lunch_start,
+          lunch_end: monday.lunch_end,
+          slot_duration: monday.slot_duration
+        };
+      }
+      return h;
+    }));
+
+    // Salva no banco sequencialmente para não sobrecarregar
+    for (const day of targetDays) {
+      const res = await updateBusinessHours(day.id, {
+        is_closed: monday.is_closed,
+        open_time: monday.open_time,
+        close_time: monday.close_time,
+        lunch_start: monday.lunch_start,
+        lunch_end: monday.lunch_end,
+        slot_duration: monday.slot_duration
+      });
+      if (!res.success) hasError = true;
+    }
+
+    if (hasError) {
+      toast.error('Erro ao copiar alguns horários. Recarregando...');
+      fetchBusinessHours();
+    } else {
+      toast.success('Horários copiados para os dias úteis!');
+    }
     setSavingHours(null);
   };
 
@@ -192,11 +244,29 @@ CREATE TABLE schedule_blocks (
                         <div className={`flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl text-xs sm:text-sm font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
                           {DAYS_SHORT[day.day_of_week]}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm sm:text-base font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
-                          <p className={`text-[10px] sm:text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-emerald-500'}`}>
-                            {day.is_closed ? 'Fechado' : 'Aberto para agendamento'}
-                          </p>
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <div>
+                            <p className="text-sm sm:text-base font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
+                            <p className={`text-[10px] sm:text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-emerald-500'}`}>
+                              {day.is_closed ? 'Fechado' : 'Aberto para agendamento'}
+                            </p>
+                          </div>
+                          {day.day_of_week === 1 && !day.is_closed && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={handleCopyMondayToWeek}
+                                  disabled={savingHours !== null}
+                                  className="h-6 w-6 ml-1 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copiar horários para os dias úteis (Ter-Sex)</TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                         <Tooltip>
                           <TooltipTrigger asChild>
