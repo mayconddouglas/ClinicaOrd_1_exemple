@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getDashboardKPIs, getRecentAppointments, getAnalyticsData, updateAppointmentStatus } from '../../lib/dashboard-tools';
-import { Calendar, Users, AlertTriangle, Clock, CheckCircle2, XCircle, Stethoscope, BookOpen, RefreshCw, TrendingUp, Activity } from 'lucide-react';
+import { Calendar, Users, AlertTriangle, Clock, CheckCircle2, XCircle, Stethoscope, BookOpen, RefreshCw, TrendingUp, Activity, MoreHorizontal, Edit2 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,15 +12,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  pendente:   { label: 'Pendente',   variant: 'outline' },
-  confirmada: { label: 'Confirmada', variant: 'default' },
-  cancelada:  { label: 'Cancelada',  variant: 'destructive' },
-  canceled:   { label: 'Cancelada',  variant: 'destructive' },
-  realizada:  { label: 'Realizada',  variant: 'secondary' },
+const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline', colorClass: string }> = {
+  pendente:   { label: 'Pendente',   variant: 'outline', colorClass: 'text-amber-600 bg-amber-500/10 border-amber-500/20' },
+  confirmada: { label: 'Confirmada', variant: 'outline', colorClass: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
+  cancelada:  { label: 'Cancelada',  variant: 'outline', colorClass: 'text-rose-600 bg-rose-500/10 border-rose-500/20' },
+  canceled:   { label: 'Cancelada',  variant: 'outline', colorClass: 'text-rose-600 bg-rose-500/10 border-rose-500/20' },
+  realizada:  { label: 'Realizada',  variant: 'outline', colorClass: 'text-blue-600 bg-blue-500/10 border-blue-500/20' },
 };
 
 const AVATAR_COLORS = [
@@ -322,7 +323,7 @@ export default function DashboardOverview() {
                 </TableHeader>
                 <TableBody>
                   {appointments.map((appt) => {
-                    const status = STATUS_MAP[appt.status] || { label: appt.status, variant: 'outline' as const };
+                    const status = STATUS_MAP[appt.status] || { label: appt.status, variant: 'outline' as const, colorClass: '' };
                     const patientName = appt.pacientes?.nome || 'Desconhecido';
                     return (
                       <TableRow key={appt.id} className="group border-b border-border/30 hover:bg-muted/50 transition-colors">
@@ -356,31 +357,36 @@ export default function DashboardOverview() {
                           <p className="text-xs text-foreground truncate">{appt.motivo || <span className="text-muted-foreground/50 italic">Não informado</span>}</p>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={status.variant} className="text-[11px]">{status.label}</Badge>
+                          <Badge variant={status.variant} className={`text-[11px] font-medium ${status.colorClass}`}>
+                            {status.label}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {appt.status === 'pendente' && (
-                            <div className="flex items-center justify-end gap-1">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80 hover:bg-primary/10"
-                                    onClick={() => handleUpdateStatus(appt.id, 'confirmada')}>
-                                    <CheckCircle2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Confirmar</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-                                    onClick={() => handleUpdateStatus(appt.id, 'cancelada')}>
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Cancelar</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>Ações da Consulta</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(appt.id, 'confirmada')} className="cursor-pointer text-emerald-600 focus:text-emerald-600">
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Confirmar Agendamento
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(appt.id, 'realizada')} className="cursor-pointer text-blue-600 focus:text-blue-600">
+                                <Stethoscope className="mr-2 h-4 w-4" />
+                                Marcar como Realizada
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(appt.id, 'cancelada')} className="cursor-pointer text-rose-600 focus:text-rose-600">
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Cancelar Agendamento
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     );
