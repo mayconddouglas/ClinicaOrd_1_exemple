@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
-import { getSetting, getWhatsappHistory, saveWhatsappHistory } from '@/lib/db-tools';
+import { getSetting, getWhatsappHistory, appendChatMessages } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
   ORCHESTRATOR_INSTRUCTION,
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     // 4. Subagent Logic
     const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
     const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING];
-    const agentTools = toolDeclarations.filter(t => allowedToolsNames.includes(t.name));
+    const agentTools = toolDeclarations.filter(t => t.name && allowedToolsNames.includes(t.name));
 
     const session = ai.chats.create({
       model: 'gemini-3-flash-preview',
@@ -188,12 +188,11 @@ export async function POST(req: NextRequest) {
       await logDebug('WHATSAPP_API_RESPONSE', { status: waResponse.status, data: waData });
 
       // 6. Save updated history
-      const updatedHistory = [
-        ...history,
+      const newMessages = [
         { role: 'user', parts: [{ text: messageText }] },
         { role: 'model', parts: [{ text: finalText }] }
       ];
-      await saveWhatsappHistory(senderPhone, updatedHistory);
+      await appendChatMessages('whatsapp', senderPhone, newMessages);
     }
 
     return NextResponse.json({ success: true, logs: debugLogs });
