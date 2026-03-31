@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       history: history.length > 0 ? history : undefined,
       config: {
         systemInstruction: agentInstruction,
-        temperature: 0.2,
+        temperature: 0.1,
         tools: agentTools.length > 0 ? [{ functionDeclarations: agentTools }] : undefined,
       },
     });
@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
     let currentMessage: any = { message };
     let finalText = '';
 
-    for (let i = 0; i < 10; i++) {
+    // Limitado a 4 iterações para forçar rapidez
+    for (let i = 0; i < 4; i++) {
       const response = await session.sendMessage(currentMessage);
 
       const functionCalls = response.functionCalls ?? [];
