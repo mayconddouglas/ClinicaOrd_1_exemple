@@ -159,12 +159,16 @@ export async function POST(req: NextRequest) {
       const tgData = await tgResponse.text();
       await logStep('TELEGRAM_API_RESPONSE', { status: tgResponse.status, data: tgData });
 
-      // 6. Save updated history
+      // 6. Save updated history (Ignore failures so it doesn't crash if RLS blocks)
       const newMessages = [
         { role: 'user', parts: [{ text: messageText }] },
         { role: 'model', parts: [{ text: finalText }] }
       ];
-      await appendChatMessages('telegram', chatId, newMessages);
+      try {
+        await appendChatMessages('telegram', chatId, newMessages);
+      } catch (e) {
+        console.error('Failed to save history, but message was sent', e);
+      }
     }
 
     return NextResponse.json({ success: true, logs: debugLogs });

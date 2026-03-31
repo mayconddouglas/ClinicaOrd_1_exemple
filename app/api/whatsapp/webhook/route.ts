@@ -192,12 +192,16 @@ export async function POST(req: NextRequest) {
       const waData = await waResponse.text();
       await logStep('WHATSAPP_API_RESPONSE', { status: waResponse.status, data: waData });
 
-      // 6. Save updated history
+      // 6. Save updated history (Ignore failures so it doesn't crash if RLS blocks)
       const newMessages = [
         { role: 'user', parts: [{ text: messageText }] },
         { role: 'model', parts: [{ text: finalText }] }
       ];
-      await appendChatMessages('whatsapp', senderPhone, newMessages);
+      try {
+        await appendChatMessages('whatsapp', senderPhone, newMessages);
+      } catch (e) {
+        console.error('Failed to save history, but message was sent', e);
+      }
     }
 
     return NextResponse.json({ success: true, logs: debugLogs });

@@ -216,20 +216,22 @@ async function getOrCreateSession(platform: string, externalId: string): Promise
       .single();
 
     if (error || !newSession) {
-      console.error('Error creating chat session:', error);
-      return null;
+      console.error('Error creating chat session:', error?.message);
+      // RLS bypass: If we can't create a session due to RLS, return a dummy string
+      // so the chat doesn't completely crash (history won't be saved, but it replies)
+      return `dummy_session_${Date.now()}`;
     }
     return newSession.id;
   } catch (err) {
     console.error('Session error:', err);
-    return null;
+    return `dummy_session_${Date.now()}`;
   }
 }
 
 async function getHistory(platform: string, externalId: string, limit: number = 10): Promise<any[]> {
   try {
     const sessionId = await getOrCreateSession(platform, externalId);
-    if (!sessionId) return [];
+    if (!sessionId || sessionId.startsWith('dummy_')) return [];
 
     const { data, error } = await supabase
       .from('chat_messages')
@@ -238,7 +240,10 @@ async function getHistory(platform: string, externalId: string, limit: number = 
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error || !data) return [];
+    if (error || !data) {
+      console.error('Error getting history:', error?.message);
+      return [];
+    }
 
     // Invertemos para ficar na ordem cronológica (mais antigo primeiro)
     return data.reverse().map(m => ({
@@ -246,6 +251,7 @@ async function getHistory(platform: string, externalId: string, limit: number = 
       parts: m.content
     }));
   } catch (err) {
+    console.error('History exception:', err);
     return [];
   }
 }
@@ -253,7 +259,7 @@ async function getHistory(platform: string, externalId: string, limit: number = 
 async function appendMessages(platform: string, externalId: string, newMessages: any[]): Promise<boolean> {
   try {
     const sessionId = await getOrCreateSession(platform, externalId);
-    if (!sessionId) return false;
+    if (!sessionId || sessionId.startsWith('dummy_')) return false;
 
     // Atualiza o updated_at da sessão
     await supabase.from('chat_sessions').update({ updated_at: new Date().toISOString() }).eq('id', sessionId);
@@ -265,8 +271,13 @@ async function appendMessages(platform: string, externalId: string, newMessages:
     }));
 
     const { error } = await supabase.from('chat_messages').insert(inserts);
-    return !error;
+    if (error) {
+       console.error('Error appending messages:', error.message);
+       return false;
+    }
+    return true;
   } catch (err) {
+    console.error('Append exception:', err);
     return false;
   }
 }
