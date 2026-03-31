@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -273,16 +274,16 @@ export default function PatientsPage() {
         )}
       </Card>
 
-      {/* Modal */}
-      <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingPatient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-            <DialogDescription>
+      {/* Modal / Sheet */}
+      <Sheet open={isModalOpen} onOpenChange={handleCloseModal}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingPatient ? 'Editar Paciente' : 'Novo Paciente'}</SheetTitle>
+            <SheetDescription>
               {editingPatient ? 'Atualize os dados do paciente.' : 'Preencha os dados para cadastrar um novo paciente.'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            </SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-6">
             <div className="space-y-1.5">
               <Label htmlFor="nome" className="text-xs font-semibold">Nome completo <span className="text-destructive">*</span></Label>
               <Input id="nome" autoFocus required value={formData.nome}
@@ -301,15 +302,15 @@ export default function PatientsPage() {
                 onChange={e => setFormData({ ...formData, telefone: e.target.value })}
                 placeholder="(11) 99999-9999" />
             </div>
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <SheetFooter className="pt-6">
+              <Button type="button" variant="outline" onClick={handleCloseModal} className="w-full sm:w-auto">Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
                 {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar alterações' : 'Cadastrar'}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

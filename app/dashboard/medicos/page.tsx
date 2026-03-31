@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -310,16 +311,16 @@ export default function MedicosPage() {
         </div>
       )}
 
-      {/* Modal */}
-      <Dialog open={showModal} onOpenChange={handleCloseModal}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? 'Editar Médico' : 'Novo Médico'}</DialogTitle>
-            <DialogDescription>
+      {/* Modal / Sheet */}
+      <Sheet open={showModal} onOpenChange={handleCloseModal}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingId ? 'Editar Médico' : 'Novo Médico'}</SheetTitle>
+            <SheetDescription>
               {editingId ? 'Atualize os dados do especialista.' : 'Preencha os dados do novo membro do corpo clínico.'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+            </SheetDescription>
+          </SheetHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-6">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Nome completo <span className="text-destructive">*</span></Label>
               <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" />
@@ -363,20 +364,18 @@ export default function MedicosPage() {
                 onCheckedChange={v => setForm({ ...form, disponivel: v })}
                 className="data-[state=checked]:bg-emerald-500"
               />
-              <Label htmlFor="disponivel" className="text-sm font-medium cursor-pointer">
-                Disponível para consultas
-              </Label>
+              <Label htmlFor="disponivel" className="text-sm cursor-pointer">Disponível para agenda</Label>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-              <Button type="submit" disabled={saving} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+            <SheetFooter className="pt-6">
+              <Button type="button" variant="outline" onClick={handleCloseModal} className="w-full sm:w-auto">Cancelar</Button>
+              <Button type="submit" disabled={saving} className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar Médico'}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
