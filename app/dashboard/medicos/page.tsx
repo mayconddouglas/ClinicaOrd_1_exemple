@@ -313,27 +313,27 @@ export default function MedicosPage() {
 
       {/* Modal / Sheet */}
       <Sheet open={showModal} onOpenChange={handleCloseModal}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editingId ? 'Editar Médico' : 'Novo Médico'}</SheetTitle>
-            <SheetDescription>
+        <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full">
+          <SheetHeader className="pb-6 border-b border-border/50">
+            <SheetTitle className="text-xl">{editingId ? 'Editar Médico' : 'Novo Médico'}</SheetTitle>
+            <SheetDescription className="text-sm">
               {editingId ? 'Atualize os dados do especialista.' : 'Preencha os dados do novo membro do corpo clínico.'}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-6">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nome completo <span className="text-destructive">*</span></Label>
-              <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" />
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col py-6 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
+              <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" className="h-10" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">CRM <span className="text-destructive">*</span></Label>
-                <Input required value={form.crm} onChange={e => setForm({ ...form, crm: e.target.value })} placeholder="000000/UF" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">CRM <span className="text-destructive">*</span></Label>
+                <Input required value={form.crm} onChange={e => setForm({ ...form, crm: e.target.value })} placeholder="000000/UF" className="h-10" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Especialidade <span className="text-destructive">*</span></Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Especialidade <span className="text-destructive">*</span></Label>
                 <Select value={form.especialidade} onValueChange={v => setForm({ ...form, especialidade: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -342,37 +342,37 @@ export default function MedicosPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Telefone</Label>
-                <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 9 9999-9999" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Telefone</Label>
+                <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 9 9999-9999" className="h-10" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">E-mail</Label>
-                <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="medico@clinica.com" />
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">E-mail</Label>
+                <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="medico@clinica.com" className="h-10" />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Bio / Apresentação</Label>
-              <Textarea rows={3} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Bio / Apresentação</Label>
+              <Textarea rows={4} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
                 placeholder="Breve descrição e experiência do médico..." className="resize-none" />
             </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="disponivel"
-                checked={form.disponivel}
-                onCheckedChange={v => setForm({ ...form, disponivel: v })}
-                className="data-[state=checked]:bg-emerald-500"
-              />
-              <Label htmlFor="disponivel" className="text-sm cursor-pointer">Disponível para agenda</Label>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground">Disponível para agenda</Label>
+                <p className="text-xs text-muted-foreground leading-snug">Pacientes podem agendar com este médico.</p>
+              </div>
+              <Switch checked={form.disponivel} onCheckedChange={c => setForm({ ...form, disponivel: c })} className="data-[state=checked]:bg-emerald-500" />
             </div>
-            <SheetFooter className="pt-6">
-              <Button type="button" variant="outline" onClick={handleCloseModal} className="w-full sm:w-auto">Cancelar</Button>
-              <Button type="submit" disabled={saving} className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar Médico'}
-              </Button>
-            </SheetFooter>
+            <div className="mt-auto pt-6 border-t border-border/50">
+              <SheetFooter className="flex flex-row sm:justify-end gap-3">
+                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-10">Cancelar</Button>
+                <Button type="submit" disabled={saving} className="flex-1 sm:flex-none h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar Médico'}
+                </Button>
+              </SheetFooter>
+            </div>
           </form>
         </SheetContent>
       </Sheet>
