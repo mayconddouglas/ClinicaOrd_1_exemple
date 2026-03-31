@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight, FileText, LogOut
+  ChevronRight, FileText, LogOut, Link2
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,7 @@ const navItems = [
 ];
 
 const aiItem = { href: '/dashboard/copilot', label: 'Copiloto IA', icon: Bot, accent: 'text-primary' };
+const integrationItem = { href: '/dashboard/integrations', label: 'Integrações', icon: Link2, accent: 'text-primary' };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -147,6 +148,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <Link href={aiItem.href}>
                         <aiItem.icon className={cn("h-4 w-4", pathname === aiItem.href ? aiItem.accent : "text-muted-foreground")} />
                         <span>{aiItem.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Configurações
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === integrationItem.href} tooltip={integrationItem.label} className={cn("transition-all duration-200", pathname === integrationItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                      <Link href={integrationItem.href}>
+                        <integrationItem.icon className={cn("h-4 w-4", pathname === integrationItem.href ? integrationItem.accent : "text-muted-foreground")} />
+                        <span>{integrationItem.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

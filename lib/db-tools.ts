@@ -158,6 +158,129 @@ export async function saveLearnedAnswer(question: string, answer: string, catego
   }
 }
 
+// --- SYSTEM SETTINGS (Using learned_faqs as a key-value store) ---
+export async function getSetting(key: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('learned_faqs')
+      .select('answer')
+      .eq('category', '__SYSTEM_SETTING__')
+      .eq('question', key)
+      .single();
+      
+    if (error || !data) return null;
+    return data.answer;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function setSetting(key: string, value: string): Promise<boolean> {
+  try {
+    // Check if exists
+    const existing = await getSetting(key);
+    
+    if (existing !== null) {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .update({ answer: value })
+        .eq('category', '__SYSTEM_SETTING__')
+        .eq('question', key);
+      return !error;
+    } else {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .insert([{ question: key, answer: value, category: '__SYSTEM_SETTING__' }]);
+      return !error;
+    }
+  } catch (err) {
+    return false;
+  }
+}
+
+// --- TELEGRAM HISTORY (Using learned_faqs as a key-value store) ---
+export async function getTelegramHistory(chatId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('learned_faqs')
+      .select('answer')
+      .eq('category', '__TELEGRAM_HISTORY__')
+      .eq('question', `__TELEGRAM_HISTORY_${chatId}__`)
+      .single();
+      
+    if (error || !data) return [];
+    return JSON.parse(data.answer);
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function saveTelegramHistory(chatId: string, history: any[]): Promise<boolean> {
+  try {
+    const key = `__TELEGRAM_HISTORY_${chatId}__`;
+    const value = JSON.stringify(history.slice(-10)); // Keep last 10 messages to avoid size limits
+    
+    const existing = await getTelegramHistory(chatId);
+    
+    if (existing.length > 0) {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .update({ answer: value })
+        .eq('category', '__TELEGRAM_HISTORY__')
+        .eq('question', key);
+      return !error;
+    } else {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .insert([{ question: key, answer: value, category: '__TELEGRAM_HISTORY__' }]);
+      return !error;
+    }
+  } catch (err) {
+    return false;
+  }
+}
+
+export async function getWhatsappHistory(phone: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('learned_faqs')
+      .select('answer')
+      .eq('category', '__WHATSAPP_HISTORY__')
+      .eq('question', `__WHATSAPP_HISTORY_${phone}__`)
+      .single();
+      
+    if (error || !data) return [];
+    return JSON.parse(data.answer);
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function saveWhatsappHistory(phone: string, history: any[]): Promise<boolean> {
+  try {
+    const key = `__WHATSAPP_HISTORY_${phone}__`;
+    const value = JSON.stringify(history.slice(-10)); // Keep last 10 messages to avoid size limits
+    
+    const existing = await getWhatsappHistory(phone);
+    
+    if (existing.length > 0) {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .update({ answer: value })
+        .eq('category', '__WHATSAPP_HISTORY__')
+        .eq('question', key);
+      return !error;
+    } else {
+      const { error } = await supabase
+        .from('learned_faqs')
+        .insert([{ question: key, answer: value, category: '__WHATSAPP_HISTORY__' }]);
+      return !error;
+    }
+  } catch (err) {
+    return false;
+  }
+}
+
 export async function escalateToHuman(question: string, patientPhone: string = 'anonymous') {
   try {
     const { data, error } = await supabase
@@ -172,6 +295,30 @@ export async function escalateToHuman(question: string, patientPhone: string = '
     }
 
     return { success: true, data };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function registerPatientAlert(paciente_id: string, message: string, severity: string = 'normal') {
+  try {
+    // Reusing pending_questions table as an alert queue for the dashboard
+    const { data, error } = await supabase
+      .from('pending_questions')
+      .insert([{ 
+        question: `[ALERTA PÓS-CONSULTA - ${severity.toUpperCase()}] ${message}`, 
+        patient_phone: paciente_id, 
+        status: 'pending' 
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error registering alert:', error);
+      return { error: 'Erro ao registrar alerta para a equipe médica.' };
+    }
+
+    return { success: true, alert: data };
   } catch (err: any) {
     return { error: err.message };
   }
