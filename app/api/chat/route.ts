@@ -8,9 +8,11 @@ import {
   executeTool
 } from '../../../lib/ai-agent';
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: 'NEXT_PUBLIC_GEMINI_API_KEY não configurada.' }, { status: 500 });
     }

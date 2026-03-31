@@ -25,21 +25,26 @@ async function logDebug(step: string, data: any) {
   }
 }
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const debugLogs: any[] = [];
-  async function logDebug(step: string, data: any) {
+  
+  // Wrapper to log both to array and Supabase
+  async function logStep(step: string, data: any) {
     debugLogs.push({ step, data });
+    await logDebug(step, data);
   }
 
   try {
     const bodyText = await req.text();
-    await logDebug('RECEIVED_WEBHOOK', { body: bodyText });
-    
+    await logStep('RECEIVED_WEBHOOK', { body: bodyText });
+
     const body = JSON.parse(bodyText);
 
     // Telegram webhook verification or message structure
     if (!body.message || !body.message.text) {
-      await logDebug('IGNORED_NON_TEXT', { body });
+      await logStep('IGNORED_NON_TEXT', { body });
       return NextResponse.json({ success: true }); // Ignore non-text messages
     }
 
@@ -49,26 +54,26 @@ export async function POST(req: NextRequest) {
     // 1. Check if integration is enabled
     const isEnabled = await getSetting('__TELEGRAM_ENABLED__');
     if (isEnabled !== 'true') {
-      await logDebug('DISABLED', { isEnabled });
+      await logStep('DISABLED', { isEnabled });
       return NextResponse.json({ success: true }); // Ignore if disabled
     }
 
     const botToken = (await getSetting('__TELEGRAM_BOT_TOKEN__'))?.trim();
     if (!botToken) {
-      await logDebug('NO_TOKEN', {});
+      await logStep('NO_TOKEN', {});
       return NextResponse.json({ success: true }); // Ignore if no token
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      await logDebug('NO_API_KEY', {});
+      await logStep('NO_API_KEY', {});
       return NextResponse.json({ success: true });
     }
-    await logDebug('API_KEY_INFO', { length: apiKey.length, start: apiKey.substring(0, 4) });
+    await logStep('API_KEY_INFO', { length: apiKey.length, start: apiKey.substring(0, 4) });
 
     // 2. Get Chat History
     const history = await getTelegramHistory(chatId);
-    await logDebug('HISTORY_LOADED', { historyLength: history.length });
+    await logStep('HISTORY_LOADED', { historyLength: history.length });
 
     // 3. Orchestrator Logic
     const ai = new GoogleGenAI({ apiKey });
@@ -93,8 +98,8 @@ export async function POST(req: NextRequest) {
     if (!['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'].includes(intent)) {
       intent = 'GERAL';
     }
-    
-    await logDebug('INTENT_DETECTED', { intent });
+
+    await logStep('INTENT_DETECTED', { intent });
 
     // 4. Subagent Logic
     const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
@@ -115,12 +120,12 @@ export async function POST(req: NextRequest) {
     let finalText = '';
 
     for (let i = 0; i < 10; i++) {
-      await logDebug('SENDING_MESSAGE_TO_AI', { iteration: i, currentMessage });
+      await logStep('SENDING_MESSAGE_TO_AI', { iteration: i, currentMessage });
       const response = await session.sendMessage(currentMessage);
       const functionCalls = response.functionCalls ?? [];
 
       if (functionCalls.length > 0) {
-        await logDebug('FUNCTION_CALLS', { functionCalls });
+        await logStep('FUNCTION_CALLS', { functionCalls });
         const functionResponses = await Promise.all(
           functionCalls.map(async (call: any) => {
             const result = await executeTool(call.name, call.args ?? {});
@@ -135,7 +140,7 @@ export async function POST(req: NextRequest) {
         currentMessage = { message: functionResponses };
       } else {
         finalText = response.text ?? '';
-        await logDebug('FINAL_TEXT_GENERATED', { finalText });
+        await logStep('FINAL_TEXT_GENERATED', { finalText });
         break;
       }
     }
@@ -150,9 +155,9 @@ export async function POST(req: NextRequest) {
           text: finalText,
         }),
       });
-      
+
       const tgData = await tgResponse.text();
-      await logDebug('TELEGRAM_API_RESPONSE', { status: tgResponse.status, data: tgData });
+      await logStep('TELEGRAM_API_RESPONSE', { status: tgResponse.status, data: tgData });
 
       // 6. Save updated history
       const newMessages = [

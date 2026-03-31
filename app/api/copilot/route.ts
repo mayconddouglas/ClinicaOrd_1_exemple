@@ -50,9 +50,9 @@ async function executeTool(name: string): Promise<any> {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'NEXT_PUBLIC_GEMINI_API_KEY não configurada.' }, { status: 500 });
+      return NextResponse.json({ error: 'GEMINI_API_KEY não configurada.' }, { status: 500 });
     }
 
     const body = await req.json();
