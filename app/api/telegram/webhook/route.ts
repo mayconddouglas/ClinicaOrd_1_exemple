@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai';
 import { getSetting, getTelegramHistory, appendChatMessages } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
@@ -10,6 +10,9 @@ import {
   executeTool
 } from '@/lib/ai-agent';
 
+export const maxDuration = 60;
+
+// Logging wrapper to persist debug logs
 async function logDebug(step: string, data: any) {
   try {
     const { error } = await supabaseServer.from('learned_faqs').insert([{
@@ -17,68 +20,78 @@ async function logDebug(step: string, data: any) {
       answer: JSON.stringify({ step, data }),
       category: '__DEBUG_LOG__'
     }]);
-    if (error) {
-      console.error('Supabase insert error in logDebug:', error);
-    }
+    if (error) console.error('Supabase insert error in logDebug:', error);
   } catch (e) {
     console.error('Failed to log debug', e);
   }
 }
 
-export const maxDuration = 60;
+async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
+  const TELEGRAM_API = `https://api.telegram.org/bot${token}`
+  await fetch(`${TELEGRAM_API}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'Markdown',
+    }),
+  })
+}
 
 export async function POST(req: NextRequest) {
   const debugLogs: any[] = [];
-  
-  // Wrapper to log both to array and Supabase
   async function logStep(step: string, data: any) {
     debugLogs.push({ step, data });
     await logDebug(step, data);
   }
 
   try {
-    const bodyText = await req.text();
-    await logStep('RECEIVED_WEBHOOK', { body: bodyText });
+    const body = await req.json()
+    await logStep('RECEIVED_WEBHOOK_JSON', { body });
 
-    const body = JSON.parse(bodyText);
-
-    // Telegram webhook verification or message structure
-    if (!body.message || !body.message.text) {
+    // Ignora updates que não são mensagens de texto
+    const message = body?.message
+    if (!message || !message.text) {
       await logStep('IGNORED_NON_TEXT', { body });
-      return NextResponse.json({ success: true }); // Ignore non-text messages
+      return NextResponse.json({ ok: true })
     }
 
-    const chatId = body.message.chat.id.toString();
-    const messageText = body.message.text;
+    const chatId: number = message.chat.id
+    const userText: string = message.text
 
-    // 1. Check if integration is enabled
+    // ---- LÓGICA DO BOT ----
+    
+    // 1. Validar Token (lendo do banco ou do ENV)
+    const dbToken = (await getSetting('__TELEGRAM_BOT_TOKEN__'))?.trim();
+    const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || dbToken;
+    
+    if (!TELEGRAM_BOT_TOKEN) {
+      await logStep('NO_TOKEN', {});
+      return NextResponse.json({ ok: true }); 
+    }
+
+    // Verifica se a integração está ativa no banco
     const isEnabled = await getSetting('__TELEGRAM_ENABLED__');
     if (isEnabled !== 'true') {
       await logStep('DISABLED', { isEnabled });
-      return NextResponse.json({ success: true }); // Ignore if disabled
-    }
-
-    const botToken = (await getSetting('__TELEGRAM_BOT_TOKEN__'))?.trim();
-    if (!botToken) {
-      await logStep('NO_TOKEN', {});
-      return NextResponse.json({ success: true }); // Ignore if no token
+      return NextResponse.json({ ok: true }); 
     }
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       await logStep('NO_API_KEY', {});
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ ok: true });
     }
-    await logStep('API_KEY_INFO', { length: apiKey.length, start: apiKey.substring(0, 4) });
 
     // 2. Get Chat History
-    const history = await getTelegramHistory(chatId);
+    const history = await getTelegramHistory(chatId.toString());
     await logStep('HISTORY_LOADED', { historyLength: history.length });
 
     // 3. Orchestrator Logic
     const ai = new GoogleGenAI({ apiKey });
-    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${messageText}"`;
-    
+    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${userText}"`;
+
     const orchestratorResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: orchestratorPrompt,
@@ -116,8 +129,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    let currentMessage: any = { message: messageText };
-    let finalText = '';
+    let currentMessage: any = { message: userText };
+    let responseText = '';
 
     for (let i = 0; i < 10; i++) {
       await logStep('SENDING_MESSAGE_TO_AI', { iteration: i, currentMessage });
@@ -139,43 +152,37 @@ export async function POST(req: NextRequest) {
         );
         currentMessage = { message: functionResponses };
       } else {
-        finalText = response.text ?? '';
-        await logStep('FINAL_TEXT_GENERATED', { finalText });
+        responseText = response.text ?? '';
+        await logStep('FINAL_TEXT_GENERATED', { responseText });
         break;
       }
     }
+    // ---- FIM DA LÓGICA ----
 
     // 5. Send response back to Telegram
-    if (finalText) {
-      const tgResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: finalText,
-        }),
-      });
-
-      const tgData = await tgResponse.text();
-      await logStep('TELEGRAM_API_RESPONSE', { status: tgResponse.status, data: tgData });
+    if (responseText) {
+      await sendMessage(TELEGRAM_BOT_TOKEN, chatId, responseText)
 
       // 6. Save updated history (Ignore failures so it doesn't crash if RLS blocks)
       const newMessages = [
-        { role: 'user', parts: [{ text: messageText }] },
-        { role: 'model', parts: [{ text: finalText }] }
+        { role: 'user', parts: [{ text: userText }] },
+        { role: 'model', parts: [{ text: responseText }] }
       ];
       try {
-        await appendChatMessages('telegram', chatId, newMessages);
+        await appendChatMessages('telegram', chatId.toString(), newMessages);
       } catch (e) {
         console.error('Failed to save history, but message was sent', e);
       }
     }
 
-    return NextResponse.json({ success: true, logs: debugLogs });
-  } catch (error: any) {
-    debugLogs.push({ step: 'WEBHOOK_ERROR', data: { error: error.message, stack: error.stack } });
-    console.error('Telegram Webhook Error:', error);
-    // Always return 200 to Telegram so it doesn't retry infinitely
-    return NextResponse.json({ success: true, logs: debugLogs });
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[Telegram Webhook Error]', error)
+    return NextResponse.json({ ok: false, error: 'Internal error' }, { status: 500 })
   }
+}
+
+// GET para verificação de saúde
+export async function GET() {
+  return NextResponse.json({ status: 'Telegram webhook is active' })
 }
