@@ -276,36 +276,39 @@ export default function PatientsPage() {
 
       {/* Modal / Sheet */}
       <Sheet open={isModalOpen} onOpenChange={handleCloseModal}>
-        <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full">
-          <SheetHeader className="pb-4 border-b border-border/50">
+        <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full px-8 py-8">
+          <SheetHeader className="pb-6 border-b border-border/50">
             <SheetTitle className="text-2xl">{editingPatient ? 'Editar Paciente' : 'Novo Paciente'}</SheetTitle>
-            <SheetDescription className="text-sm">
+            <SheetDescription className="text-sm mt-1.5">
               {editingPatient ? 'Atualize os dados do paciente abaixo.' : 'Preencha os dados para cadastrar um novo paciente.'}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="flex-1 flex flex-col pt-6 pb-2 space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="nome" className="text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
-              <Input id="nome" autoFocus required value={formData.nome}
-                onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="Ex: João da Silva" className="h-11" />
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col pt-8 pb-4">
+            <div className="space-y-8">
+              <div className="space-y-2.5">
+                <Label htmlFor="nome" className="text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
+                <Input id="nome" autoFocus required value={formData.nome}
+                  onChange={e => setFormData({ ...formData, nome: e.target.value })}
+                  placeholder="Ex: João da Silva" className="h-12" />
+              </div>
+              <div className="space-y-2.5">
+                <Label htmlFor="cpf" className="text-sm font-semibold">CPF</Label>
+                <Input id="cpf" value={formData.cpf}
+                  onChange={e => setFormData({ ...formData, cpf: e.target.value })}
+                  placeholder="000.000.000-00" className="h-12" />
+              </div>
+              <div className="space-y-2.5">
+                <Label htmlFor="telefone" className="text-sm font-semibold">Telefone</Label>
+                <Input id="telefone" value={formData.telefone}
+                  onChange={e => setFormData({ ...formData, telefone: e.target.value })}
+                  placeholder="(11) 99999-9999" className="h-12" />
+              </div>
             </div>
-            <div className="space-y-3">
-              <Label htmlFor="cpf" className="text-sm font-semibold">CPF</Label>
-              <Input id="cpf" value={formData.cpf}
-                onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-                placeholder="000.000.000-00" className="h-11" />
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="telefone" className="text-sm font-semibold">Telefone</Label>
-              <Input id="telefone" value={formData.telefone}
-                onChange={e => setFormData({ ...formData, telefone: e.target.value })}
-                placeholder="(11) 99999-9999" className="h-11" />
-            </div>
-            <div className="mt-auto pt-4 pb-4">
-              <SheetFooter className="flex flex-row sm:justify-end gap-3">
-                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-11">Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none h-11 bg-primary text-primary-foreground hover:bg-primary/90">
+            
+            <div className="mt-16 pt-6 border-t border-border/50">
+              <SheetFooter className="flex flex-row sm:justify-end gap-4">
+                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-12 px-6">Cancelar</Button>
+                <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none h-12 px-8 bg-primary text-primary-foreground hover:bg-primary/90">
                   {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar alterações' : 'Cadastrar Paciente'}
                 </Button>
               </SheetFooter>
