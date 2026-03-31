@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Calendar, Clock, Plus, Trash2, AlertCircle, ChevronRight, Copy } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Plus, Trash2, AlertCircle, ChevronRight, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBusinessHours, updateBusinessHours, getScheduleBlocks, createScheduleBlock, deleteScheduleBlock } from '../../../lib/schedule-tools';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,12 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const DAYS_OF_WEEK = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 const DAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -26,8 +32,9 @@ export default function SchedulePage() {
   const [savingHours, setSavingHours] = useState<number | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState(true);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAddingBlock, setIsAddingBlock] = useState(false);
-  const [newBlock, setNewBlock] = useState({ block_date: '', start_time: '', end_time: '', reason: '' });
+  const [newBlock, setNewBlock] = useState({ block_date: new Date(), start_time: '08:00', end_time: '18:00', reason: '' });
 
   const fetchBusinessHours = useCallback(async (showLoader = true) => {
     if (showLoader) setLoadingHours(true);
@@ -117,8 +124,21 @@ export default function SchedulePage() {
     e.preventDefault();
     if (!newBlock.block_date || !newBlock.start_time || !newBlock.end_time) { toast.error('Preencha data e horários'); return; }
     setIsAddingBlock(true);
-    const res = await createScheduleBlock(newBlock);
-    if (res.success) { toast.success('Bloqueio adicionado'); setNewBlock({ block_date: '', start_time: '', end_time: '', reason: '' }); fetchBlocks(); }
+    
+    // Format date to YYYY-MM-DD for database
+    const formattedDate = format(newBlock.block_date, 'yyyy-MM-dd');
+    
+    const res = await createScheduleBlock({
+      ...newBlock,
+      block_date: formattedDate
+    });
+    
+    if (res.success) { 
+      toast.success('Bloqueio adicionado'); 
+      setNewBlock({ block_date: new Date(), start_time: '08:00', end_time: '18:00', reason: '' }); 
+      setIsSheetOpen(false);
+      fetchBlocks(); 
+    }
     else toast.error('Erro ao adicionar bloqueio');
     setIsAddingBlock(false);
   };
@@ -137,7 +157,7 @@ export default function SchedulePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Calendar className="h-6 w-6 text-primary" />
+          <CalendarIcon className="h-6 w-6 text-primary" />
           Horários e Agenda
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Configure a grade de horários da clínica e gerencie exceções.</p>
@@ -343,45 +363,16 @@ CREATE TABLE schedule_blocks (
       {activeTab === 'blocks' && (
         <div className="space-y-5">
           <Card className="shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Plus className="h-4 w-4 text-primary" /> Adicionar Bloqueio ou Feriado
-              </CardTitle>
-              <CardDescription className="text-xs">Defina datas e horários em que a agenda estará fechada.</CardDescription>
-            </CardHeader>
-            <Separator />
-            <CardContent className="pt-4">
-              <form onSubmit={handleAddBlock} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data *</Label>
-                  <Input type="date" required value={newBlock.block_date} onChange={e => setNewBlock({ ...newBlock, block_date: e.target.value })} className="h-9 text-sm" />
+            <CardHeader className="pb-4 sm:pb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base sm:text-lg font-bold">Bloqueios Cadastrados</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-1">Períodos em que a agenda estará fechada para agendamentos.</CardDescription>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Início *</Label>
-                  <Input type="time" required value={newBlock.start_time} onChange={e => setNewBlock({ ...newBlock, start_time: e.target.value })} className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Fim *</Label>
-                  <Input type="time" required value={newBlock.end_time} onChange={e => setNewBlock({ ...newBlock, end_time: e.target.value })} className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Motivo</Label>
-                  <Input type="text" placeholder="Ex: Feriado, Manutenção..." value={newBlock.reason} onChange={e => setNewBlock({ ...newBlock, reason: e.target.value })} className="h-9 text-sm" />
-                </div>
-                <Button type="submit" disabled={isAddingBlock} className="gap-2 sm:col-span-2 lg:col-span-1 h-9">
-                  <Plus className="h-3.5 w-3.5" /> {isAddingBlock ? 'Adicionando...' : 'Adicionar'}
+                <Button onClick={() => setIsSheetOpen(true)} className="gap-2 shrink-0 h-9 sm:h-10 text-xs sm:text-sm">
+                  <Plus className="h-4 w-4" /> Novo Bloqueio
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Bloqueios Cadastrados</CardTitle>
-                <Badge variant="secondary" className="text-xs">{blocks.length} bloqueio(s)</Badge>
               </div>
-              <CardDescription className="text-xs">Períodos em que a agenda estará fechada para agendamentos.</CardDescription>
             </CardHeader>
             <Separator />
             {loadingBlocks ? (
@@ -397,34 +388,44 @@ CREATE TABLE schedule_blocks (
                 ))}
               </CardContent>
             ) : blocks.length === 0 ? (
-              <CardContent className="py-14 text-center">
-                <Calendar className="mx-auto h-9 w-9 text-muted-foreground/30" />
-                <p className="mt-3 text-sm text-muted-foreground">Nenhum bloqueio cadastrado.</p>
+              <CardContent className="py-16 text-center flex flex-col items-center">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <CalendarIcon className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">Nenhum bloqueio cadastrado</p>
+                <p className="mt-1 text-xs text-muted-foreground max-w-sm">Adicione feriados, férias ou períodos de manutenção para evitar agendamentos nesses dias.</p>
+                <Button variant="link" onClick={() => setIsSheetOpen(true)} className="mt-4 text-primary hover:text-primary/80 text-xs sm:text-sm h-auto p-0">
+                  + Adicionar primeiro bloqueio
+                </Button>
               </CardContent>
             ) : (
               <div className="divide-y divide-border/40">
                 {blocks.map(block => (
-                  <div key={block.id} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/30 transition-colors group">
-                    <div className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-rose-500/10">
-                      <Clock className="h-4 w-4 text-destructive" />
+                  <div key={block.id} className="flex items-center gap-4 px-4 sm:px-6 py-4 hover:bg-muted/30 transition-colors group">
+                    <div className="flex-shrink-0 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-rose-500/10">
+                      <Clock className="h-5 w-5 text-destructive" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-foreground">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <p className="text-sm sm:text-base font-semibold text-foreground">
                           {new Date(block.block_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                        <Badge variant="outline" className="text-xs font-normal">
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
+                        <Badge variant="outline" className="text-[10px] sm:text-xs font-medium border-border/50">
                           {block.start_time.substring(0, 5)} às {block.end_time.substring(0, 5)}
                         </Badge>
                       </div>
-                      {block.reason && <p className="text-xs text-muted-foreground mt-0.5">{block.reason}</p>}
+                      {block.reason ? (
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">{block.reason}</p>
+                      ) : (
+                        <p className="text-xs sm:text-sm text-muted-foreground/50 italic">Sem motivo informado</p>
+                      )}
                     </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           onClick={() => handleDeleteBlock(block.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Remover bloqueio</TooltipContent>
@@ -436,6 +437,98 @@ CREATE TABLE schedule_blocks (
           </Card>
         </div>
       )}
+
+      {/* Sheet para Novo Bloqueio */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="sm:max-w-md w-full flex flex-col h-full px-4 sm:px-8 py-4 sm:py-8">
+          <SheetHeader className="pb-3 sm:pb-6 border-b border-border/50">
+            <SheetTitle className="text-lg sm:text-2xl">Novo Bloqueio</SheetTitle>
+            <SheetDescription className="text-xs sm:text-sm mt-1 sm:mt-1.5">
+              Defina a data e o período em que a agenda estará indisponível para novos agendamentos.
+            </SheetDescription>
+          </SheetHeader>
+          
+          <form onSubmit={handleAddBlock} className="flex-1 flex flex-col pt-4 sm:pt-8 pb-2">
+            <div className="space-y-5 sm:space-y-6">
+              
+              {/* Date Picker */}
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-xs sm:text-sm font-semibold">Data do Bloqueio <span className="text-destructive">*</span></Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full h-10 sm:h-12 justify-start text-left font-normal text-sm",
+                        !newBlock.block_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newBlock.block_date ? format(newBlock.block_date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newBlock.block_date}
+                      onSelect={(date) => date && setNewBlock({ ...newBlock, block_date: date })}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Time Inputs */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">Início <span className="text-destructive">*</span></Label>
+                  <Input 
+                    type="time" 
+                    required 
+                    value={newBlock.start_time} 
+                    onChange={e => setNewBlock({ ...newBlock, start_time: e.target.value })} 
+                    className="h-10 sm:h-12 text-sm" 
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">Fim <span className="text-destructive">*</span></Label>
+                  <Input 
+                    type="time" 
+                    required 
+                    value={newBlock.end_time} 
+                    onChange={e => setNewBlock({ ...newBlock, end_time: e.target.value })} 
+                    className="h-10 sm:h-12 text-sm" 
+                  />
+                </div>
+              </div>
+
+              {/* Reason Input */}
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-xs sm:text-sm font-semibold">Motivo (Opcional)</Label>
+                <Input 
+                  type="text" 
+                  placeholder="Ex: Feriado Nacional, Férias do Dr. João..." 
+                  value={newBlock.reason} 
+                  onChange={e => setNewBlock({ ...newBlock, reason: e.target.value })} 
+                  className="h-10 sm:h-12 text-sm" 
+                />
+              </div>
+
+            </div>
+            
+            <div className="mt-auto pt-6 border-t border-border/50">
+              <SheetFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <Button type="button" variant="outline" onClick={() => setIsSheetOpen(false)} className="w-full sm:w-auto h-10 sm:h-12 px-6">Cancelar</Button>
+                <Button type="submit" disabled={isAddingBlock} className="w-full sm:w-auto h-10 sm:h-12 px-8 bg-primary text-primary-foreground hover:bg-primary/90">
+                  {isAddingBlock && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isAddingBlock ? 'Salvando...' : 'Adicionar Bloqueio'}
+                </Button>
+              </SheetFooter>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
