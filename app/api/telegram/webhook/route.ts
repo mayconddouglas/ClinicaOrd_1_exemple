@@ -15,12 +15,16 @@ export const maxDuration = 60;
 // Logging wrapper to persist debug logs
 async function logDebug(step: string, data: any) {
   try {
+    // Attempt to log to Supabase. Note: this will fail silently if RLS is enabled without a policy.
     const { error } = await supabaseServer.from('learned_faqs').insert([{
       question: `LOG_TG_${Date.now()}_${Math.random().toString(36).substring(7)}`,
       answer: JSON.stringify({ step, data }),
       category: '__DEBUG_LOG__'
     }]);
-    if (error) console.error('Supabase insert error in logDebug:', error);
+    if (error) {
+      // Just console log the error, don't crash
+      console.log(`[Log Failed RLS] ${step}:`, JSON.stringify(data).substring(0, 200));
+    }
   } catch (e) {
     console.error('Failed to log debug', e);
   }
@@ -28,7 +32,9 @@ async function logDebug(step: string, data: any) {
 
 async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
   const TELEGRAM_API = `https://api.telegram.org/bot${token}`
-  await fetch(`${TELEGRAM_API}/sendMessage`, {
+  console.log(`[Telegram Webhook] Sending message to ${chatId}: ${text.substring(0, 50)}...`);
+  
+  const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -36,13 +42,21 @@ async function sendMessage(token: string, chatId: number, text: string): Promise
       text,
       parse_mode: 'Markdown',
     }),
-  })
+  });
+  
+  const result = await response.json();
+  if (!response.ok) {
+    console.error(`[Telegram Webhook] Failed to send message:`, result);
+  } else {
+    console.log(`[Telegram Webhook] Message sent successfully.`);
+  }
 }
 
 export async function POST(req: NextRequest) {
   const debugLogs: any[] = [];
   async function logStep(step: string, data: any) {
     debugLogs.push({ step, data });
+    console.log(`[Telegram Webhook] ${step}`);
     await logDebug(step, data);
   }
 
