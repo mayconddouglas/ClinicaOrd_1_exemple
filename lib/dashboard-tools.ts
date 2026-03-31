@@ -139,8 +139,9 @@ export async function getLearnedFAQs() {
     const { data, error } = await supabase
       .from('learned_faqs')
       .select('*')
+      .neq('category', '__DEBUG_LOG__')
       .order('usage_count', { ascending: false });
-      
+
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
