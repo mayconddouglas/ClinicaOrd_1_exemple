@@ -313,28 +313,28 @@ export default function MedicosPage() {
 
       {/* Modal / Sheet */}
       <Sheet open={showModal} onOpenChange={handleCloseModal}>
-        <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full px-8 py-8">
-          <SheetHeader className="pb-6 border-b border-border/50">
-            <SheetTitle className="text-2xl">{editingId ? 'Editar Médico' : 'Novo Médico'}</SheetTitle>
-            <SheetDescription className="text-sm mt-1.5">
+        <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full px-4 sm:px-8 py-4 sm:py-8">
+          <SheetHeader className="pb-3 sm:pb-6 border-b border-border/50">
+            <SheetTitle className="text-lg sm:text-2xl">{editingId ? 'Editar Médico' : 'Novo Médico'}</SheetTitle>
+            <SheetDescription className="text-xs sm:text-sm mt-1 sm:mt-1.5">
               {editingId ? 'Atualize os dados do especialista.' : 'Preencha os dados do novo membro do corpo clínico.'}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="flex-1 flex flex-col pt-8 pb-4">
-            <div className="space-y-8">
-              <div className="space-y-2.5">
-                <Label className="text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
-                <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" className="h-12" />
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col pt-4 sm:pt-8 pb-2">
+            <div className="space-y-4 sm:space-y-8">
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-xs sm:text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
+                <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" className="h-9 sm:h-12 text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label className="text-sm font-semibold">CRM <span className="text-destructive">*</span></Label>
-                  <Input required value={form.crm} onChange={e => setForm({ ...form, crm: e.target.value })} placeholder="000000/UF" className="h-12" />
+              <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">CRM <span className="text-destructive">*</span></Label>
+                  <Input required value={form.crm} onChange={e => setForm({ ...form, crm: e.target.value })} placeholder="000000/UF" className="h-9 sm:h-12 text-sm" />
                 </div>
-                <div className="space-y-2.5">
-                  <Label className="text-sm font-semibold">Especialidade <span className="text-destructive">*</span></Label>
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">Especialidade <span className="text-destructive">*</span></Label>
                   <Select value={form.especialidade} onValueChange={v => setForm({ ...form, especialidade: v })}>
-                    <SelectTrigger className="h-12">
+                    <SelectTrigger className="h-9 sm:h-12 text-sm">
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -343,34 +343,34 @@ export default function MedicosPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <Label className="text-sm font-semibold">Telefone</Label>
-                  <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 9 9999-9999" className="h-12" />
+              <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">Telefone</Label>
+                  <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 9 9999-9999" className="h-9 sm:h-12 text-sm" />
                 </div>
-                <div className="space-y-2.5">
-                  <Label className="text-sm font-semibold">E-mail</Label>
-                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="medico@clinica.com" className="h-12" />
+                <div className="space-y-1.5 sm:space-y-2.5">
+                  <Label className="text-xs sm:text-sm font-semibold">E-mail</Label>
+                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="medico@clinica.com" className="h-9 sm:h-12 text-sm" />
                 </div>
               </div>
-              <div className="space-y-2.5">
-                <Label className="text-sm font-semibold">Bio / Apresentação</Label>
-                <Textarea rows={4} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
-                  placeholder="Breve descrição e experiência do médico..." className="resize-none pt-3" />
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label className="text-xs sm:text-sm font-semibold">Bio / Apresentação</Label>
+                <Textarea rows={3} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
+                  placeholder="Breve descrição e experiência do médico..." className="resize-none pt-2 sm:pt-3 text-sm" />
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-5 mt-2">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold text-foreground">Disponível para agenda</Label>
-                  <p className="text-xs text-muted-foreground leading-snug">Pacientes podem agendar com este médico.</p>
+              <div className="flex items-center justify-between rounded-lg border p-3 sm:p-5 mt-1 sm:mt-2">
+                <div className="space-y-0.5 sm:space-y-1.5">
+                  <Label className="text-xs sm:text-sm font-semibold text-foreground">Disponível para agenda</Label>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground leading-snug">Pacientes podem agendar com este médico.</p>
                 </div>
-                <Switch checked={form.disponivel} onCheckedChange={c => setForm({ ...form, disponivel: c })} className="data-[state=checked]:bg-emerald-500" />
+                <Switch checked={form.disponivel} onCheckedChange={c => setForm({ ...form, disponivel: c })} className="data-[state=checked]:bg-emerald-500 scale-90 sm:scale-100 origin-right" />
               </div>
             </div>
             
-            <div className="mt-16 pt-6 border-t border-border/50">
-              <SheetFooter className="flex flex-row sm:justify-end gap-4">
-                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-12 px-6">Cancelar</Button>
-                <Button type="submit" disabled={saving} className="flex-1 sm:flex-none h-12 px-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+            <div className="mt-8 sm:mt-16 pt-4 sm:pt-6 border-t border-border/50">
+              <SheetFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                <Button type="button" variant="outline" onClick={handleCloseModal} className="w-full sm:w-auto h-9 sm:h-12 px-6">Cancelar</Button>
+                <Button type="submit" disabled={saving} className="w-full sm:w-auto h-9 sm:h-12 px-8 gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                   {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar Médico'}
                 </Button>

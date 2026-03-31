@@ -245,94 +245,94 @@ export default function IntegrationsPage() {
                     Configurar
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="sm:max-w-md w-full flex flex-col h-full px-8 py-8">
-                  <SheetHeader className="pb-6 border-b border-border/50">
-                    <SheetTitle className="text-2xl">Configuração do Telegram</SheetTitle>
-                    <SheetDescription className="text-sm mt-1.5">
+                <SheetContent className="sm:max-w-md w-full flex flex-col h-full px-4 sm:px-8 py-4 sm:py-8">
+                  <SheetHeader className="pb-3 sm:pb-6 border-b border-border/50">
+                    <SheetTitle className="text-lg sm:text-2xl">Configuração do Telegram</SheetTitle>
+                    <SheetDescription className="text-xs sm:text-sm mt-1 sm:mt-1.5">
                       Siga o passo a passo para conectar seu bot do Telegram.
                     </SheetDescription>
                   </SheetHeader>
 
-                  <ScrollArea className="flex-1 -mx-8 px-8 py-6">
-                    <div className="space-y-8">
-                      <div className="space-y-5 text-sm bg-muted/50 p-6 rounded-xl border border-border/50">
-                        <h3 className="font-semibold text-base">Passo a Passo</h3>
-                        <div className="space-y-4">
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">1</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              Abra o Telegram e busque por <a href="https://t.me/botfather" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">@BotFather <ExternalLink className="h-3 w-3 ml-1" /></a>. Envie o comando <code>/newbot</code> e siga as instruções para dar um nome e um &quot;username&quot; ao seu bot.
+                  <ScrollArea className="flex-1 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 sm:py-6">
+                    <div className="space-y-6 sm:space-y-8">
+                      <div className="space-y-4 sm:space-y-5 text-sm bg-muted/50 p-4 sm:p-6 rounded-xl border border-border/50">
+                        <h3 className="font-semibold text-sm sm:text-base">Passo a Passo</h3>
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">1</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              Abra o Telegram e busque por <a href="https://t.me/botfather" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">@BotFather <ExternalLink className="h-3 w-3 ml-1" /></a>. Envie o comando <code>/newbot</code> e siga as instruções.
                             </p>
                           </div>
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">2</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              O BotFather enviará uma mensagem com o seu <strong className="text-foreground">HTTP API Token</strong>. Copie esse código e cole no campo abaixo.
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">2</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              O BotFather enviará o <strong className="text-foreground">HTTP API Token</strong>. Copie e cole no campo abaixo.
                             </p>
                           </div>
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">3</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">3</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
                               Ative a integração na tela anterior e clique em <strong className="text-foreground">Salvar Configurações</strong>.
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <Label htmlFor="bot-token" className="text-sm font-semibold">Bot Token</Label>
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="bot-token" className="text-xs sm:text-sm font-semibold">Bot Token</Label>
                           <Input
                             id="bot-token"
                             type="password"
                             value={telegramToken}
                             onChange={(e) => setTelegramToken(e.target.value)}
                             placeholder="Ex: 1234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
-                            className="h-12 font-mono text-sm"
+                            className="h-9 sm:h-12 font-mono text-xs sm:text-sm"
                           />
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             O token gerado pelo BotFather no Telegram.
                           </p>
                         </div>
 
-                        <div className="space-y-3">
-                          <Label htmlFor="webhook-url" className="text-sm font-semibold">Webhook URL (Automático)</Label>
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="webhook-url" className="text-xs sm:text-sm font-semibold">Webhook URL (Automático)</Label>
                           <div className="flex gap-2">
                             <Input
                               id="webhook-url"
                               value={webhookUrl}
                               readOnly
-                              className="bg-muted h-12 font-mono text-xs"
+                              className="bg-muted h-9 sm:h-12 font-mono text-[10px] sm:text-xs"
                             />
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-12 w-12 shrink-0"
+                              className="h-9 w-9 sm:h-12 sm:w-12 shrink-0"
                               onClick={() => {
                                 navigator.clipboard.writeText(webhookUrl);
                                 toast.success('URL copiada para a área de transferência!');
                               }}
                             >
-                              <Copy className="h-4 w-4" />
+                              <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Esta URL será configurada automaticamente no Telegram ao salvar.
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
+                            Esta URL será configurada automaticamente no Telegram.
                           </p>
                         </div>
                       </div>
                     </div>
                   </ScrollArea>
 
-                  <div className="mt-6 pt-6 border-t border-border/50">
+                  <div className="mt-2 sm:mt-6 pt-4 sm:pt-6 border-t border-border/50">
                     <SheetFooter>
                       <Button
                         onClick={handleSaveTelegram}
-                        className="w-full h-12 text-base font-medium"
+                        className="w-full h-9 sm:h-12 text-xs sm:text-base font-medium"
                         disabled={isSaving || (telegramEnabled && !telegramToken)}
                       >
-                        {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
+                        {isSaving ? <Loader2 className="mr-2 h-3 w-3 sm:h-5 sm:w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-3 w-3 sm:h-5 sm:w-5" />}
                         Salvar Configurações
                       </Button>
                     </SheetFooter>
@@ -380,120 +380,117 @@ export default function IntegrationsPage() {
                     Configurar
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="sm:max-w-md w-full flex flex-col h-full px-8 py-8">
-                  <SheetHeader className="pb-6 border-b border-border/50">
-                    <SheetTitle className="text-2xl">Configuração do WhatsApp</SheetTitle>
-                    <SheetDescription className="text-sm mt-1.5">
+                <SheetContent className="sm:max-w-md w-full flex flex-col h-full px-4 sm:px-8 py-4 sm:py-8">
+                  <SheetHeader className="pb-3 sm:pb-6 border-b border-border/50">
+                    <SheetTitle className="text-lg sm:text-2xl">Configuração do WhatsApp</SheetTitle>
+                    <SheetDescription className="text-xs sm:text-sm mt-1 sm:mt-1.5">
                       Siga o passo a passo para conectar a API Oficial do WhatsApp.
                     </SheetDescription>
                   </SheetHeader>
 
-                  <ScrollArea className="flex-1 -mx-8 px-8 py-6">
-                    <div className="space-y-8">
-                      <div className="space-y-5 text-sm bg-muted/50 p-6 rounded-xl border border-border/50">
-                        <h3 className="font-semibold text-base">Passo a Passo</h3>
-                        <div className="space-y-4">
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">1</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              Acesse o <a href="https://developers.facebook.com/" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">Meta for Developers <ExternalLink className="h-3 w-3 ml-1" /></a>, crie um aplicativo e adicione o produto <strong className="text-foreground">WhatsApp</strong>.
+                  <ScrollArea className="flex-1 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 sm:py-6">
+                    <div className="space-y-6 sm:space-y-8">
+                      <div className="space-y-4 sm:space-y-5 text-sm bg-muted/50 p-4 sm:p-6 rounded-xl border border-border/50">
+                        <h3 className="font-semibold text-sm sm:text-base">Passo a Passo</h3>
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">1</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              Acesse <a href="https://developers.facebook.com/" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium inline-flex items-center">Meta for Developers <ExternalLink className="h-3 w-3 ml-1" /></a>, crie um app e adicione <strong className="text-foreground">WhatsApp</strong>.
                             </p>
                           </div>
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">2</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              Na seção de Configuração da API, copie o <strong className="text-foreground">Token de Acesso</strong> e o <strong className="text-foreground">ID do Número de Telefone</strong> e cole nos campos abaixo.
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">2</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              Copie o <strong className="text-foreground">Token de Acesso</strong> e o <strong className="text-foreground">ID do Número</strong> e cole abaixo.
                             </p>
                           </div>
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">3</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              Crie um <strong className="text-foreground">Token de Verificação</strong> (uma senha qualquer inventada por você) e cole no campo correspondente.
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">3</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              Crie um <strong className="text-foreground">Token de Verificação</strong> (senha) e cole abaixo.
                             </p>
                           </div>
-                          <div className="flex gap-4">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">4</span>
-                            <p className="text-muted-foreground leading-relaxed pt-1">
-                              No painel da Meta, vá em Configuração &gt; Webhook. Cole a <strong className="text-foreground">URL do Webhook</strong> gerada abaixo e o <strong className="text-foreground">Token de Verificação</strong>. Inscreva-se no evento <code>messages</code>.
+                          <div className="flex gap-2.5 sm:gap-4">
+                            <span className="flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] sm:text-xs font-bold">4</span>
+                            <p className="text-[11px] sm:text-sm text-muted-foreground leading-relaxed pt-0.5 sm:pt-1">
+                              Na Meta, em Configuração &gt; Webhook, cole a <strong className="text-foreground">URL</strong> e o <strong className="text-foreground">Token de Verificação</strong>. Inscreva-se em <code>messages</code>.
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <Label htmlFor="wa-token" className="text-sm font-semibold">Token de Acesso</Label>
+                      <div className="space-y-4 sm:space-y-6">
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="wa-token" className="text-xs sm:text-sm font-semibold">Token de Acesso</Label>
                           <Input
                             id="wa-token"
                             type="password"
                             value={whatsappToken}
                             onChange={(e) => setWhatsappToken(e.target.value)}
                             placeholder="EAAGm0..."
-                            className="h-12 font-mono text-sm"
+                            className="h-9 sm:h-12 font-mono text-xs sm:text-sm"
                           />
                         </div>
 
-                        <div className="space-y-3">
-                          <Label htmlFor="wa-phone-id" className="text-sm font-semibold">ID do Número de Telefone</Label>
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="wa-phone-id" className="text-xs sm:text-sm font-semibold">ID do Número de Telefone</Label>
                           <Input
                             id="wa-phone-id"
                             value={whatsappPhoneId}
                             onChange={(e) => setWhatsappPhoneId(e.target.value)}
                             placeholder="10384759..."
-                            className="h-12 font-mono text-sm"
+                            className="h-9 sm:h-12 font-mono text-xs sm:text-sm"
                           />
                         </div>
 
-                        <div className="space-y-3">
-                          <Label htmlFor="wa-verify-token" className="text-sm font-semibold">Token de Verificação (Webhook)</Label>
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="wa-verify-token" className="text-xs sm:text-sm font-semibold">Token de Verificação (Webhook)</Label>
                           <Input
                             id="wa-verify-token"
                             type="password"
                             value={whatsappVerifyToken}
                             onChange={(e) => setWhatsappVerifyToken(e.target.value)}
                             placeholder="Crie uma senha forte"
-                            className="h-12 font-mono text-sm"
+                            className="h-9 sm:h-12 font-mono text-xs sm:text-sm"
                           />
                         </div>
 
-                        <div className="space-y-3">
-                          <Label htmlFor="wa-webhook" className="text-sm font-semibold">Webhook URL (Para a Meta)</Label>
+                        <div className="space-y-1.5 sm:space-y-3">
+                          <Label htmlFor="wa-webhook" className="text-xs sm:text-sm font-semibold">Webhook URL (Para a Meta)</Label>
                           <div className="flex gap-2">
                             <Input
                               id="wa-webhook"
                               value={whatsappWebhookUrl}
                               readOnly
-                              className="bg-muted h-12 font-mono text-xs"
+                              className="bg-muted h-9 sm:h-12 font-mono text-[10px] sm:text-xs"
                             />
                             <Button
                               type="button"
                               variant="outline"
                               size="icon"
-                              className="h-12 w-12 shrink-0"
+                              className="h-9 w-9 sm:h-12 sm:w-12 shrink-0"
                               onClick={() => {
                                 navigator.clipboard.writeText(whatsappWebhookUrl);
                                 toast.success('URL copiada para a área de transferência!');
                               }}
                             >
-                              <Copy className="h-4 w-4" />
+                              <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Cole esta URL no painel da Meta for Developers.
-                          </p>
                         </div>
                       </div>
                     </div>
                   </ScrollArea>
 
-                  <div className="mt-6 pt-6 border-t border-border/50">
+                  <div className="mt-2 sm:mt-6 pt-4 sm:pt-6 border-t border-border/50">
                     <SheetFooter>
                       <Button
                         onClick={handleSaveWhatsapp}
-                        className="w-full h-12 text-base font-medium"
+                        className="w-full h-9 sm:h-12 text-xs sm:text-base font-medium"
                         disabled={isSaving || (whatsappEnabled && (!whatsappToken || !whatsappPhoneId || !whatsappVerifyToken))}
                       >
-                        {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
+                        {isSaving ? <Loader2 className="mr-2 h-3 w-3 sm:h-5 sm:w-5 animate-spin" /> : <CheckCircle2 className="mr-2 h-3 w-3 sm:h-5 sm:w-5" />}
                         Salvar Configurações
                       </Button>
                     </SheetFooter>
