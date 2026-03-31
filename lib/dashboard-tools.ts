@@ -139,7 +139,7 @@ export async function getLearnedFAQs() {
     const { data, error } = await supabase
       .from('learned_faqs')
       .select('*')
-      .neq('category', '__DEBUG_LOG__')
+      .not('category', 'like', '\\_\\_%') // Ignora qualquer categoria que comece com __ (ex: __DEBUG_LOG__, __SYSTEM_SETTING__)
       .order('usage_count', { ascending: false });
 
     if (error) throw error;

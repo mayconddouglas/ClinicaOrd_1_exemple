@@ -124,7 +124,7 @@ export async function searchLearnedAnswers(keyword: string) {
     const { data, error } = await supabase
       .from('learned_faqs')
       .select('*')
-      .neq('category', '__DEBUG_LOG__')
+      .not('category', 'like', '\\_\\_%') // Ignora logs e configs
       .ilike('question', `%${keyword}%`)
       .order('usage_count', { ascending: false })
       .limit(3);
