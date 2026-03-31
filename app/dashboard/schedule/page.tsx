@@ -290,12 +290,14 @@ CREATE TABLE schedule_blocks (
                         </div>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Switch
-                              checked={!day.is_closed}
-                              onCheckedChange={checked => handleUpdateHour(day.id, 'is_closed', !checked)}
-                              disabled={savingHours === day.id}
-                              className="data-[state=checked]:bg-emerald-500 scale-90 sm:scale-100"
-                            />
+                            <div className="flex items-center">
+                              <Switch
+                                checked={!day.is_closed}
+                                onCheckedChange={checked => handleUpdateHour(day.id, 'is_closed', !checked)}
+                                disabled={savingHours === day.id}
+                                className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700 shadow-sm scale-90 sm:scale-100 transition-all duration-200 ease-in-out"
+                              />
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent>{day.is_closed ? 'Habilitar dia' : 'Desabilitar dia'}</TooltipContent>
                         </Tooltip>
