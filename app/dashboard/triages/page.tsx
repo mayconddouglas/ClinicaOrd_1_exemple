@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type FilterType = 'todas' | 'urgentes' | 'moderadas' | 'leves' | 'resolvidas';
 
@@ -62,10 +63,33 @@ export default function TriagesPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-12">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
-          <p className="text-sm">Carregando triagens...</p>
+      <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-[250px]" />
+          <Skeleton className="h-4 w-[350px]" />
+        </div>
+        <div className="flex gap-4 mb-6">
+          <Skeleton className="h-10 w-[400px]" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <Skeleton className="h-6 w-[150px]" />
+                  <Skeleton className="h-6 w-[60px] rounded-full" />
+                </div>
+                <Skeleton className="h-4 w-[120px] mt-2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-16 w-full mb-4" />
+                <div className="flex justify-between items-center mt-4">
+                  <Skeleton className="h-4 w-[100px]" />
+                  <Skeleton className="h-8 w-[100px]" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -129,8 +130,22 @@ export default function SchedulePage() {
       {activeTab === 'hours' && (
         <>
           {loadingHours ? (
-            <div className="flex justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Card key={i} className="shadow-sm">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between p-4 md:p-5">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-6 w-6" />
+                      <Skeleton className="h-6 w-[120px]" />
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6 w-full sm:w-auto">
+                      <Skeleton className="h-10 w-[120px]" />
+                      <Skeleton className="h-10 w-[120px]" />
+                      <Skeleton className="h-9 w-[100px]" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : businessHours.length === 0 ? (
             <Card className="shadow-sm border-amber-500/20">
@@ -296,8 +311,16 @@ CREATE TABLE schedule_blocks (
             </CardHeader>
             <Separator />
             {loadingBlocks ? (
-              <CardContent className="py-10 flex justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <CardContent className="py-6 space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex justify-between items-center">
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-[200px]" />
+                      <Skeleton className="h-4 w-[150px]" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  </div>
+                ))}
               </CardContent>
             ) : blocks.length === 0 ? (
               <CardContent className="py-14 text-center">

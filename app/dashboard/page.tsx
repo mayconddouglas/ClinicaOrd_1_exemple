@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   pendente:   { label: 'Pendente',   variant: 'outline' },
@@ -84,10 +85,55 @@ export default function DashboardOverview() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm font-medium">Carregando dados do painel...</p>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <Skeleton className="h-9 w-[250px]" />
+          <Skeleton className="h-9 w-[120px]" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-[100px]" />
+                <Skeleton className="h-4 w-4 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-[60px] mb-2" />
+                <Skeleton className="h-3 w-[120px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+          <Card className="col-span-4">
+            <CardHeader>
+              <Skeleton className="h-6 w-[200px] mb-2" />
+              <Skeleton className="h-4 w-[300px]" />
+            </CardHeader>
+            <CardContent className="pl-2">
+              <Skeleton className="h-[300px] w-full" />
+            </CardContent>
+          </Card>
+          <Card className="col-span-3">
+            <CardHeader>
+              <Skeleton className="h-6 w-[200px] mb-2" />
+              <Skeleton className="h-4 w-[250px]" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div className="ml-4 space-y-1">
+                      <Skeleton className="h-4 w-[150px]" />
+                      <Skeleton className="h-3 w-[100px]" />
+                    </div>
+                    <Skeleton className="ml-auto h-5 w-[80px] rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

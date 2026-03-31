@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { MessageCircle, CheckCircle2, Copy, ExternalLink, Loader2, Settings, Phone } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function IntegrationsPage() {
   // Telegram State
@@ -153,8 +154,45 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6 max-w-5xl mx-auto p-4 md:p-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-[250px]" />
+          <Skeleton className="h-4 w-[350px]" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex items-center gap-2 mb-2">
+                  <Skeleton className="h-6 w-6 rounded-md" />
+                  <Skeleton className="h-6 w-[150px]" />
+                </div>
+                <Skeleton className="h-4 w-[250px]" />
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Skeleton className="h-5 w-[120px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                  </div>
+                  <Skeleton className="h-6 w-[40px] rounded-full" />
+                </div>
+                <Separator />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[100px]" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[120px]" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }

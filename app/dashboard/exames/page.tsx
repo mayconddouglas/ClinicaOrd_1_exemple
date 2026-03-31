@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -46,11 +47,33 @@ export default function ExamesPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-12">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm">Carregando exames e laudos...</p>
+      <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-[250px]" />
+            <Skeleton className="h-4 w-[350px]" />
+          </div>
+          <Skeleton className="h-10 w-[120px]" />
         </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-[150px] mb-2" />
+            <Skeleton className="h-4 w-[250px]" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-[200px]" />
+                    <Skeleton className="h-4 w-[150px]" />
+                  </div>
+                  <Skeleton className="h-8 w-[100px]" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

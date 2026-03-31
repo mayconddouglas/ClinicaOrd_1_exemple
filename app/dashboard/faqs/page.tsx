@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type FAQ = { id: string; question: string; answer: string; category?: string; usage_count: number; created_at?: string };
 type PendingQuestion = { id: string; question: string; patient_phone: string; status: string; created_at: string };
@@ -110,10 +111,37 @@ export default function FAQsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-12">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm">Carregando base de conhecimento...</p>
+      <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-[250px]" />
+          <Skeleton className="h-4 w-[350px]" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="shadow-sm">
+              <CardContent className="p-4">
+                <Skeleton className="h-3 w-[80px] mb-3" />
+                <Skeleton className="h-8 w-[40px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="space-y-4 mt-8">
+          <Skeleton className="h-10 w-full max-w-[400px]" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="p-5">
+              <div className="flex justify-between items-center">
+                <div className="space-y-3 w-full">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5 w-[60px] rounded-full" />
+                    <Skeleton className="h-5 w-[100px] rounded-full" />
+                  </div>
+                  <Skeleton className="h-5 w-[80%] max-w-[500px]" />
+                </div>
+                <Skeleton className="h-9 w-[150px] shrink-0 ml-4" />
+              </div>
+            </Card>
+          ))}
         </div>
       </div>
     );
