@@ -8,12 +8,21 @@ import { supabase } from '@/lib/supabase';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight, FileText, LogOut, Link2
+  ChevronRight, FileText, LogOut, Link2, Search
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command';
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +56,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [openCommand, setOpenCommand] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpenCommand((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  const runCommand = (command: () => void) => {
+    setOpenCommand(false);
+    command();
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -100,6 +126,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex h-screen w-full bg-background overflow-hidden">
           <Toaster position="top-right" richColors />
 
+          <CommandDialog open={openCommand} onOpenChange={setOpenCommand}>
+            <CommandInput placeholder="Digite um comando ou busque..." />
+            <CommandList>
+              <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+              <CommandGroup heading="Atalhos">
+                {navItems.map((item) => (
+                  <CommandItem
+                    key={item.href}
+                    onSelect={() => runCommand(() => router.push(item.href))}
+                  >
+                    <item.icon className="mr-2 h-4 w-4" />
+                    <span>{item.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup heading="Inteligência">
+                <CommandItem onSelect={() => runCommand(() => router.push(aiItem.href))}>
+                  <aiItem.icon className="mr-2 h-4 w-4" />
+                  <span>{aiItem.label}</span>
+                </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup heading="Ações">
+                <CommandItem onSelect={() => runCommand(() => router.push(integrationItem.href))}>
+                  <integrationItem.icon className="mr-2 h-4 w-4" />
+                  <span>{integrationItem.label}</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => { supabase.auth.signOut(); router.push('/login'); })}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair do sistema</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </CommandDialog>
+
         <Sidebar variant="inset" className="border-r bg-card">
           <SidebarHeader className="px-4 py-4">
             <div className="flex items-center gap-3">
@@ -110,6 +172,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="text-sm font-bold leading-none text-foreground">OrthoAdmin</span>
                 <span className="mt-0.5 text-[11px] text-muted-foreground font-medium">Painel da Clínica</span>
               </div>
+            </div>
+            
+            <div className="mt-4 px-1">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start text-sm text-muted-foreground bg-muted/50 border-border/50 h-9"
+                onClick={() => setOpenCommand(true)}
+              >
+                <Search className="mr-2 h-4 w-4" />
+                <span>Buscar...</span>
+                <kbd className="pointer-events-none absolute right-3 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </Button>
             </div>
           </SidebarHeader>
 
