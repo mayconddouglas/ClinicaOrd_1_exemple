@@ -388,14 +388,19 @@ CREATE TABLE schedule_blocks (
                 ))}
               </CardContent>
             ) : blocks.length === 0 ? (
-              <CardContent className="py-16 text-center flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <CalendarIcon className="h-6 w-6 text-primary" />
+              <CardContent className="py-16 text-center flex flex-col items-center justify-center min-h-[300px]">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center relative shadow-sm">
+                    <CalendarIcon className="h-10 w-10 text-primary" strokeWidth={1.5} />
+                  </div>
                 </div>
-                <p className="text-sm font-semibold text-foreground">Nenhum bloqueio cadastrado</p>
-                <p className="mt-1 text-xs text-muted-foreground max-w-sm">Adicione feriados, férias ou períodos de manutenção para evitar agendamentos nesses dias.</p>
-                <Button variant="link" onClick={() => setIsSheetOpen(true)} className="mt-4 text-primary hover:text-primary/80 text-xs sm:text-sm h-auto p-0">
-                  + Adicionar primeiro bloqueio
+                <h3 className="text-lg font-bold text-foreground tracking-tight">Nenhum bloqueio cadastrado</h3>
+                <p className="mt-2 text-sm text-muted-foreground max-w-[320px] leading-relaxed">
+                  Adicione feriados, férias ou períodos de manutenção para evitar que pacientes agendem nesses dias.
+                </p>
+                <Button onClick={() => setIsSheetOpen(true)} className="mt-6 gap-2 shadow-sm">
+                  <Plus className="h-4 w-4" /> Adicionar meu primeiro bloqueio
                 </Button>
               </CardContent>
             ) : (
