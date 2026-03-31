@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     // 2. SELEÇÃO DO SUBAGENTE
     const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
     const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING];
-    const agentTools = toolDeclarations.filter(t => allowedToolsNames.includes(t.name));
+    const agentTools = toolDeclarations.filter(t => t.name && allowedToolsNames.includes(t.name));
 
     // 3. EXECUÇÃO DO SUBAGENTE
     const session = ai.chats.create({
