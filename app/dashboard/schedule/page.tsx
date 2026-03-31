@@ -182,20 +182,20 @@ CREATE TABLE schedule_blocks (
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {businessHours.map((day) => (
-                <Card key={day.id} className={`shadow-sm transition-opacity ${day.is_closed ? 'opacity-60' : ''}`}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <Card className="shadow-sm overflow-hidden">
+              <div className="divide-y divide-border/50">
+                {businessHours.map((day) => (
+                  <div key={day.id} className={`p-4 sm:p-5 transition-colors hover:bg-muted/20 ${day.is_closed ? 'opacity-60 bg-muted/10' : ''}`}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 sm:gap-6">
                       {/* Day + toggle */}
-                      <div className="flex items-center gap-3 md:w-52 flex-shrink-0">
-                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+                      <div className="flex items-center gap-3 sm:gap-4 md:w-60 flex-shrink-0">
+                        <div className={`flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl text-xs sm:text-sm font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
                           {DAYS_SHORT[day.day_of_week]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
-                          <p className={`text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-primary'}`}>
-                            {day.is_closed ? 'Fechado' : 'Aberto'}
+                          <p className="text-sm sm:text-base font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
+                          <p className={`text-[10px] sm:text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-emerald-500'}`}>
+                            {day.is_closed ? 'Fechado' : 'Aberto para agendamento'}
                           </p>
                         </div>
                         <Tooltip>
@@ -204,7 +204,7 @@ CREATE TABLE schedule_blocks (
                               checked={!day.is_closed}
                               onCheckedChange={checked => handleUpdateHour(day.id, 'is_closed', !checked)}
                               disabled={savingHours === day.id}
-                              className="data-[state=checked]:bg-emerald-500"
+                              className="data-[state=checked]:bg-emerald-500 scale-90 sm:scale-100"
                             />
                           </TooltipTrigger>
                           <TooltipContent>{day.is_closed ? 'Habilitar dia' : 'Desabilitar dia'}</TooltipContent>
@@ -213,30 +213,30 @@ CREATE TABLE schedule_blocks (
 
                       {/* Time pickers */}
                       {!day.is_closed && (
-                        <div className="flex flex-wrap gap-3 flex-1 items-end">
+                        <div className="flex flex-wrap gap-3 sm:gap-4 flex-1 items-end">
                           {[
                             { label: 'Abertura', field: 'open_time', value: day.open_time },
                             { label: 'Fechamento', field: 'close_time', value: day.close_time },
-                            { label: 'Almoço início', field: 'lunch_start', value: day.lunch_start, optional: true },
-                            { label: 'Almoço fim', field: 'lunch_end', value: day.lunch_end, optional: true },
+                            { label: 'Almoço Início', field: 'lunch_start', value: day.lunch_start, optional: true },
+                            { label: 'Almoço Fim', field: 'lunch_end', value: day.lunch_end, optional: true },
                           ].map(({ label, field, value, optional }) => (
-                            <div key={field} className="flex flex-col gap-1">
-                              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+                            <div key={field} className="flex flex-col gap-1.5 flex-1 min-w-[100px]">
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
                               <Input
                                 type="time"
                                 value={value?.substring(0, 5) || ''}
                                 onChange={e => handleUpdateHour(day.id, field, e.target.value ? e.target.value + ':00' : optional ? null : e.target.value)}
-                                className="h-8 w-28 text-sm"
+                                className="h-9 sm:h-10 text-xs sm:text-sm bg-background"
                               />
                             </div>
                           ))}
-                          <div className="flex flex-col gap-1">
-                            <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Slot</Label>
+                          <div className="flex flex-col gap-1.5 flex-1 min-w-[100px]">
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Slot (Duração)</Label>
                             <Select
                               value={String(day.slot_duration || 30)}
                               onValueChange={v => handleUpdateHour(day.id, 'slot_duration', parseInt(v))}
                             >
-                              <SelectTrigger className="h-8 w-24 text-sm">
+                              <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm bg-background">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -247,20 +247,24 @@ CREATE TABLE schedule_blocks (
                             </Select>
                           </div>
                           {savingHours === day.id && (
-                            <div className="flex items-end pb-1.5">
-                              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <div className="flex items-center justify-center h-9 sm:h-10 w-9 sm:w-10">
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                           )}
                         </div>
                       )}
                       {day.is_closed && (
-                        <p className="text-xs text-muted-foreground italic">Ative o toggle para configurar o horário deste dia.</p>
+                        <div className="flex-1 flex items-center h-full">
+                          <p className="text-xs text-muted-foreground italic bg-muted/30 px-3 py-2 rounded-md w-full border border-border/40">
+                            Ative o toggle ao lado para configurar os horários de funcionamento deste dia.
+                          </p>
+                        </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
           )}
         </>
       )}
