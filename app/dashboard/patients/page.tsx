@@ -277,35 +277,35 @@ export default function PatientsPage() {
       {/* Modal / Sheet */}
       <Sheet open={isModalOpen} onOpenChange={handleCloseModal}>
         <SheetContent className="sm:max-w-md overflow-y-auto flex flex-col h-full">
-          <SheetHeader className="pb-6 border-b border-border/50">
-            <SheetTitle className="text-xl">{editingPatient ? 'Editar Paciente' : 'Novo Paciente'}</SheetTitle>
+          <SheetHeader className="pb-4 border-b border-border/50">
+            <SheetTitle className="text-2xl">{editingPatient ? 'Editar Paciente' : 'Novo Paciente'}</SheetTitle>
             <SheetDescription className="text-sm">
               {editingPatient ? 'Atualize os dados do paciente abaixo.' : 'Preencha os dados para cadastrar um novo paciente.'}
             </SheetDescription>
           </SheetHeader>
-          <form onSubmit={handleSubmit} className="flex-1 flex flex-col py-6 space-y-6">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col pt-6 pb-2 space-y-6">
+            <div className="space-y-3">
               <Label htmlFor="nome" className="text-sm font-semibold">Nome completo <span className="text-destructive">*</span></Label>
               <Input id="nome" autoFocus required value={formData.nome}
                 onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                placeholder="Ex: João da Silva" className="h-10" />
+                placeholder="Ex: João da Silva" className="h-11" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="cpf" className="text-sm font-semibold">CPF</Label>
               <Input id="cpf" value={formData.cpf}
                 onChange={e => setFormData({ ...formData, cpf: e.target.value })}
-                placeholder="000.000.000-00" className="h-10" />
+                placeholder="000.000.000-00" className="h-11" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="telefone" className="text-sm font-semibold">Telefone</Label>
               <Input id="telefone" value={formData.telefone}
                 onChange={e => setFormData({ ...formData, telefone: e.target.value })}
-                placeholder="(11) 99999-9999" className="h-10" />
+                placeholder="(11) 99999-9999" className="h-11" />
             </div>
-            <div className="mt-auto pt-6 border-t border-border/50">
+            <div className="mt-auto pt-4 pb-4">
               <SheetFooter className="flex flex-row sm:justify-end gap-3">
-                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-10">Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none h-10 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button type="button" variant="outline" onClick={handleCloseModal} className="flex-1 sm:flex-none h-11">Cancelar</Button>
+                <Button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none h-11 bg-primary text-primary-foreground hover:bg-primary/90">
                   {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar alterações' : 'Cadastrar Paciente'}
                 </Button>
               </SheetFooter>
