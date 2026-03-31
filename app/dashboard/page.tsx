@@ -22,12 +22,12 @@ const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondar
 };
 
 const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700',
-  'bg-violet-100 text-violet-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
-  'bg-cyan-100 text-cyan-700',
+  'bg-blue-500/10 text-blue-500',
+  'bg-violet-500/10 text-violet-500',
+  'bg-emerald-500/10 text-emerald-500',
+  'bg-amber-500/10 text-amber-500',
+  'bg-rose-500/10 text-rose-500',
+  'bg-cyan-500/10 text-cyan-500',
 ];
 
 function getInitials(name: string) {
@@ -39,12 +39,12 @@ function getAvatarColor(name: string) {
 }
 
 const KPI_CONFIG = [
-  { key: 'appointmentsToday', label: 'Consultas Hoje',       icon: Calendar,    color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-100' },
-  { key: 'urgentTriages',     label: 'Triagens Urgentes',    icon: AlertTriangle,color: 'text-rose-600',   bg: 'bg-rose-50',    border: 'border-rose-100' },
-  { key: 'pendingTriages',    label: 'Triagens Pendentes',   icon: Activity,    color: 'text-orange-600',  bg: 'bg-orange-50',  border: 'border-orange-100' },
-  { key: 'totalPatients',     label: 'Total de Pacientes',   icon: Users,       color: 'text-violet-600',  bg: 'bg-violet-50',  border: 'border-violet-100' },
-  { key: 'availableDoctors',  label: 'Médicos Disponíveis',  icon: Stethoscope, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-  { key: 'learnedFaqs',       label: 'FAQs Aprendidas',      icon: BookOpen,    color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
+  { key: 'appointmentsToday', label: 'Consultas Hoje',       icon: Calendar,    color: 'text-primary',    bg: 'bg-primary/10',    border: 'border-primary/20' },
+  { key: 'urgentTriages',     label: 'Triagens Urgentes',    icon: AlertTriangle,color: 'text-destructive',   bg: 'bg-destructive/10',    border: 'border-destructive/20' },
+  { key: 'pendingTriages',    label: 'Triagens Pendentes',   icon: Activity,    color: 'text-secondary-foreground',  bg: 'bg-secondary/10',  border: 'border-secondary/20' },
+  { key: 'totalPatients',     label: 'Total de Pacientes',   icon: Users,       color: 'text-primary',  bg: 'bg-primary/10',  border: 'border-primary/20' },
+  { key: 'availableDoctors',  label: 'Médicos Disponíveis',  icon: Stethoscope, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
+  { key: 'learnedFaqs',       label: 'FAQs Aprendidas',      icon: BookOpen,    color: 'text-muted-foreground',   bg: 'bg-muted/50',   border: 'border-border' },
 ];
 
 export default function DashboardOverview() {
@@ -99,15 +99,15 @@ export default function DashboardOverview() {
     <div className="space-y-8 lg:space-y-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-neutral-900">Visão Geral</h2>
-          <p className="text-base text-neutral-500 capitalize mt-2">{today}</p>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Visão Geral</h2>
+          <p className="text-base text-muted-foreground capitalize mt-2">{today}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => fetchData(true)}
           disabled={refreshing}
-          className="gap-2 self-start md:self-auto bg-white"
+          className="gap-2 self-start md:self-auto bg-card"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Atualizar Dados
@@ -119,7 +119,7 @@ export default function DashboardOverview() {
         {KPI_CONFIG.map(({ key, label, icon: Icon, color, bg, border }) => (
           <Card key={key} className={`border ${border} shadow-sm transition-all hover:shadow-md`}>
             <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-              <CardTitle className="text-base font-medium text-neutral-600">
+              <CardTitle className="text-base font-medium text-muted-foreground">
                 {label}
               </CardTitle>
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>
@@ -127,7 +127,7 @@ export default function DashboardOverview() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900">{kpis?.[key] ?? 0}</div>
+              <div className="text-3xl font-bold text-foreground">{kpis?.[key] ?? 0}</div>
             </CardContent>
           </Card>
         ))}
@@ -139,7 +139,7 @@ export default function DashboardOverview() {
           <Card className="shadow-sm flex flex-col">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <TrendingUp className="h-5 w-5 text-neutral-500" />
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 Distribuição de Dor
               </CardTitle>
               <CardDescription className="text-sm">Intensidade relatada nas triagens</CardDescription>
@@ -164,7 +164,7 @@ export default function DashboardOverview() {
           <Card className="shadow-sm flex flex-col">
             <CardHeader className="pb-6">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <Calendar className="h-5 w-5 text-neutral-500" />
+                <Calendar className="h-5 w-5 text-muted-foreground" />
                 Status das Consultas
               </CardTitle>
               <CardDescription className="text-sm">Total de agendamentos por situação</CardDescription>
@@ -173,10 +173,10 @@ export default function DashboardOverview() {
               <div className="h-[350px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analytics.appointmentStatus} barSize={40} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [`${v} consulta(s)`, '']} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v: any) => [`${v} consulta(s)`, '']} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {analytics.appointmentStatus.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -204,11 +204,11 @@ export default function DashboardOverview() {
         <CardContent className="p-0">
           {appointments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
-                <Calendar className="h-6 w-6 text-neutral-400" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Calendar className="h-6 w-6 text-muted-foreground" />
               </div>
-              <h3 className="mt-4 text-sm font-semibold text-neutral-900">Nenhuma consulta</h3>
-              <p className="mt-1 text-sm text-neutral-500">Não há agendamentos recentes para exibir.</p>
+              <h3 className="mt-4 text-sm font-semibold text-foreground">Nenhuma consulta</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Não há agendamentos recentes para exibir.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -227,7 +227,7 @@ export default function DashboardOverview() {
                     const status = STATUS_MAP[appt.status] || { label: appt.status, variant: 'outline' as const };
                     const patientName = appt.pacientes?.nome || 'Desconhecido';
                     return (
-                      <TableRow key={appt.id} className="group border-b border-border/30 hover:bg-neutral-50/50 transition-colors">
+                      <TableRow key={appt.id} className="group border-b border-border/30 hover:bg-muted/50 transition-colors">
                         <TableCell className="py-5">
                           <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -265,7 +265,7 @@ export default function DashboardOverview() {
                             <div className="flex items-center justify-end gap-1">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80 hover:bg-primary/10"
                                     onClick={() => handleUpdateStatus(appt.id, 'confirmada')}>
                                     <CheckCircle2 className="h-4 w-4" />
                                   </Button>
@@ -274,7 +274,7 @@ export default function DashboardOverview() {
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                                     onClick={() => handleUpdateStatus(appt.id, 'cancelada')}>
                                     <XCircle className="h-4 w-4" />
                                   </Button>

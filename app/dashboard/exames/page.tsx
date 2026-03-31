@@ -48,7 +48,7 @@ export default function ExamesPage() {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-sm">Carregando exames e laudos...</p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function ExamesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <FileText className="h-6 w-6 text-emerald-500" />
+            <FileText className="h-6 w-6 text-primary" />
             Exames e Laudos (IA)
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -84,25 +84,25 @@ export default function ExamesPage() {
       {/* List */}
       <div className="grid gap-6">
         {filteredExams.length === 0 ? (
-          <div className="text-center p-12 border border-dashed rounded-xl bg-slate-50">
-            <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">Nenhum exame encontrado</h3>
-            <p className="text-slate-500 mt-1">Os pacientes ainda não enviaram exames pelo chat.</p>
+          <div className="text-center p-12 border border-dashed rounded-xl bg-muted">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground">Nenhum exame encontrado</h3>
+            <p className="text-muted-foreground mt-1">Os pacientes ainda não enviaram exames pelo chat.</p>
           </div>
         ) : (
           filteredExams.map((exam) => (
             <Card key={exam.id} className="overflow-hidden">
               <div className="flex flex-col md:flex-row">
                 {/* Left side: File Info */}
-                <div className="bg-slate-50 p-6 md:w-1/3 border-b md:border-b-0 md:border-r border-slate-100 flex flex-col justify-between">
+                <div className="bg-muted p-6 md:w-1/3 border-b md:border-b-0 md:border-r flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-4">
                       {exam.file_type?.includes('image') ? (
-                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                        <div className="p-2 bg-primary/10 text-primary rounded-lg">
                           <ImageIcon className="h-5 w-5" />
                         </div>
                       ) : (
-                        <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+                        <div className="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
                           <File className="h-5 w-5" />
                         </div>
                       )}
@@ -113,12 +113,12 @@ export default function ExamesPage() {
                     </div>
 
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <User className="h-4 w-4 text-slate-400" />
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="h-4 w-4 text-muted-foreground" />
                         <span>Paciente: <span className="font-medium">{exam.patient_phone}</span></span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Calendar className="h-4 w-4 text-slate-400" />
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span>Enviado em: {new Date(exam.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                     </div>
@@ -135,21 +135,21 @@ export default function ExamesPage() {
                 {/* Right side: AI Analysis */}
                 <div className="p-6 md:w-2/3">
                   <div className="flex items-center gap-2 mb-4">
-                    <Activity className="h-5 w-5 text-emerald-500" />
-                    <h3 className="font-semibold text-slate-900">Análise Preliminar da IA</h3>
-                    <Badge variant="secondary" className="ml-auto bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    <Activity className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold text-foreground">Análise Preliminar da IA</h3>
+                    <Badge variant="secondary" className="ml-auto bg-primary/10 text-primary hover:bg-primary/20">
                       Gerado por Gemini Vision
                     </Badge>
                   </div>
                   
-                  <div className="prose prose-sm max-w-none text-slate-600 bg-slate-50/50 p-4 rounded-lg border border-slate-100">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground bg-background p-4 rounded-lg border">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {exam.ai_analysis || 'Nenhuma análise disponível.'}
                     </ReactMarkdown>
                   </div>
                   
-                  <div className="mt-4 text-xs text-slate-400 flex items-center gap-1.5">
-                    <div className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  <div className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                     Atenção: Esta é uma análise automatizada e requer validação médica.
                   </div>
                 </div>

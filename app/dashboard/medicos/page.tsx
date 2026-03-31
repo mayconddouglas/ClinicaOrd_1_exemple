@@ -22,7 +22,7 @@ type Medico = { id: string; nome: string; crm: string; especialidade: string; te
 
 const ESPECIALIDADES = ['Ortopedia Geral','Joelho','Coluna','Quadril','Ombro e Cotovelo','Mão e Punho','Pé e Tornozelo','Oncologia Ortopédica','Ortopedia Pediátrica','Traumatologia'];
 const emptyForm = { nome: '', crm: '', especialidade: '', telefone: '', email: '', bio: '', disponivel: true };
-const AVATAR_COLORS = ['bg-blue-100 text-blue-700','bg-cyan-100 text-cyan-700','bg-violet-100 text-violet-700','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-700'];
+const AVATAR_COLORS = ['bg-blue-500/10 text-blue-500','bg-cyan-500/10 text-cyan-500','bg-violet-500/10 text-violet-500','bg-emerald-500/10 text-emerald-500','bg-amber-500/10 text-amber-500'];
 function getInitials(name: string) { return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase(); }
 function getColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
 
@@ -111,12 +111,12 @@ export default function MedicosPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-cyan-500" />
+            <Stethoscope className="h-6 w-6 text-primary" />
             Médicos
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Gerencie o corpo clínico e a disponibilidade de cada especialista.</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="gap-2 flex-shrink-0 bg-cyan-600 hover:bg-cyan-700">
+        <Button onClick={() => handleOpenModal()} className="gap-2 flex-shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">
           <Plus className="h-4 w-4" /> Novo Médico
         </Button>
       </div>
@@ -129,16 +129,16 @@ export default function MedicosPage() {
             <p className="text-2xl font-bold mt-1">{stats.total}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-emerald-100 bg-emerald-50/30">
+        <Card className="shadow-sm border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="p-4">
-            <p className="text-xs text-emerald-600 font-medium">Disponíveis</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{stats.disponiveis}</p>
+            <p className="text-xs text-primary font-medium">Disponíveis</p>
+            <p className="text-2xl font-bold text-primary mt-1">{stats.disponiveis}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-cyan-100 bg-cyan-50/30">
+        <Card className="shadow-sm border-cyan-500/20 bg-cyan-500/5">
           <CardContent className="p-4">
-            <p className="text-xs text-cyan-600 font-medium">Especialidades</p>
-            <p className="text-2xl font-bold text-cyan-700 mt-1">{stats.especialidades}</p>
+            <p className="text-xs text-primary font-medium">Especialidades</p>
+            <p className="text-2xl font-bold text-primary mt-1">{stats.especialidades}</p>
           </CardContent>
         </Card>
       </div>
@@ -172,7 +172,7 @@ export default function MedicosPage() {
               {search ? 'Nenhum médico encontrado.' : 'Nenhum médico cadastrado ainda.'}
             </p>
             {!search && (
-              <Button variant="link" onClick={() => handleOpenModal()} className="mt-1 text-cyan-600 text-sm">
+              <Button variant="link" onClick={() => handleOpenModal()} className="mt-1 text-primary hover:text-primary/80 text-sm">
                 + Cadastrar primeiro médico
               </Button>
             )}
@@ -206,8 +206,8 @@ export default function MedicosPage() {
 
                 {/* Specialty */}
                 <div className="flex items-center gap-1.5 mb-3">
-                  <Building2 className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
-                  <Badge variant="outline" className="text-xs border-cyan-200 text-cyan-700 bg-cyan-50/50">{medico.especialidade}</Badge>
+                  <Building2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <Badge variant="outline" className="text-xs border-primary/20 text-primary bg-primary/10">{medico.especialidade}</Badge>
                 </div>
 
                 {/* Bio */}
@@ -246,7 +246,7 @@ export default function MedicosPage() {
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-cyan-600 hover:bg-cyan-50" onClick={() => handleOpenModal(medico)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleOpenModal(medico)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
@@ -254,7 +254,7 @@ export default function MedicosPage() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50" disabled={deletingId === medico.id} onClick={() => handleDelete(medico.id, medico.nome)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" disabled={deletingId === medico.id} onClick={() => handleDelete(medico.id, medico.nome)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
@@ -278,16 +278,16 @@ export default function MedicosPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nome completo <span className="text-rose-500">*</span></Label>
+              <Label className="text-xs font-semibold">Nome completo <span className="text-destructive">*</span></Label>
               <Input required autoFocus value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dr(a). Nome Sobrenome" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">CRM <span className="text-rose-500">*</span></Label>
+                <Label className="text-xs font-semibold">CRM <span className="text-destructive">*</span></Label>
                 <Input required value={form.crm} onChange={e => setForm({ ...form, crm: e.target.value })} placeholder="000000/UF" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Especialidade <span className="text-rose-500">*</span></Label>
+                <Label className="text-xs font-semibold">Especialidade <span className="text-destructive">*</span></Label>
                 <Select value={form.especialidade} onValueChange={v => setForm({ ...form, especialidade: v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
@@ -326,7 +326,7 @@ export default function MedicosPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-              <Button type="submit" disabled={saving} className="gap-2 bg-cyan-600 hover:bg-cyan-700">
+              <Button type="submit" disabled={saving} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Cadastrar Médico'}
               </Button>

@@ -84,7 +84,7 @@ export default function SchedulePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Calendar className="h-6 w-6 text-blue-500" />
+          <Calendar className="h-6 w-6 text-primary" />
           Horários e Agenda
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Configure a grade de horários da clínica e gerencie exceções.</p>
@@ -92,10 +92,10 @@ export default function SchedulePage() {
 
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-3">
-        <Card className="shadow-sm border-blue-100 bg-blue-50/30">
+        <Card className="shadow-sm border-primary/20 bg-primary/5">
           <CardContent className="p-4">
-            <p className="text-xs text-blue-600 font-medium">Dias abertos / semana</p>
-            <p className="text-2xl font-bold text-blue-700 mt-1">{openDays} <span className="text-sm font-normal text-blue-400">dias</span></p>
+            <p className="text-xs text-primary font-medium">Dias abertos / semana</p>
+            <p className="text-2xl font-bold text-primary mt-1">{openDays} <span className="text-sm font-normal text-primary/70">dias</span></p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -130,19 +130,19 @@ export default function SchedulePage() {
         <>
           {loadingHours ? (
             <div className="flex justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : businessHours.length === 0 ? (
-            <Card className="shadow-sm border-amber-200">
+            <Card className="shadow-sm border-amber-500/20">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="p-2.5 bg-amber-50 rounded-lg flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <div className="p-2.5 bg-amber-500/10 rounded-lg flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground mb-1">Tabelas não encontradas</p>
                     <p className="text-xs text-muted-foreground mb-3">Execute o SQL abaixo no SQL Editor do Supabase:</p>
-                    <pre className="bg-neutral-900 text-neutral-300 p-4 rounded-lg text-[11px] font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">{`CREATE TABLE business_hours (
+                    <pre className="bg-muted text-muted-foreground p-4 rounded-lg text-[11px] font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">{`CREATE TABLE business_hours (
   id SERIAL PRIMARY KEY,
   day_of_week INTEGER NOT NULL UNIQUE,
   open_time TIME NOT NULL DEFAULT '08:00:00',
@@ -174,12 +174,12 @@ CREATE TABLE schedule_blocks (
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                       {/* Day + toggle */}
                       <div className="flex items-center gap-3 md:w-52 flex-shrink-0">
-                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-blue-50 text-blue-700'}`}>
+                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
                           {DAYS_SHORT[day.day_of_week]}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
-                          <p className={`text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-emerald-600'}`}>
+                          <p className={`text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-primary'}`}>
                             {day.is_closed ? 'Fechado' : 'Aberto'}
                           </p>
                         </div>
@@ -233,7 +233,7 @@ CREATE TABLE schedule_blocks (
                           </div>
                           {savingHours === day.id && (
                             <div className="flex items-end pb-1.5">
-                              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                           )}
                         </div>
@@ -256,7 +256,7 @@ CREATE TABLE schedule_blocks (
           <Card className="shadow-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Plus className="h-4 w-4 text-blue-500" /> Adicionar Bloqueio ou Feriado
+                <Plus className="h-4 w-4 text-primary" /> Adicionar Bloqueio ou Feriado
               </CardTitle>
               <CardDescription className="text-xs">Defina datas e horários em que a agenda estará fechada.</CardDescription>
             </CardHeader>
@@ -297,7 +297,7 @@ CREATE TABLE schedule_blocks (
             <Separator />
             {loadingBlocks ? (
               <CardContent className="py-10 flex justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </CardContent>
             ) : blocks.length === 0 ? (
               <CardContent className="py-14 text-center">
@@ -308,8 +308,8 @@ CREATE TABLE schedule_blocks (
               <div className="divide-y divide-border/40">
                 {blocks.map(block => (
                   <div key={block.id} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/30 transition-colors group">
-                    <div className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50">
-                      <Clock className="h-4 w-4 text-rose-400" />
+                    <div className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-rose-500/10">
+                      <Clock className="h-4 w-4 text-destructive" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -325,7 +325,7 @@ CREATE TABLE schedule_blocks (
                     </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => handleDeleteBlock(block.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

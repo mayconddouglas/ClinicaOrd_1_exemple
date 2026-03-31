@@ -19,9 +19,9 @@ type Patient = { id: string; nome: string; cpf?: string; telefone?: string; crea
 const emptyForm = { nome: '', cpf: '', telefone: '' };
 
 const AVATAR_COLORS = [
-  'bg-violet-100 text-violet-700', 'bg-blue-100 text-blue-700',
-  'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700',
-  'bg-pink-100 text-pink-700', 'bg-indigo-100 text-indigo-700',
+  'bg-violet-500/10 text-violet-500', 'bg-blue-500/10 text-blue-500',
+  'bg-emerald-500/10 text-emerald-500', 'bg-amber-500/10 text-amber-500',
+  'bg-pink-500/10 text-pink-500', 'bg-indigo-500/10 text-indigo-500',
 ];
 function getInitials(name: string) { return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase(); }
 function getColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
@@ -89,12 +89,12 @@ export default function PatientsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Users className="h-6 w-6 text-violet-500" />
+            <Users className="h-6 w-6 text-primary" />
             Pacientes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Gerencie o cadastro e histórico dos pacientes.</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="gap-2 flex-shrink-0 bg-violet-600 hover:bg-violet-700">
+        <Button onClick={() => handleOpenModal()} className="gap-2 flex-shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">
           <Plus className="h-4 w-4" /> Novo Paciente
         </Button>
       </div>
@@ -129,7 +129,7 @@ export default function PatientsPage() {
       <Card className="shadow-sm">
         {loading ? (
           <CardContent className="flex justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </CardContent>
         ) : patients.length === 0 ? (
           <CardContent className="py-16 text-center">
@@ -138,7 +138,7 @@ export default function PatientsPage() {
               {search ? 'Nenhum paciente encontrado.' : 'Nenhum paciente cadastrado ainda.'}
             </p>
             {!search && (
-              <Button variant="link" onClick={() => handleOpenModal()} className="mt-1 text-violet-600 text-sm">
+              <Button variant="link" onClick={() => handleOpenModal()} className="mt-1 text-primary hover:text-primary/80 text-sm">
                 + Cadastrar primeiro paciente
               </Button>
             )}
@@ -189,7 +189,7 @@ export default function PatientsPage() {
                       <div className="flex items-center justify-end gap-0.5">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-violet-600 hover:bg-violet-50"
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                               onClick={() => handleOpenModal(patient)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -198,7 +198,7 @@ export default function PatientsPage() {
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50"
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               disabled={deletingId === patient.id}
                               onClick={() => handleDelete(patient.id, patient.nome)}>
                               <Trash2 className="h-3.5 w-3.5" />
@@ -227,7 +227,7 @@ export default function PatientsPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="nome" className="text-xs font-semibold">Nome completo <span className="text-rose-500">*</span></Label>
+              <Label htmlFor="nome" className="text-xs font-semibold">Nome completo <span className="text-destructive">*</span></Label>
               <Input id="nome" autoFocus required value={formData.nome}
                 onChange={e => setFormData({ ...formData, nome: e.target.value })}
                 placeholder="Ex: João da Silva" />
@@ -246,7 +246,7 @@ export default function PatientsPage() {
             </div>
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={handleCloseModal}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-violet-600 hover:bg-violet-700">
+              <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar alterações' : 'Cadastrar'}
               </Button>
             </DialogFooter>

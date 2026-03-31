@@ -64,7 +64,7 @@ export default function TriagesPage() {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
           <p className="text-sm">Carregando triagens...</p>
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function TriagesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Activity className="h-6 w-6 text-rose-500" />
+            <Activity className="h-6 w-6 text-destructive" />
             Triagens Clínicas
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Acompanhe os relatos de sintomas e identifique urgências.</p>
@@ -92,9 +92,9 @@ export default function TriagesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total', value: stats.total, className: 'border-border' },
-          { label: 'Urgentes (≥8)', value: stats.urgentes, className: 'border-rose-100 bg-rose-50/50' },
-          { label: 'Pendentes', value: stats.pendentes, className: 'border-amber-100 bg-amber-50/50' },
-          { label: 'Resolvidas', value: stats.resolvidas, className: 'border-emerald-100 bg-emerald-50/50' },
+          { label: 'Urgentes (≥8)', value: stats.urgentes, className: 'border-destructive/20 bg-destructive/5' },
+          { label: 'Pendentes', value: stats.pendentes, className: 'border-amber-500/20 bg-amber-500/5' },
+          { label: 'Resolvidas', value: stats.resolvidas, className: 'border-primary/20 bg-primary/5' },
         ].map(s => (
           <Card key={s.label} className={`shadow-sm ${s.className}`}>
             <CardContent className="p-4">
@@ -129,11 +129,11 @@ export default function TriagesPage() {
           {filtered.map((triage) => {
             const isResolved = triage.status === 'resolvido';
             const isUrgent = triage.pain_scale >= 8;
-            const painColor = isUrgent ? 'text-rose-600' : triage.pain_scale >= 5 ? 'text-amber-600' : 'text-emerald-600';
-            const progressColor = isUrgent ? 'bg-rose-500' : triage.pain_scale >= 5 ? 'bg-amber-400' : 'bg-emerald-400';
+            const painColor = isUrgent ? 'text-destructive' : triage.pain_scale >= 5 ? 'text-amber-500' : 'text-primary';
+            const progressColor = isUrgent ? 'bg-destructive' : triage.pain_scale >= 5 ? 'bg-amber-500' : 'bg-primary';
 
             return (
-              <Card key={triage.id} className={`shadow-sm transition-opacity ${isResolved ? 'opacity-60' : ''} ${!isResolved && isUrgent ? 'border-rose-200' : ''}`}>
+              <Card key={triage.id} className={`shadow-sm transition-opacity ${isResolved ? 'opacity-60' : ''} ${!isResolved && isUrgent ? 'border-destructive/30' : ''}`}>
                 <CardContent className="p-5">
                   <div className="flex flex-col md:flex-row gap-5">
                     {/* Pain score */}
@@ -159,7 +159,7 @@ export default function TriagesPage() {
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-bold">{triage.pacientes?.nome || 'Paciente Desconhecido'}</p>
-                              {isResolved && <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700 bg-emerald-50">Resolvido</Badge>}
+                              {isResolved && <Badge variant="outline" className="text-[10px] border-primary/20 text-primary bg-primary/10">Resolvido</Badge>}
                               {!isResolved && isUrgent && <Badge variant="destructive" className="text-[10px]">Urgente</Badge>}
                             </div>
                             <p className="text-xs text-muted-foreground">{triage.pacientes?.telefone}</p>
@@ -172,7 +172,7 @@ export default function TriagesPage() {
                           </Badge>
                           {!isResolved && (
                             <Button size="sm" variant="outline" onClick={() => handleMarkResolved(triage.id)}
-                              className="h-7 gap-1 text-[11px] border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                              className="h-7 gap-1 text-[11px] border-primary/20 text-primary hover:bg-primary/10">
                               <CheckCircle2 className="h-3 w-3" /> Resolver
                             </Button>
                           )}
@@ -185,11 +185,11 @@ export default function TriagesPage() {
                       </div>
 
                       {triage.red_flags && (
-                        <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-100 p-3">
-                          <AlertTriangle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                          <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-600 mb-0.5">Sinais de Alerta</p>
-                            <p className="text-sm text-rose-700">{triage.red_flags}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive mb-0.5">Sinais de Alerta</p>
+                            <p className="text-sm text-destructive">{triage.red_flags}</p>
                           </div>
                         </div>
                       )}

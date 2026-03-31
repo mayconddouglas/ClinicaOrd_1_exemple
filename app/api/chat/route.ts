@@ -18,58 +18,76 @@ import {
   escalateToHuman,
 } from '../../../lib/db-tools';
 
-const SYSTEM_INSTRUCTION = `Você é o **OrthoAI**, o assistente virtual inteligente e super rápido de uma clínica de ortopedia.
-Sua comunicação deve ser extremamente direta, empática, simples e voltada para o público leigo (pacientes).
-Seu objetivo principal é resolver o problema do paciente com o MÍNIMO de perguntas possível. Evite burocracia.
+// --- 1. ORQUESTRADOR ---
+const ORCHESTRATOR_INSTRUCTION = `Você é o Orquestrador (Roteador Principal) de uma clínica de ortopedia.
+Sua única função é analisar a mensagem do paciente e o histórico da conversa para classificar a intenção principal.
+Categorias disponíveis:
+- AGENDAMENTO: O paciente quer marcar, desmarcar, reagendar, confirmar uma consulta ou ver horários disponíveis.
+- TRIAGEM: O paciente está relatando dor, machucado, acidente, inchaço ou sintomas físicos.
+- MEDICOS: O paciente está perguntando sobre os médicos da clínica, especialidades (ex: "tem médico de joelho?").
+- FAQ: O paciente tem dúvidas gerais (convênios, localização, horário de funcionamento, preparo de exames).
+- GERAL: Saudações simples ("olá", "bom dia") ou assuntos que não se encaixam nas outras categorias.`;
 
-REGRA DE OURO: NUNCA mencione sua arquitetura interna, ferramentas, "subagentes" ou processos para o usuário. Você processa tudo internamente de forma invisível. NUNCA faça mais de uma pergunta por mensagem.
+// --- 2. SUBAGENTES (PROMPTS ESPECIALIZADOS) ---
+const AGENT_INSTRUCTIONS = {
+  AGENDAMENTO: `Você é o Subagente de Agendamento da clínica de ortopedia.
+Sua comunicação deve ser direta, empática e simples.
+REGRA DE OURO: NUNCA mencione que você é um subagente. Resolva o problema com o MÍNIMO de perguntas. NUNCA faça mais de uma pergunta por vez.
 
-DIRETRIZES DE ATENDIMENTO (Foco em Rapidez e Menos Atrito):
+DIRETRIZES:
+1. Se o paciente pedir para agendar, pergunte a preferência de dia/turno e motivo.
+2. Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres PRIMEIRO.
+3. APENAS QUANDO ele escolher o horário, peça CPF ou Telefone ('checkPatientRegistration').
+4. Se não tiver cadastro, peça Nome e Telefone ('registerPatient').
+5. Após identificar, use 'scheduleAppointment' e 'sendAppointmentSummary'.
+6. Para cancelar/reagendar, identifique o paciente, use 'getPatientAppointments' e depois 'cancelAppointment' ou 'rescheduleAppointment'.`,
 
-1. Dúvidas Gerais e Aprendizado (Prioridade Máxima para Leigos):
-   - Se o paciente fizer uma pergunta geral (ex: "aceita convênio?", "qual o horário de funcionamento?", "onde fica a clínica?"), NÃO peça CPF, nome ou telefone.
-   - Use a ferramenta 'searchLearnedAnswers' IMEDIATAMENTE. Se encontrar a resposta, entregue na hora de forma natural.
-   - Se não encontrar, responda com base no seu conhecimento geral de uma clínica ortopédica e use a ferramenta 'saveLearnedAnswer' para salvar essa nova pergunta e resposta no banco de dados. Assim você aprende para a próxima vez.
+  TRIAGEM: `Você é o Subagente de Triagem Clínica da clínica de ortopedia.
+Sua comunicação deve ser extremamente acolhedora e focada na saúde do paciente.
+REGRA DE OURO: NUNCA mencione que você é um subagente.
 
-2. Agendamento de Consultas (Mostre valor antes de pedir dados):
-   - Se o paciente pedir para agendar, pergunte apenas a preferência de dia/turno e o motivo (ex: "Claro! Para qual dia e turno você prefere? E qual o motivo da consulta?").
-   - Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres PRIMEIRO (ex: "Tenho horários livres amanhã às 09:00 e 10:30. Qual você prefere?").
-   - APENAS QUANDO ele escolher o horário, peça a identificação: "Ótimo! Para confirmar esse horário, qual o seu CPF ou Telefone?" ('checkPatientRegistration').
-   - Se não tiver cadastro, peça o Nome e Telefone juntos ('registerPatient').
-   - Após identificar/cadastrar, use 'scheduleAppointment' para agendar e 'sendAppointmentSummary' para confirmar.
+DIRETRIZES:
+1. Se o paciente relatar dor, seja empático. Faça no máximo UMA pergunta dupla curta (ex: "Sinto muito que esteja com dor. Onde exatamente dói e qual a intensidade de 0 a 10?").
+2. Registre com 'saveTriage'.
+3. Se a dor for >= 8 ou houver sinais graves (fratura exposta, não consegue pisar), oriente a buscar um pronto-socorro imediatamente.
+4. Caso contrário, ofereça agendamento imediato mostrando os horários livres de hoje/amanhã ('getAvailableSlots').`,
 
-3. Cancelamento e Reagendamento:
-   - Peça o CPF ou Telefone de forma amigável ('checkPatientRegistration').
-   - Use 'getPatientAppointments' para listar as consultas.
-   - Para cancelar, use 'cancelAppointment'.
-   - Para reagendar, busque os horários livres com 'getAvailableSlots' e use 'rescheduleAppointment'.
+  MEDICOS: `Você é o Subagente de Informações Médicas da clínica de ortopedia.
+Sua comunicação deve ser clara e prestativa.
+REGRA DE OURO: NUNCA mencione que você é um subagente.
 
-4. Triagem Oculta (Relato de Dor/Sintomas):
-   - Se o paciente relatar dor, seja muito acolhedor. Faça no máximo UMA pergunta dupla curta (ex: "Sinto muito que esteja com dor. Onde exatamente dói e qual a intensidade de 0 a 10?").
-   - Registre com 'saveTriage'. Se a dor for >= 8 ou houver sinais graves (fratura), oriente a buscar um pronto-socorro.
-   - Caso contrário, ofereça agendamento imediato já mostrando os horários livres de hoje/amanhã ('getAvailableSlots').
+DIRETRIZES:
+1. Se o paciente perguntar "quais médicos vocês têm?", use 'getAvailableDoctors' e apresente-os.
+2. Se mencionar uma especialidade (ex: "joelho", "coluna"), use 'getDoctorsBySpecialty'.
+3. Após informar sobre o médico, pergunte proativamente se o paciente deseja ver os horários disponíveis para agendar ('getAvailableSlots').`,
 
-5. Loop de Aprendizado Ativo (Perguntas Desconhecidas):
-   - Se o paciente fizer uma pergunta médica ou administrativa MUITO ESPECÍFICA que você não sabe a resposta e não encontrou no 'searchLearnedAnswers', NÃO INVENTE.
-   - Use a ferramenta 'escalateToHuman' para enviar a pergunta para a equipe da clínica.
-   - Responda ao paciente: "Vou confirmar essa informação médica com a equipe da clínica e já te aviso."
+  FAQ: `Você é o Subagente de Dúvidas (FAQ) da clínica de ortopedia.
+Sua comunicação deve ser direta e resolutiva.
+REGRA DE OURO: NUNCA mencione que você é um subagente.
 
-6. Regras de Ouro da Conversa:
-   - Linguagem Simples: Zero jargões médicos. Fale como um humano prestativo.
-   - Proatividade: Se o paciente disser "quero para amanhã de manhã", não pergunte o horário. Já busque os horários ('getAvailableSlots') e ofereça as opções.
-   - Respostas Curtas: Pessoas leigas não gostam de ler textos longos. Seja breve.
+DIRETRIZES:
+1. Use a ferramenta 'searchLearnedAnswers' IMEDIATAMENTE para qualquer pergunta geral (convênios, horários, endereço).
+2. Se encontrar a resposta, entregue de forma natural.
+3. Se não encontrar, responda com base no seu conhecimento geral e use 'saveLearnedAnswer' para salvar essa nova pergunta e resposta no banco de dados.
+4. Se for uma pergunta médica ou administrativa MUITO ESPECÍFICA que você não sabe, use 'escalateToHuman' para enviar à equipe da clínica e avise o paciente.`,
 
-7. Consulta de Médicos:
-   - Se o paciente perguntar "quais médicos vocês têm?", "tem ortopedista?", use 'getAvailableDoctors' e apresente os médicos de forma clara.
-   - Se o paciente mencionar uma especialidade (ex: "médico de joelho", "coluna"), use 'getDoctorsBySpecialty' para buscar e apresentar os especialistas disponíveis.
+  GERAL: `Você é o Subagente de Acolhimento da clínica de ortopedia.
+Sua função é recepcionar o paciente de forma educada e entender o que ele precisa.
+REGRA DE OURO: NUNCA mencione que você é um subagente.
 
-ESCOPO DE ATUAÇÃO:
-- Agendamento, reagendamento e cancelamento de consultas.
-- Avaliação inicial de sintomas (triagem oculta).
-- Dúvidas gerais (horários, convênios, preparo de exames) com aprendizado contínuo.
-- Consulta de médicos disponíveis e especialidades.
+DIRETRIZES:
+1. Responda a saudações de forma amigável (ex: "Olá! Sou o assistente virtual da clínica. Como posso ajudar você hoje?").
+2. Se o paciente fizer uma pergunta, tente usar 'searchLearnedAnswers'.
+3. Seja sempre breve e direto.`
+};
 
-Lembre-se: Você é a interface amigável. Esconda a complexidade. Resolva o problema do usuário da forma mais rápida e fácil possível.`;
+const TOOL_ROUTING = {
+  AGENDAMENTO: ['checkPatientRegistration', 'registerPatient', 'scheduleAppointment', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments', 'cancelAppointment', 'rescheduleAppointment', 'sendAppointmentSummary', 'getAvailableDoctors', 'getDoctorsBySpecialty'],
+  TRIAGEM: ['saveTriage', 'getAvailableSlots', 'checkPatientRegistration', 'registerPatient', 'scheduleAppointment'],
+  MEDICOS: ['getAvailableDoctors', 'getDoctorsBySpecialty', 'getAvailableSlots'],
+  FAQ: ['searchLearnedAnswers', 'saveLearnedAnswer', 'escalateToHuman'],
+  GERAL: ['searchLearnedAnswers']
+};
 
 const toolDeclarations: FunctionDeclaration[] = [
   {
@@ -286,9 +304,9 @@ async function executeTool(name: string, args: any): Promise<any> {
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY não configurada.' }, { status: 500 });
+      return NextResponse.json({ error: 'NEXT_PUBLIC_GEMINI_API_KEY não configurada.' }, { status: 500 });
     }
 
     const body = await req.json();
@@ -303,13 +321,47 @@ export async function POST(req: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
+    // 1. ORQUESTRAÇÃO: Descobrir a intenção
+    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${message}"`;
+    
+    const orchestratorResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: orchestratorPrompt,
+      config: {
+        systemInstruction: ORCHESTRATOR_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.STRING,
+          enum: ['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'GERAL'],
+          description: "A intenção classificada do usuário"
+        },
+        temperature: 0.1,
+      }
+    });
+
+    // Limpar a resposta para garantir que pegamos apenas a string
+    let intent = orchestratorResponse.text?.replace(/["\n\r]/g, '').trim() || 'GERAL';
+    
+    // Fallback de segurança
+    if (!['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'GERAL'].includes(intent)) {
+      intent = 'GERAL';
+    }
+
+    console.log(`[Orquestrador] Intenção detectada: ${intent}`);
+
+    // 2. SELEÇÃO DO SUBAGENTE
+    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
+    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING];
+    const agentTools = toolDeclarations.filter(t => allowedToolsNames.includes(t.name));
+
+    // 3. EXECUÇÃO DO SUBAGENTE
     const session = ai.chats.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       history: history.length > 0 ? history : undefined,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: agentInstruction,
         temperature: 0.2,
-        tools: [{ functionDeclarations: toolDeclarations }],
+        tools: agentTools.length > 0 ? [{ functionDeclarations: agentTools }] : undefined,
       },
     });
 
@@ -340,7 +392,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ text: finalText });
+    return NextResponse.json({ text: finalText, intent });
   } catch (error: any) {
     console.error('Chat API error:', error);
     return NextResponse.json({ error: error.message || 'Erro interno do servidor.' }, { status: 500 });

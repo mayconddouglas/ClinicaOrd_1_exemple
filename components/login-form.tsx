@@ -70,7 +70,7 @@ export function LoginForm({
         <CardContent className="pt-0 pb-8 px-8">
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg animate-in fade-in slide-in-from-top-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <p>{error}</p>
               </div>

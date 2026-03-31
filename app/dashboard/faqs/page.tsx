@@ -112,7 +112,7 @@ export default function FAQsPage() {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-sm">Carregando base de conhecimento...</p>
         </div>
       </div>
@@ -124,7 +124,7 @@ export default function FAQsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-emerald-500" />
+          <BookOpen className="h-6 w-6 text-primary" />
           Base de Conhecimento
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Perguntas e respostas aprendidas automaticamente pelo OrthoAI.</p>
@@ -132,12 +132,12 @@ export default function FAQsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card className="shadow-sm border-amber-100 bg-amber-50/30">
+        <Card className="shadow-sm border-amber-500/20 bg-amber-500/5">
           <CardContent className="p-4">
-            <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+            <p className="text-xs text-primary font-medium flex items-center gap-1">
               <MessageSquareWarning className="h-3 w-3" /> Pendentes
             </p>
-            <p className="text-2xl font-bold tracking-tight mt-1 text-amber-900">{pendingQuestions.length}</p>
+            <p className="text-2xl font-bold tracking-tight mt-1 text-primary">{pendingQuestions.length}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">
@@ -152,13 +152,13 @@ export default function FAQsPage() {
             <p className="text-2xl font-bold tracking-tight mt-1">{categories.length}</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-emerald-100 bg-emerald-50/30">
+        <Card className="shadow-sm border-primary/20 bg-primary/5">
           <CardContent className="p-4">
-            <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <p className="text-xs text-primary font-medium flex items-center gap-1">
               <TrendingUp className="h-3 w-3" /> Mais usada
             </p>
-            <p className="text-sm font-bold text-emerald-800 mt-1 line-clamp-1">{topFaq?.question || '—'}</p>
-            {topFaq && <p className="text-[11px] text-emerald-600 mt-0.5">{topFaq.usage_count}x consultada</p>}
+            <p className="text-sm font-bold text-primary mt-1 line-clamp-1">{topFaq?.question || '—'}</p>
+            {topFaq && <p className="text-[11px] text-primary/70 mt-0.5">{topFaq.usage_count}x consultada</p>}
           </CardContent>
         </Card>
       </div>
@@ -178,34 +178,34 @@ export default function FAQsPage() {
 
         <TabsContent value="pending" className="space-y-4">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Aguardando Resposta da Equipe</h2>
-            <p className="text-sm text-slate-500">Estas perguntas foram feitas por pacientes e a IA não soube responder. Ao responder, a IA aprenderá a resposta para o futuro.</p>
+            <h2 className="text-lg font-semibold text-foreground">Aguardando Resposta da Equipe</h2>
+            <p className="text-sm text-muted-foreground">Estas perguntas foram feitas por pacientes e a IA não soube responder. Ao responder, a IA aprenderá a resposta para o futuro.</p>
           </div>
 
           {pendingQuestions.length === 0 ? (
             <Card className="shadow-sm border-dashed">
               <CardContent className="py-16 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400 mb-4" />
-                <h3 className="text-lg font-medium text-slate-900">Tudo em dia!</h3>
-                <p className="text-sm text-slate-500 mt-1">Não há perguntas pendentes no momento.</p>
+                <CheckCircle2 className="mx-auto h-12 w-12 text-primary mb-4" />
+                <h3 className="text-lg font-medium text-foreground">Tudo em dia!</h3>
+                <p className="text-sm text-muted-foreground mt-1">Não há perguntas pendentes no momento.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
               {pendingQuestions.map(q => (
-                <Card key={q.id} className="shadow-sm border-amber-200 bg-amber-50/10">
+                <Card key={q.id} className="shadow-sm border-amber-500/20 bg-amber-500/5">
                   <div className="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">Pendente</Badge>
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Pendente</Badge>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" /> {new Date(q.created_at).toLocaleString('pt-BR')}
                         </span>
                       </div>
-                      <p className="font-medium text-slate-900 text-lg">&quot;{q.question}&quot;</p>
-                      <p className="text-sm text-slate-500">Paciente: {q.patient_phone}</p>
+                      <p className="font-medium text-foreground text-lg">&quot;{q.question}&quot;</p>
+                      <p className="text-sm text-muted-foreground">Paciente: {q.patient_phone}</p>
                     </div>
-                    <Button onClick={() => handleOpenAnswer(q)} className="bg-amber-600 hover:bg-amber-700 text-white shrink-0">
+                    <Button onClick={() => handleOpenAnswer(q)} className="bg-amber-500 hover:bg-amber-600 text-white shrink-0">
                       Responder e Ensinar IA
                     </Button>
                   </div>
@@ -251,7 +251,7 @@ export default function FAQsPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <Badge variant="outline" className="text-[10px] gap-1 border-emerald-200 text-emerald-700 bg-emerald-50/50">
+                        <Badge variant="outline" className="text-[10px] gap-1 border-primary/20 text-primary bg-primary/10">
                           <Tag className="h-2.5 w-2.5" /> {faq.category || 'Geral'}
                         </Badge>
                         <Badge variant="secondary" className="text-[10px] gap-1">
@@ -263,7 +263,7 @@ export default function FAQsPage() {
                     <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                             onClick={e => { e.stopPropagation(); handleOpenEdit(faq); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -272,7 +272,7 @@ export default function FAQsPage() {
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-50"
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             disabled={deletingId === faq.id}
                             onClick={e => { e.stopPropagation(); handleDelete(faq.id); }}>
                             <Trash2 className="h-3.5 w-3.5" />
@@ -317,9 +317,9 @@ export default function FAQsPage() {
             </DialogDescription>
           </DialogHeader>
           {answeringQuestion && (
-            <div className="bg-slate-50 p-3 rounded-md border border-slate-200 mb-2">
-              <p className="text-sm font-medium text-slate-900">&quot;{answeringQuestion.question}&quot;</p>
-              <p className="text-xs text-slate-500 mt-1">Paciente: {answeringQuestion.patient_phone}</p>
+            <div className="bg-muted p-3 rounded-md border mb-2">
+              <p className="text-sm font-medium text-foreground">&quot;{answeringQuestion.question}&quot;</p>
+              <p className="text-xs text-muted-foreground mt-1">Paciente: {answeringQuestion.patient_phone}</p>
             </div>
           )}
           <form onSubmit={handleSaveAnswer} className="space-y-4 pt-2">
@@ -338,7 +338,7 @@ export default function FAQsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAnsweringQuestion(null)}>Cancelar</Button>
-              <Button type="submit" disabled={saving} className="bg-amber-600 hover:bg-amber-700">
+              <Button type="submit" disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-white">
                 {saving ? 'Enviando...' : 'Responder e Ensinar IA'}
               </Button>
             </DialogFooter>
@@ -373,7 +373,7 @@ export default function FAQsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingFaq(null)}>Cancelar</Button>
-              <Button type="submit" disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" disabled={saving} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {saving ? 'Salvando...' : 'Salvar alterações'}
               </Button>
             </DialogFooter>
