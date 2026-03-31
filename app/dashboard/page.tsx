@@ -5,13 +5,14 @@ import { getDashboardKPIs, getRecentAppointments, getAnalyticsData, updateAppoin
 import { Calendar, Users, AlertTriangle, Clock, CheckCircle2, XCircle, Stethoscope, BookOpen, RefreshCw, TrendingUp, Activity } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -61,9 +62,9 @@ export default function DashboardOverview() {
     const [kpiRes, apptRes, analyticsRes] = await Promise.all([
       getDashboardKPIs(), getRecentAppointments(), getAnalyticsData()
     ]);
-    if (kpiRes.success) setKpis(kpiRes.data);
+    if (kpiRes.success) setKpis(kpiRes.data || { totalPatients: 0, newPatientsThisMonth: 0, pendingAppointments: 0, completedAppointments: 0 });
     if (apptRes.success) setAppointments(apptRes.data || []);
-    if (analyticsRes.success) setAnalytics(analyticsRes.data);
+    if (analyticsRes.success) setAnalytics(analyticsRes.data || { painDistribution: [], appointmentStatus: [] });
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -160,23 +161,74 @@ export default function DashboardOverview() {
         </Button>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {KPI_CONFIG.map(({ key, label, icon: Icon, color, bg, border }) => (
-          <Card key={key} className={`border ${border} shadow-sm transition-all hover:shadow-md`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-              <CardTitle className="text-base font-medium text-muted-foreground">
-                {label}
-              </CardTitle>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>
-                <Icon className={`h-5 w-5 ${color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{kpis?.[key] ?? 0}</div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* KPIs com Mini Gráficos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-sm border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total de Pacientes</CardTitle>
+            <div className="p-2 bg-blue-500/10 rounded-full">
+              <Users className="h-4 w-4 text-blue-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis?.totalPatients ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              <span className="text-emerald-600 font-medium">+{kpis?.newPatientsThisMonth ?? 0}</span> novos este mês
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-amber-500 hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Consultas Pendentes</CardTitle>
+            <div className="p-2 bg-amber-500/10 rounded-full">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis?.pendingAppointments ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <span className="text-amber-600 font-medium">Aguardando</span> confirmação
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Consultas Realizadas</CardTitle>
+            <div className="p-2 bg-emerald-500/10 rounded-full">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis?.completedAppointments ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              Volume <span className="text-emerald-600 font-medium">estável</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-l-4 border-l-violet-500 hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Conversão</CardTitle>
+            <div className="p-2 bg-violet-500/10 rounded-full">
+              <Activity className="h-4 w-4 text-violet-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {kpis?.totalPatients > 0 ? Math.round((kpis.completedAppointments / kpis.totalPatients) * 100) : 0}%
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-violet-500 rounded-full" 
+                style={{ width: `${kpis?.totalPatients > 0 ? Math.round((kpis.completedAppointments / kpis.totalPatients) * 100) : 0}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts */}
