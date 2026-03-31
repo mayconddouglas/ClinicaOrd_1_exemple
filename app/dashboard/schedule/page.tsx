@@ -303,30 +303,30 @@ CREATE TABLE schedule_blocks (
 
                       {/* Time pickers */}
                       {!day.is_closed && (
-                        <div className="flex flex-wrap gap-3 sm:gap-4 flex-1 items-end">
+                        <div className="flex-1 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 items-end">
                           {[
                             { label: 'Abertura', field: 'open_time', value: day.open_time },
                             { label: 'Fechamento', field: 'close_time', value: day.close_time },
                             { label: 'Almoço Início', field: 'lunch_start', value: day.lunch_start, optional: true },
                             { label: 'Almoço Fim', field: 'lunch_end', value: day.lunch_end, optional: true },
                           ].map(({ label, field, value, optional }) => (
-                            <div key={field} className="flex flex-col gap-1.5 flex-1 min-w-[100px]">
+                            <div key={field} className="flex flex-col gap-1.5 sm:flex-1 sm:min-w-[100px]">
                               <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
                               <Input
                                 type="time"
                                 value={value?.substring(0, 5) || ''}
                                 onChange={e => handleUpdateHour(day.id, field, e.target.value ? e.target.value + ':00' : optional ? null : e.target.value)}
-                                className="h-9 sm:h-10 text-xs sm:text-sm bg-background"
+                                className="h-9 sm:h-10 text-xs sm:text-sm bg-background w-full"
                               />
                             </div>
                           ))}
-                          <div className="flex flex-col gap-1.5 flex-1 min-w-[100px]">
+                          <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[100px]">
                             <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Slot (Duração)</Label>
                             <Select
                               value={String(day.slot_duration || 30)}
                               onValueChange={v => handleUpdateHour(day.id, 'slot_duration', parseInt(v))}
                             >
-                              <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm bg-background">
+                              <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm bg-background w-full">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -337,7 +337,7 @@ CREATE TABLE schedule_blocks (
                             </Select>
                           </div>
                           {savingHours === day.id && (
-                            <div className="flex items-center justify-center h-9 sm:h-10 w-9 sm:w-10">
+                            <div className="col-span-2 sm:col-span-1 flex items-center justify-center sm:justify-start h-9 sm:h-10 w-full sm:w-10">
                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                           )}
