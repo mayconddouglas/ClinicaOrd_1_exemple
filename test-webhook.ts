@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 async function main() {
   const payload = {
     update_id: 123456789,
