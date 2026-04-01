@@ -11,7 +11,7 @@ const notoSerif = Noto_Serif({subsets:['latin'],variable:'--font-serif'});
 
 const geistMono = Geist_Mono({subsets:['latin'],variable:'--font-mono'});
 
-const sourceSans3 = Source_Sans_3({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'OrthoAI — Clínica Ortopédica',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className={cn( geistMono.variable, notoSerif.variable, spaceGroteskHeading.variable, "font-sans", sourceSans3.variable)}>
+    <html lang="pt-BR" suppressHydrationWarning className={cn( geistMono.variable, notoSerif.variable, spaceGroteskHeading.variable, "font-sans", geist.variable)}>
       <body suppressHydrationWarning className="bg-background text-foreground min-h-screen">
         <ThemeProvider
           attribute="class"
