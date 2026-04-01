@@ -9,9 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send } from 'lucide-react';
+import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send, ChevronsUpDown, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 interface Patient {
   id: string;
@@ -56,6 +59,10 @@ export default function FinancePage() {
 
   // Delete invoice state
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  // Combobox popover states
+  const [openPatientCombobox, setOpenPatientCombobox] = useState(false);
+  const [openServiceCombobox, setOpenServiceCombobox] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -236,29 +243,95 @@ export default function FinancePage() {
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="patient">Selecione o Paciente</Label>
-                <Select value={newPatientId} onValueChange={setNewPatientId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha um paciente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={openPatientCombobox} onOpenChange={setOpenPatientCombobox} modal={true}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openPatientCombobox}
+                      className="justify-between"
+                    >
+                      {newPatientId
+                        ? patients.find((p) => p.id === newPatientId)?.name
+                        : "Procurar paciente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Digite o nome do paciente..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {patients.map((patient) => (
+                            <CommandItem
+                              key={patient.id}
+                              value={patient.name}
+                              onSelect={() => {
+                                setNewPatientId(patient.id);
+                                setOpenPatientCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newPatientId === patient.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {patient.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="service">Serviço / Procedimento</Label>
-                <Select value={newServiceId} onValueChange={handleServiceChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha o serviço..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name} - {formatCurrency(s.price)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={openServiceCombobox} onOpenChange={setOpenServiceCombobox} modal={true}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openServiceCombobox}
+                      className="justify-between"
+                    >
+                      {newServiceId
+                        ? services.find((s) => s.id === newServiceId)?.name
+                        : "Procurar serviço..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Digite o nome do serviço..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum serviço encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {services.map((service) => (
+                            <CommandItem
+                              key={service.id}
+                              value={service.name}
+                              onSelect={() => {
+                                handleServiceChange(service.id);
+                                setOpenServiceCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newServiceId === service.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {service.name} - {formatCurrency(service.price)}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
