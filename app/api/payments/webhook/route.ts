@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { sendReceiptEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -13,10 +14,10 @@ export async function POST(request: Request) {
       // Body might be empty or not JSON, which is fine for some Mercado Pago GET/POST callbacks
     }
 
-    // 1. Fetch clinic settings to get tokens for validation
+    // 1. Fetch clinic settings to get tokens for validation and SMTP config
     const { data: settings } = await supabase
       .from('clinic_settings')
-      .select('mp_access_token, asaas_api_key')
+      .select('clinic_name, mp_access_token, asaas_api_key, smtp_user, smtp_pass')
       .limit(1)
       .single();
 
@@ -78,9 +79,24 @@ export async function POST(request: Request) {
             
           console.log(`[Webhook] Invoice ${invoiceId} marked as PAID.`);
 
-          // Simulate sending a "Payment Confirmed" email to the patient
-          if (invoiceData?.customer_email) {
-            console.log(`[Email Service] Enviando recibo de confirmação para ${invoiceData.customer_email} - Serviço: ${invoiceData.description}`);
+          // Send a "Payment Confirmed" email to the patient using Nodemailer
+          if (invoiceData?.customer_email && settings?.smtp_user && settings?.smtp_pass) {
+            console.log(`[Email Service] Enviando recibo de confirmação para ${invoiceData.customer_email}`);
+            try {
+              await sendReceiptEmail(
+                { user: settings.smtp_user, pass: settings.smtp_pass },
+                invoiceData.customer_email,
+                {
+                  patientName: invoiceData.patient_name,
+                  clinicName: settings.clinic_name || 'Clínica',
+                  serviceName: invoiceData.description,
+                  amount: Number(paymentInfo.transaction_amount)
+                }
+              );
+              console.log(`[Email Service] Recibo enviado com sucesso!`);
+            } catch (emailError) {
+              console.error(`[Email Service] Erro ao enviar recibo:`, emailError);
+            }
           }
         }
       }

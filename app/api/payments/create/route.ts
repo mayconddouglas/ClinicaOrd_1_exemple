@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { sendInvoiceEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -13,10 +14,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Fetch clinic settings to get payment gateway info
+    // 1. Fetch clinic settings to get payment gateway and SMTP info
     const { data: settings, error: settingsError } = await supabase
       .from('clinic_settings')
-      .select('active_payment_gateway, mp_access_token, asaas_api_key')
+      .select('clinic_name, active_payment_gateway, mp_access_token, asaas_api_key, smtp_user, smtp_pass')
       .limit(1)
       .single();
 
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { active_payment_gateway, mp_access_token, asaas_api_key } = settings;
+    const { clinic_name, active_payment_gateway, mp_access_token, asaas_api_key, smtp_user, smtp_pass } = settings;
 
     if (active_payment_gateway === 'none' || !active_payment_gateway) {
       return NextResponse.json(
@@ -177,11 +178,30 @@ export async function POST(request: Request) {
       .update({ payment_link: paymentLink })
       .eq('id', invoice.id);
 
-    // 5. If send_email is true and patient has email, we trigger the simulated email notification
+    // 5. If send_email is true and patient has email, we send the real email via Nodemailer
     if (send_email && patient_email) {
-      console.log(`[Email Service] Enviando link de cobrança (${paymentLink}) para o e-mail: ${patient_email}`);
-      // Em produção, você chamaria a API do Resend ou SendGrid aqui:
-      // await resend.emails.send({ from: 'clinica@suaclinica.com', to: patient_email, subject: 'Sua Cobrança', react: <EmailTemplate link={paymentLink} /> });
+      if (smtp_user && smtp_pass) {
+        console.log(`[Email Service] Enviando link de cobrança (${paymentLink}) para o e-mail: ${patient_email}`);
+        try {
+          await sendInvoiceEmail(
+            { user: smtp_user, pass: smtp_pass },
+            patient_email,
+            {
+              patientName: patient_name,
+              clinicName: clinic_name || 'Clínica',
+              serviceName: description,
+              amount: Number(amount),
+              paymentLink: paymentLink
+            }
+          );
+          console.log(`[Email Service] E-mail de cobrança enviado com sucesso!`);
+        } catch (emailError) {
+          console.error(`[Email Service] Falha ao enviar e-mail:`, emailError);
+          // We don't throw error here to not break the payment link generation, just log it.
+        }
+      } else {
+        console.log(`[Email Service] SMTP não configurado. E-mail de cobrança não enviado para ${patient_email}`);
+      }
     }
 
     return NextResponse.json({ 

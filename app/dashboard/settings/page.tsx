@@ -52,6 +52,10 @@ export default function SettingsPage() {
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [asaasApiKey, setAsaasApiKey] = useState('');
 
+  // Email State
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+
   // Default values for comparison
   const [initialData, setInitialData] = useState<any>({});
 
@@ -91,6 +95,10 @@ export default function SettingsPage() {
           setMpAccessToken(data.mp_access_token || '');
           setAsaasApiKey(data.asaas_api_key || '');
 
+          // Load email settings
+          setSmtpUser(data.smtp_user || '');
+          setSmtpPass(data.smtp_pass || '');
+
           setInitialData(data);
         }
       } catch (err) {
@@ -119,10 +127,12 @@ export default function SettingsPage() {
       welcomeMessage !== (initialData.welcome_message || '') ||
       activePaymentGateway !== (initialData.active_payment_gateway || 'none') ||
       mpAccessToken !== (initialData.mp_access_token || '') ||
-      asaasApiKey !== (initialData.asaas_api_key || '');
+      asaasApiKey !== (initialData.asaas_api_key || '') ||
+      smtpUser !== (initialData.smtp_user || '') ||
+      smtpPass !== (initialData.smtp_pass || '');
       
     setHasChanges(isChanged);
-  }, [clinicName, clinicEmail, clinicPhone, clinicHours, cnpj, responsavel, cep, rua, numero, bairro, cidade, welcomeMessage, activePaymentGateway, mpAccessToken, asaasApiKey, initialData, isLoading]);
+  }, [clinicName, clinicEmail, clinicPhone, clinicHours, cnpj, responsavel, cep, rua, numero, bairro, cidade, welcomeMessage, activePaymentGateway, mpAccessToken, asaasApiKey, smtpUser, smtpPass, initialData, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -143,6 +153,8 @@ export default function SettingsPage() {
       active_payment_gateway: activePaymentGateway,
       mp_access_token: mpAccessToken,
       asaas_api_key: asaasApiKey,
+      smtp_user: smtpUser,
+      smtp_pass: smtpPass,
       updated_at: new Date().toISOString(),
     };
 
@@ -197,6 +209,8 @@ export default function SettingsPage() {
     setActivePaymentGateway(initialData.active_payment_gateway || 'none');
     setMpAccessToken(initialData.mp_access_token || '');
     setAsaasApiKey(initialData.asaas_api_key || '');
+    setSmtpUser(initialData.smtp_user || '');
+    setSmtpPass(initialData.smtp_pass || '');
     setHasChanges(false);
     toast.info('Alterações descartadas.');
   };
@@ -243,11 +257,12 @@ export default function SettingsPage() {
               </Card>
             ) : (
               <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full space-y-6">
-                <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
+                <TabsList className="grid w-full grid-cols-5 lg:w-[1000px]">
                   <TabsTrigger value="profile" className="gap-2"><Building2 className="h-4 w-4" /><span className="hidden sm:inline">Perfil da Clínica</span></TabsTrigger>
                   <TabsTrigger value="address" className="gap-2"><MapPin className="h-4 w-4" /><span className="hidden sm:inline">Endereço</span></TabsTrigger>
                   <TabsTrigger value="branding" className="gap-2"><Palette className="h-4 w-4" /><span className="hidden sm:inline">Personalização</span></TabsTrigger>
                   <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Pagamentos</span></TabsTrigger>
+                  <TabsTrigger value="email" className="gap-2"><Mail className="h-4 w-4" /><span className="hidden sm:inline">E-mail Automático</span></TabsTrigger>
                 </TabsList>
                 {/* PROFILE TAB */}
                 <TabsContent value="profile" className="space-y-6 mt-0">
@@ -580,6 +595,65 @@ export default function SettingsPage() {
                           </div>
                         )}
 
+                      </FieldGroup>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* EMAIL AUTOMATION TAB */}
+                <TabsContent value="email" className="space-y-6 mt-0">
+                  <Card className="animate-in fade-in duration-300 overflow-hidden">
+                    <div className="bg-muted/30 border-b px-6 py-4 flex items-center gap-3">
+                      <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                        <Mail className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Configuração de E-mail (Google Workspace)</CardTitle>
+                        <CardDescription className="mt-1">
+                          Envie faturas e recibos automaticamente usando o e-mail oficial da sua clínica.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <CardContent className="p-6 space-y-8">
+                      <FieldGroup>
+                        <div className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 p-4 rounded-xl flex gap-3 text-sm">
+                          <Info className="h-5 w-5 shrink-0" />
+                          <div>
+                            <p className="font-semibold mb-1">Como configurar o disparo pelo Gmail/Google Workspace?</p>
+                            <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
+                              <li>Acesse as <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="underline font-medium hover:text-indigo-800 dark:hover:text-indigo-300">Configurações de Segurança do Google</a> com a conta da clínica.</li>
+                              <li>Ative a <strong>Verificação em Duas Etapas</strong> (se não estiver ativa).</li>
+                              <li>Vá em <strong>Senhas de App</strong> (ou App Passwords) e crie uma nova senha para "App de Faturamento".</li>
+                              <li>Copie a senha de 16 letras gerada e cole abaixo.</li>
+                            </ol>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          <Field>
+                            <FieldLabel htmlFor="smtp-user">E-mail Remetente</FieldLabel>
+                            <Input
+                              id="smtp-user"
+                              type="email"
+                              value={smtpUser}
+                              onChange={(e) => setSmtpUser(e.target.value)}
+                              placeholder="contato@suaclinica.com.br"
+                            />
+                            <FieldDescription>O e-mail da clínica no Google que enviará as cobranças.</FieldDescription>
+                          </Field>
+
+                          <Field>
+                            <FieldLabel htmlFor="smtp-pass">Senha de App (Google)</FieldLabel>
+                            <Input
+                              id="smtp-pass"
+                              type="password"
+                              value={smtpPass}
+                              onChange={(e) => setSmtpPass(e.target.value)}
+                              placeholder="abcd efgh ijkl mnop"
+                            />
+                            <FieldDescription>A senha de 16 caracteres gerada no Google.</FieldDescription>
+                          </Field>
+                        </div>
                       </FieldGroup>
                     </CardContent>
                   </Card>
