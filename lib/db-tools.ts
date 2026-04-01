@@ -1,5 +1,25 @@
 import { supabaseServer as supabase } from './supabase-server';
 
+export async function getClinicSettings() {
+  try {
+    const { data, error } = await supabase
+      .from('clinic_settings')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching clinic settings:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error in getClinicSettings:', err);
+    return null;
+  }
+}
+
 export async function getAvailableDoctors() {
   try {
     const { data, error } = await supabase

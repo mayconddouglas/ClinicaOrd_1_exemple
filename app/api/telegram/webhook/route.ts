@@ -3,8 +3,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { getSetting, getTelegramHistory, appendChatMessages } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
-  ORCHESTRATOR_INSTRUCTION,
-  AGENT_INSTRUCTIONS,
+  getDynamicOrchestratorInstruction,
+  getDynamicAgentInstructions,
   TOOL_ROUTING,
   toolDeclarations,
   executeTool
@@ -104,7 +104,11 @@ export async function POST(req: NextRequest) {
 
     // 3. Orchestrator Logic
     const ai = new GoogleGenAI({ apiKey });
-    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${userText}"`;
+      
+      const ORCHESTRATOR_INSTRUCTION = await getDynamicOrchestratorInstruction();
+      const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
+
+      const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${userText}"`;
 
     const orchestratorResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -129,8 +133,8 @@ export async function POST(req: NextRequest) {
     await logStep('INTENT_DETECTED', { intent });
 
     // 4. Subagent Logic
-    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
-    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING];
+      const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS] || AGENT_INSTRUCTIONS.GERAL;
+      const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING] || [];
     const agentTools = toolDeclarations.filter(t => t.name && allowedToolsNames.includes(t.name));
 
     const session = ai.chats.create({

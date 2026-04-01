@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 import {
-  ORCHESTRATOR_INSTRUCTION,
-  AGENT_INSTRUCTIONS,
+  getDynamicOrchestratorInstruction,
+  getDynamicAgentInstructions,
   TOOL_ROUTING,
   toolDeclarations,
   executeTool
@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
+
+    // 3. Obter instruções dinâmicas baseadas no Supabase (White-Label)
+    const ORCHESTRATOR_INSTRUCTION = await getDynamicOrchestratorInstruction();
+    const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
 
     // 1. ORQUESTRAÇÃO: Descobrir a intenção
     const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${message}"`;
@@ -58,8 +62,8 @@ export async function POST(req: NextRequest) {
     console.log(`[Orquestrador] Intenção detectada: ${intent}`);
 
     // 2. SELEÇÃO DO SUBAGENTE
-    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS];
-    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING];
+    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS] || AGENT_INSTRUCTIONS.GERAL;
+    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING] || [];
     const agentTools = toolDeclarations.filter(t => t.name && allowedToolsNames.includes(t.name));
 
     // 3. EXECUÇÃO DO SUBAGENTE
