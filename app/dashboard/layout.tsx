@@ -10,7 +10,7 @@ import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
   ChevronRight, FileText, LogOut, Link2, Search, Mail, Settings, CalendarDays,
-  Sun, Moon
+  Sun, Moon, Wallet
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -72,6 +72,7 @@ const navGroups = [
     items: [
       { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-primary' },
       { href: '/dashboard/medicos',   label: 'Médicos',              icon: Stethoscope,     accent: 'text-primary' },
+      { href: '/dashboard/finance',   label: 'Faturamento',          icon: Wallet,          accent: 'text-primary' },
     ]
   },
   {
