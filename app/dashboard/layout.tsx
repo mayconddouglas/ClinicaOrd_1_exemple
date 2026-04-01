@@ -5,10 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from 'next-themes';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight, FileText, LogOut, Link2, Search, Mail, Settings, CalendarDays
+  ChevronRight, FileText, LogOut, Link2, Search, Mail, Settings, CalendarDays,
+  Sun, Moon
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -98,6 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isLoading, setIsLoading] = useState(true);
   const [openCommand, setOpenCommand] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const { setTheme, theme } = useTheme();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -128,6 +131,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         } else {
           setUser(session.user);
           setIsLoading(false);
+
+          // Restaura o tema salvo do banco de dados (user_metadata)
+          const userTheme = session.user.user_metadata?.theme;
+          if (userTheme && (userTheme === 'light' || userTheme === 'dark')) {
+            setTheme(userTheme);
+          }
         }
       } catch (error) {
         console.error("Auth error:", error);
@@ -152,6 +161,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+  };
+
+  const handleThemeChange = async (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    try {
+      // Salva a preferência de tema no user_metadata do Supabase
+      const { error } = await supabase.auth.updateUser({
+        data: { theme: newTheme }
+      });
+      
+      if (error) {
+        console.error("Erro ao salvar tema:", error);
+      }
+    } catch (err) {
+      console.error("Erro inesperado ao salvar tema:", err);
+    }
   };
 
   if (isLoading) {
@@ -329,6 +354,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleThemeChange(theme === 'dark' ? 'light' : 'dark')} className="cursor-pointer">
+                      {theme === 'dark' ? (
+                        <>
+                          <Sun className="mr-2 h-4 w-4" />
+                          <span className="font-medium">Modo Claro</span>
+                        </>
+                      ) : (
+                        <>
+                          <Moon className="mr-2 h-4 w-4" />
+                          <span className="font-medium">Modo Escuro</span>
+                        </>
+                      )}
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href="/">
                         <MessageSquare className="mr-2 h-4 w-4 text-primary" />
