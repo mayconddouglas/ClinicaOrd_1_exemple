@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getDashboardKPIs, getRecentAppointments, getAnalyticsData, updateAppointmentStatus } from '../../lib/dashboard-tools';
-import { Calendar, Users, AlertTriangle, Clock, CheckCircle2, XCircle, Stethoscope, BookOpen, RefreshCw, TrendingUp, Activity, MoreHorizontal, Edit2 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Calendar, Users, AlertTriangle, Clock, CheckCircle2, XCircle, Stethoscope, BookOpen, RefreshCw, TrendingUp, Activity, MoreHorizontal, Edit2, ChevronRight } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area, LineChart, Line } from 'recharts';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,23 @@ const KPI_CONFIG = [
   { key: 'availableDoctors',  label: 'Médicos Disponíveis',  icon: Stethoscope, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20' },
   { key: 'learnedFaqs',       label: 'FAQs Aprendidas',      icon: BookOpen,    color: 'text-muted-foreground',   bg: 'bg-muted/50',   border: 'border-border' },
 ];
+
+const chartConfigPain = {
+  leve: { label: "Dor Leve (0-3)", color: "hsl(var(--chart-2))" },
+  moderada: { label: "Dor Moderada (4-6)", color: "hsl(var(--chart-4))" },
+  intensa: { label: "Dor Intensa (7-10)", color: "hsl(var(--chart-1))" },
+}
+
+const chartConfigStatus = {
+  pendente: { label: "Pendentes", color: "hsl(var(--chart-4))" },
+  confirmada: { label: "Confirmadas", color: "hsl(var(--chart-2))" },
+  cancelada: { label: "Canceladas", color: "hsl(var(--chart-1))" },
+}
+
+const chartConfigTrends = {
+  confirmadas: { label: "Confirmadas", color: "hsl(var(--chart-2))" },
+  pendentes: { label: "Pendentes", color: "hsl(var(--chart-4))" },
+}
 
 export default function DashboardOverview() {
   const [kpis, setKpis] = useState<any>(null);
@@ -223,74 +240,70 @@ export default function DashboardOverview() {
 
       {/* Charts */}
       {analytics && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="shadow-sm flex flex-col">
-            <CardHeader className="pb-6">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                Distribuição de Dor
-              </CardTitle>
-              <CardDescription className="text-sm">Intensidade relatada nas triagens</CardDescription>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Gráfico 1: Linha de Tendência Semanal (NOVO) */}
+          <Card className="shadow-sm flex flex-col lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-semibold">Volume Semanal de Consultas</CardTitle>
+              <CardDescription>Visão dos últimos 7 dias por status</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 pb-8">
-              {analytics.painDistribution?.length > 0 ? (
-                <div className="h-[350px] w-full">
-                  <ChartContainer config={{}}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                          {analytics.painDistribution.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} strokeWidth={0} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: '20px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
+            <CardContent className="flex-1">
+              {analytics.weeklyTrends?.length > 0 ? (
+                <ChartContainer config={chartConfigTrends} className="h-[280px] w-full mt-4">
+                  <AreaChart data={analytics.weeklyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fillConfirmadas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-confirmadas)" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="var(--color-confirmadas)" stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id="fillPendentes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-pendentes)" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="var(--color-pendentes)" stopOpacity={0.1} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="confirmadas" stroke="var(--color-confirmadas)" fill="url(#fillConfirmadas)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="pendentes" stroke="var(--color-pendentes)" fill="url(#fillPendentes)" strokeWidth={2} />
+                  </AreaChart>
+                </ChartContainer>
               ) : (
-                <div className="h-[350px] w-full flex flex-col items-center justify-center text-center text-muted-foreground">
+                <div className="h-[280px] w-full flex flex-col items-center justify-center text-muted-foreground">
                   <Activity className="h-10 w-10 mb-3 opacity-20" />
                   <p className="text-sm font-medium">Sem dados suficientes</p>
-                  <p className="text-xs mt-1">Aguardando mais triagens para gerar o gráfico.</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
+          {/* Gráfico 2: Distribuição de Dor */}
           <Card className="shadow-sm flex flex-col">
-            <CardHeader className="pb-6">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                Status das Consultas
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-semibold">
+                Triagens: Intensidade
               </CardTitle>
-              <CardDescription className="text-sm">Total de agendamentos por situação</CardDescription>
+              <CardDescription>Escala de dor relatada (0 a 10)</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 pb-8">
-              {analytics.appointmentStatus?.length > 0 ? (
-                <div className="h-[350px] w-full">
-                  <ChartContainer config={{}}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.appointmentStatus} barSize={40} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                        <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                          {analytics.appointmentStatus.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
+            <CardContent className="flex-1 flex flex-col items-center justify-center">
+              {analytics.painDistribution?.length > 0 ? (
+                <ChartContainer config={chartConfigPain} className="h-[250px] w-full">
+                  <PieChart>
+                    <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                      {analytics.painDistribution.map((entry: any, index: number) => {
+                        const fillVar = index === 0 ? "var(--color-leve)" : index === 1 ? "var(--color-moderada)" : "var(--color-intensa)";
+                        return <Cell key={`cell-${index}`} fill={fillVar} strokeWidth={0} />
+                      })}
+                    </Pie>
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ChartContainer>
               ) : (
-                <div className="h-[350px] w-full flex flex-col items-center justify-center text-center text-muted-foreground">
-                  <Calendar className="h-10 w-10 mb-3 opacity-20" />
-                  <p className="text-sm font-medium">Sem dados suficientes</p>
-                  <p className="text-xs mt-1">Aguardando consultas para gerar o gráfico.</p>
+                <div className="h-[250px] w-full flex flex-col items-center justify-center text-muted-foreground">
+                  <Activity className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="text-sm font-medium">Sem triagens recentes</p>
                 </div>
               )}
             </CardContent>

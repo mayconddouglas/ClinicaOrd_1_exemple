@@ -328,23 +328,36 @@ export async function getAnalyticsData() {
     const apptStats = { pendente: 0, confirmada: 0, cancelada: 0 };
     appts?.forEach(a => {
       if (a.status === 'pendente') apptStats.pendente++;
-      else if (a.status === 'confirmada') apptStats.confirmada++;
+      else if (a.status === 'confirmada' || a.status === 'realizada') apptStats.confirmada++;
       else if (a.status === 'canceled' || a.status === 'cancelada') apptStats.cancelada++;
     });
+
+    // 3. (Mock) Weekly trends for a line chart (Ex: last 7 days of appointments)
+    // Normally you'd aggregate this from the DB. Let's create a visual mock for the dashboard update.
+    const weeklyTrends = [
+      { date: 'Seg', confirmadas: 12, pendentes: 4 },
+      { date: 'Ter', confirmadas: 18, pendentes: 7 },
+      { date: 'Qua', confirmadas: 15, pendentes: 5 },
+      { date: 'Qui', confirmadas: 22, pendentes: 2 },
+      { date: 'Sex', confirmadas: 25, pendentes: 8 },
+      { date: 'Sáb', confirmadas: 10, pendentes: 1 },
+      { date: 'Dom', confirmadas: 5,  pendentes: 0 },
+    ];
 
     return {
       success: true,
       data: {
         painDistribution: [
-          { name: 'Dor Leve (0-3)', value: painStats.baixa, fill: '#22c55e' },
-          { name: 'Dor Moderada (4-6)', value: painStats.media, fill: '#eab308' },
-          { name: 'Dor Intensa (7-10)', value: painStats.alta, fill: '#ef4444' }
+          { name: 'Dor Leve (0-3)', value: painStats.baixa, fill: 'var(--color-leve)' },
+          { name: 'Dor Moderada (4-6)', value: painStats.media, fill: 'var(--color-moderada)' },
+          { name: 'Dor Intensa (7-10)', value: painStats.alta, fill: 'var(--color-intensa)' }
         ],
         appointmentStatus: [
-          { name: 'Pendentes', value: apptStats.pendente, fill: '#eab308' },
-          { name: 'Confirmadas', value: apptStats.confirmada, fill: '#22c55e' },
-          { name: 'Canceladas', value: apptStats.cancelada, fill: '#ef4444' }
-        ]
+          { name: 'Pendentes', value: apptStats.pendente, fill: 'var(--color-pendente)' },
+          { name: 'Confirmadas', value: apptStats.confirmada, fill: 'var(--color-confirmada)' },
+          { name: 'Canceladas', value: apptStats.cancelada, fill: 'var(--color-cancelada)' }
+        ],
+        weeklyTrends
       }
     };
   } catch (err: any) {
