@@ -52,6 +52,172 @@ export async function getDoctorsBySpecialty(especialidade: string) {
   }
 }
 
+// NOVO: A IA agora pode gerar cobranças (invoices) para o paciente
+export async function createInvoiceLink(params: {
+  patient_id: string;
+  patient_name: string;
+  patient_email?: string;
+  service_id: string;
+  service_name: string;
+  amount: number;
+  is_free: boolean;
+  appointment_date_time?: string;
+  appointment_medico_id?: string;
+  appointment_medico_nome?: string;
+  appointment_especialidade?: string;
+}) {
+  try {
+    const isFree = params.is_free || params.amount === 0;
+    
+    // Create the invoice in the database directly
+    const invoiceData = {
+      patient_id: params.patient_id,
+      patient_name: params.patient_name,
+      customer_email: params.patient_email,
+      items: [{
+        id: params.service_id,
+        name: params.service_name,
+        price: params.amount,
+        is_free: isFree
+      }],
+      description: params.service_name,
+      subtotal: params.amount,
+      discount: 0,
+      amount: params.amount,
+      payment_method: isFree ? 'free' : 'pix',
+      status: isFree ? 'paid' : 'pending',
+      paid_at: isFree ? new Date().toISOString() : null,
+      appointment_id: null // we will update this if appointment is created
+    };
+
+    let appointmentId = null;
+
+    // Se a IA também enviou a data/hora, vamos criar o agendamento real e linkar
+    if (params.appointment_date_time) {
+      const { data: appointment, error: appointmentError } = await supabase
+        .from('agendamentos')
+        .insert([{
+          paciente_id: params.patient_id,
+          medico_id: params.appointment_medico_id || null,
+          data_hora: params.appointment_date_time,
+          motivo: params.service_name,
+          especialidade: params.appointment_especialidade || 'Consulta',
+          status: isFree ? 'confirmada' : 'pendente'
+        }])
+        .select()
+        .single();
+
+      if (!appointmentError && appointment) {
+        appointmentId = appointment.id;
+        invoiceData.appointment_id = appointmentId as any;
+      }
+    }
+
+    const { data: invoice, error: insertError } = await supabase
+      .from('invoices')
+      .insert([invoiceData])
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    if (isFree) {
+      return {
+        success: true,
+        message: 'Serviço gratuito. Agendamento confirmado automaticamente sem necessidade de link de pagamento.',
+        payment_link: null,
+        is_free: true
+      };
+    }
+
+    // Se for pago, nós geramos a Preference no Mercado Pago
+    // Vamos buscar o token do MP no settings
+    const { data: settings } = await supabase
+      .from('clinic_settings')
+      .select('mp_access_token, clinic_name')
+      .limit(1)
+      .single();
+
+    if (!settings || !settings.mp_access_token) {
+      return {
+        success: false,
+        message: 'O link de pagamento não pôde ser gerado porque a clínica não configurou o Mercado Pago.',
+        payment_link: null
+      };
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const webhookUrl = `${appUrl}/api/payments/webhook`;
+
+    const especialidadeStr = params.appointment_medico_nome 
+      ? `Dr(a). ${params.appointment_medico_nome} (${params.appointment_especialidade})` 
+      : params.appointment_especialidade;
+
+    const mpPayload: any = {
+      items: [{
+        id: invoice.id,
+        title: params.service_name,
+        description: especialidadeStr ? `Consulta com ${especialidadeStr}` : `Cobrança para ${params.patient_name}`,
+        quantity: 1,
+        currency_id: 'BRL',
+        unit_price: params.amount,
+      }],
+      payer: { name: params.patient_name },
+      external_reference: invoice.id,
+      notification_url: webhookUrl,
+    };
+
+    if (params.patient_email) {
+      mpPayload.payer.email = params.patient_email;
+    }
+
+    const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${settings.mp_access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(mpPayload),
+    });
+
+    if (!mpResponse.ok) {
+      throw new Error(`Erro do Mercado Pago: ${mpResponse.statusText}`);
+    }
+
+    const mpData = await mpResponse.json();
+
+    return {
+      success: true,
+      message: 'Link de pagamento gerado com sucesso. Envie este link para o paciente.',
+      payment_link: mpData.init_point,
+      is_free: false
+    };
+
+  } catch (error: any) {
+    console.error('Error creating invoice link via AI:', error);
+    return {
+      success: false,
+      message: `Erro ao gerar cobrança: ${error.message}`,
+      payment_link: null
+    };
+  }
+}
+export async function getClinicServices() {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name, description, price, is_free, duration_minutes')
+      .eq('active', true)
+      .order('name');
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching clinic services:', error);
+    return [];
+  }
+}
+
 export async function checkPatientRegistration(cpf?: string, nome?: string, telefone?: string) {
   try {
     let query = supabase.from('pacientes').select('*');

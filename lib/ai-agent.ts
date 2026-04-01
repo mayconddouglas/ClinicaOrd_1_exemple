@@ -17,7 +17,9 @@ import {
   getDoctorsBySpecialty,
   escalateToHuman,
   registerPatientAlert,
-  getClinicSettings
+  getClinicSettings,
+  getClinicServices,
+  createInvoiceLink
 } from './db-tools';
 
 export async function getDynamicOrchestratorInstruction() {
@@ -50,8 +52,10 @@ DIRETRIZES:
 2. Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres.
 3. Quando ele escolher o horário, peça o CPF para cadastro/busca ('checkPatientRegistration').
 4. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient'). O e-mail é essencial para enviarmos o lembrete da consulta.
-5. ANTES de usar 'scheduleAppointment', mostre um resumo dos dados (Data, Hora, Médico/Especialidade) e PERGUNTE se ele confirma o agendamento.
-6. Apenas chame 'scheduleAppointment' APÓS o paciente responder que confirma. Confirme o agendamento de forma breve e avise que ele receberá um e-mail de confirmação.`,
+5. IMPORTANTE: Antes de finalizar o agendamento, verifique na lista de serviços (getClinicServices) qual o procedimento o paciente quer.
+6. Após confirmar o horário com o paciente, se o serviço for PAGO, use a ferramenta createInvoiceLink para gerar o link de pagamento do Mercado Pago e envie-o para o paciente pagar e garantir a vaga.
+7. Se o serviço for GRATUITO, apenas confirme o agendamento.
+8. Ao finalizar, envie o resumo confirmando o horário. Nunca diga que você é um subagente.`,
 
     TRIAGEM: `Você é o assistente clínico da ${clinicName}.
 Seja rápido, objetivo e não enrole.
@@ -100,7 +104,7 @@ DIRETRIZES:
 }
 
 export const TOOL_ROUTING = {
-  AGENDAMENTO: ['checkPatientRegistration', 'registerPatient', 'scheduleAppointment', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments', 'cancelAppointment', 'rescheduleAppointment', 'sendAppointmentSummary', 'getAvailableDoctors', 'getDoctorsBySpecialty'],
+  AGENDAMENTO: ['checkPatientRegistration', 'registerPatient', 'scheduleAppointment', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments', 'cancelAppointment', 'rescheduleAppointment', 'sendAppointmentSummary', 'getAvailableDoctors', 'getDoctorsBySpecialty', 'getClinicServices', 'createInvoiceLink'],
   TRIAGEM: ['saveTriage', 'getAvailableSlots', 'checkPatientRegistration', 'registerPatient', 'scheduleAppointment'],
   MEDICOS: ['getAvailableDoctors', 'getDoctorsBySpecialty', 'getAvailableSlots'],
   FAQ: ['searchLearnedAnswers', 'saveLearnedAnswer', 'escalateToHuman'],
@@ -272,6 +276,31 @@ export const toolDeclarations: FunctionDeclaration[] = [
     },
   },
   {
+    name: 'getClinicServices',
+    description: 'Retorna a lista de serviços e pacotes da clínica, com os preços e informando se o serviço é gratuito (is_free). Chame antes de criar o link de cobrança.',
+  },
+  {
+    name: 'createInvoiceLink',
+    description: 'Gera e retorna um link de pagamento (Mercado Pago) para um serviço/consulta específico ou agenda diretamente se for gratuito.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        patient_id: { type: Type.STRING },
+        patient_name: { type: Type.STRING },
+        patient_email: { type: Type.STRING },
+        service_id: { type: Type.STRING },
+        service_name: { type: Type.STRING },
+        amount: { type: Type.NUMBER },
+        is_free: { type: Type.BOOLEAN },
+        appointment_date_time: { type: Type.STRING, description: 'Data e hora ISO da consulta se for agendada' },
+        appointment_medico_id: { type: Type.STRING },
+        appointment_medico_nome: { type: Type.STRING },
+        appointment_especialidade: { type: Type.STRING },
+      },
+      required: ['patient_id', 'patient_name', 'service_id', 'service_name', 'amount', 'is_free'],
+    },
+  },
+  {
     name: 'escalateToHuman',
     description: 'Envia uma pergunta específica que a IA não soube responder para a equipe humana da clínica responder.',
     parameters: {
@@ -368,6 +397,10 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const validArgs = schema.parse(args);
         return await getDoctorsBySpecialty(validArgs.especialidade);
       }
+      case 'getClinicServices':
+        return await getClinicServices();
+      case 'createInvoiceLink':
+        return await createInvoiceLink(args);
       case 'escalateToHuman': {
         const schema = z.object({ question: z.string(), patientPhone: z.string().optional() });
         const validArgs = schema.parse(args);
