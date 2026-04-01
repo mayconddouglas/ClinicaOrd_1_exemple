@@ -631,11 +631,27 @@ export async function getAvailableSlots(dateStr: string) {
       .eq('day_of_week', dayOfWeek)
       .single();
 
+    // FALLBACK DE SEGURANÇA: Se o RLS bloquear ou a tabela estiver vazia, assumimos horário comercial padrão
+    let effectiveHours = hoursData;
+    
     if (hoursError || !hoursData) {
-      return { error: 'Não foi possível carregar os horários de funcionamento.' };
+      console.log('Aviso: Tabela business_hours vazia ou bloqueada pelo RLS. Usando horário padrão.');
+      
+      if (dayOfWeek === 0) { // Domingo fechado por padrão
+        return { success: true, availableSlots: [], message: 'A clínica está fechada neste dia.' };
+      }
+      
+      effectiveHours = {
+        open_time: '08:00:00',
+        close_time: '18:00:00',
+        lunch_start: '12:00:00',
+        lunch_end: '13:00:00',
+        is_closed: false,
+        slot_duration: 30
+      };
     }
 
-    if (hoursData.is_closed) {
+    if (effectiveHours.is_closed) {
       return { success: true, availableSlots: [], message: 'A clínica está fechada neste dia.' };
     }
 
@@ -669,7 +685,7 @@ export async function getAvailableSlots(dateStr: string) {
 
     // 5. Generate slots
     const availableSlots: string[] = [];
-    const slotDurationMs = (hoursData.slot_duration || 30) * 60000;
+    const slotDurationMs = (effectiveHours.slot_duration || 30) * 60000;
     
     // Helper to convert HH:MM:SS to Date object on the specific day
     const timeToDate = (timeStr: string) => {
@@ -679,10 +695,10 @@ export async function getAvailableSlots(dateStr: string) {
       return d;
     };
 
-    const openTime = timeToDate(hoursData.open_time);
-    const closeTime = timeToDate(hoursData.close_time);
-    const lunchStart = hoursData.lunch_start ? timeToDate(hoursData.lunch_start) : null;
-    const lunchEnd = hoursData.lunch_end ? timeToDate(hoursData.lunch_end) : null;
+    const openTime = timeToDate(effectiveHours.open_time);
+    const closeTime = timeToDate(effectiveHours.close_time);
+    const lunchStart = effectiveHours.lunch_start ? timeToDate(effectiveHours.lunch_start) : null;
+    const lunchEnd = effectiveHours.lunch_end ? timeToDate(effectiveHours.lunch_end) : null;
 
     let currentSlot = new Date(openTime);
 
