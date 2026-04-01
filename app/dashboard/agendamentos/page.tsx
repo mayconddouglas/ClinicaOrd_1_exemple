@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2 } from 'lucide-react';
+import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
@@ -226,10 +226,10 @@ export default function AgendamentosPage() {
             Gerencie as consultas marcadas pelo assistente de IA ou manualmente.
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 relative">
+              <Button variant="outline" className="gap-2 relative w-full sm:w-auto justify-center">
                 <Filter className="h-4 w-4" />
                 Filtrar
                 {statusFilter.length < 3 && statusFilter.length > 0 && (
@@ -263,12 +263,12 @@ export default function AgendamentosPage() {
 
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-              <Button className="gap-2 w-full sm:w-auto shadow-md">
+              <Button className="gap-2 w-full sm:w-auto shadow-md justify-center">
                 <Plus className="h-4 w-4" />
                 Novo Agendamento
               </Button>
             </SheetTrigger>
-            <SheetContent className="sm:max-w-[425px] overflow-y-auto">
+            <SheetContent className="w-full sm:max-w-[540px] overflow-y-auto">
               <SheetHeader className="mb-6">
                 <SheetTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -281,60 +281,80 @@ export default function AgendamentosPage() {
               
               <form onSubmit={handleCreateAppointment} className="space-y-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="paciente">Paciente</Label>
-                    <Select required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um paciente..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">João Silva (11) 98765-4321</SelectItem>
-                        <SelectItem value="2">Maria Oliveira (11) 91234-5678</SelectItem>
-                        <SelectItem value="new" className="text-primary font-medium">+ Cadastrar Novo Paciente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="data">Data</Label>
-                      <Input type="date" id="data" required className="focus-visible:ring-primary" />
+                  {/* Dados do Paciente */}
+                  <div className="bg-muted/30 border rounded-xl p-4 space-y-4">
+                    <div className="flex items-center gap-2 mb-2 text-primary">
+                      <User className="h-5 w-5" />
+                      <h4 className="text-sm font-semibold text-foreground">Dados do Paciente</h4>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="hora">Horário</Label>
-                      <Input type="time" id="hora" required className="focus-visible:ring-primary" />
+                      <Label htmlFor="paciente">Selecione o Paciente</Label>
+                      <Select required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um paciente..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">João Silva (11) 98765-4321</SelectItem>
+                          <SelectItem value="2">Maria Oliveira (11) 91234-5678</SelectItem>
+                          <SelectItem value="new" className="text-primary font-medium">+ Cadastrar Novo Paciente</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="especialidade">Especialidade</Label>
-                    <Select required defaultValue="clinico">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="clinico">Clínico Geral</SelectItem>
-                        <SelectItem value="ortodontia">Ortodontia</SelectItem>
-                        <SelectItem value="pediatria">Pediatria</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Data e Hora */}
+                  <div className="bg-muted/30 border rounded-xl p-4 space-y-4">
+                    <div className="flex items-center gap-2 mb-2 text-primary">
+                      <Calendar className="h-5 w-5" />
+                      <h4 className="text-sm font-semibold text-foreground">Data e Horário</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="data">Data da Consulta</Label>
+                        <Input type="date" id="data" required className="w-full focus-visible:ring-primary" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="hora">Horário</Label>
+                        <Input type="time" id="hora" required className="w-full focus-visible:ring-primary" />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="motivo">Motivo / Observações</Label>
-                    <Textarea 
-                      id="motivo" 
-                      placeholder="Ex: Paciente relata dor de dente há 3 dias..."
-                      className="resize-none h-24 focus-visible:ring-primary"
-                    />
+                  {/* Detalhes */}
+                  <div className="bg-muted/30 border rounded-xl p-4 space-y-4">
+                    <div className="flex items-center gap-2 mb-2 text-primary">
+                      <Stethoscope className="h-5 w-5" />
+                      <h4 className="text-sm font-semibold text-foreground">Detalhes da Consulta</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="especialidade">Especialidade</Label>
+                      <Select required defaultValue="clinico">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="clinico">Clínico Geral</SelectItem>
+                          <SelectItem value="ortodontia">Ortodontia</SelectItem>
+                          <SelectItem value="pediatria">Pediatria</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="motivo">Motivo / Observações</Label>
+                      <Textarea 
+                        id="motivo" 
+                        placeholder="Ex: Paciente relata dor de dente há 3 dias..."
+                        className="resize-none h-20 focus-visible:ring-primary"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <SheetFooter className="pt-4 border-t mt-auto">
+                <SheetFooter className="pt-4 border-t mt-auto flex-col sm:flex-row gap-2 sm:gap-0">
                   <SheetClose asChild>
-                    <Button variant="outline" type="button">Cancelar</Button>
+                    <Button variant="outline" type="button" className="w-full sm:w-auto">Cancelar</Button>
                   </SheetClose>
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                     {isSubmitting ? 'Salvando...' : 'Salvar Agendamento'}
                   </Button>
                 </SheetFooter>
