@@ -267,7 +267,7 @@ export default function WorkspacePage() {
                     <div className="relative max-w-2xl">
                       <textarea
                         id="calendar-json"
-                        placeholder="{&#10;  \"type\": \"service_account\",&#10;  \"project_id\": \"...\"&#10;}"
+                        placeholder={'{\n  "type": "service_account",\n  "project_id": "..."\n}'}
                         value={calendarJson}
                         onChange={(e) => setCalendarJson(e.target.value)}
                         className={`flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 font-mono ${!showCalendarJson && calendarJson ? 'text-transparent text-shadow-disc' : ''}`}
