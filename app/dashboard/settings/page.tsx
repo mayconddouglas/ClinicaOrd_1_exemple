@@ -8,67 +8,157 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Camera, MapPin, Palette, Building2, Save, X, Building, Map } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'address' | 'branding'>('profile');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
 
   // Profile State
-  const [clinicName, setClinicName] = useState('OrthoClinic SP');
-  const [cnpj, setCnpj] = useState('12.345.678/0001-90');
-  const [responsavel, setResponsavel] = useState('Dr. João Silva (CRM-SP 12345)');
+  const [clinicName, setClinicName] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [responsavel, setResponsavel] = useState('');
 
   // Address State
-  const [cep, setCep] = useState('01234-567');
-  const [rua, setRua] = useState('Av. Paulista');
-  const [numero, setNumero] = useState('1000');
-  const [bairro, setBairro] = useState('Bela Vista');
-  const [cidade, setCidade] = useState('São Paulo');
+  const [cep, setCep] = useState('');
+  const [rua, setRua] = useState('');
+  const [numero, setNumero] = useState('');
+  const [bairro, setBairro] = useState('');
+  const [cidade, setCidade] = useState('');
 
   // Branding State
   const [themeColor, setThemeColor] = useState('#2563eb'); // Default blue
-  const [welcomeMessage, setWelcomeMessage] = useState('Olá! Seja bem-vindo à OrthoClinic. Como podemos ajudar hoje?');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+
+  // Default values for comparison
+  const [initialData, setInitialData] = useState<any>({});
+
+  // Load data from Supabase
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('clinic_settings')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching settings:', error);
+          toast.error('Erro ao carregar configurações');
+          return;
+        }
+
+        if (data) {
+          setSettingsId(data.id);
+          setClinicName(data.clinic_name || '');
+          setCnpj(data.cnpj || '');
+          setResponsavel(data.responsavel || '');
+          setCep(data.cep || '');
+          setRua(data.rua || '');
+          setNumero(data.numero || '');
+          setBairro(data.bairro || '');
+          setCidade(data.cidade || '');
+          setThemeColor(data.theme_color || '#2563eb');
+          setWelcomeMessage(data.welcome_message || '');
+          
+          setInitialData(data);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   // Monitor changes
   useEffect(() => {
-    // In a real app, we would compare with the initial loaded state
-    // For this UI demo, we'll just show the save bar if they type something different from defaults
+    if (isLoading) return;
+    
     const isChanged = 
-      clinicName !== 'OrthoClinic SP' || 
-      cnpj !== '12.345.678/0001-90' ||
-      responsavel !== 'Dr. João Silva (CRM-SP 12345)' ||
-      cep !== '01234-567' ||
-      rua !== 'Av. Paulista' ||
-      numero !== '1000' ||
-      bairro !== 'Bela Vista' ||
-      cidade !== 'São Paulo' ||
-      themeColor !== '#2563eb' ||
-      welcomeMessage !== 'Olá! Seja bem-vindo à OrthoClinic. Como podemos ajudar hoje?';
+      clinicName !== (initialData.clinic_name || '') || 
+      cnpj !== (initialData.cnpj || '') ||
+      responsavel !== (initialData.responsavel || '') ||
+      cep !== (initialData.cep || '') ||
+      rua !== (initialData.rua || '') ||
+      numero !== (initialData.numero || '') ||
+      bairro !== (initialData.bairro || '') ||
+      cidade !== (initialData.cidade || '') ||
+      themeColor !== (initialData.theme_color || '#2563eb') ||
+      welcomeMessage !== (initialData.welcome_message || '');
       
     setHasChanges(isChanged);
-  }, [clinicName, cnpj, responsavel, cep, rua, numero, bairro, cidade, themeColor, welcomeMessage]);
+  }, [clinicName, cnpj, responsavel, cep, rua, numero, bairro, cidade, themeColor, welcomeMessage, initialData, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setHasChanges(false);
-    toast.success('Configurações salvas com sucesso!');
+    
+    const payload = {
+      clinic_name: clinicName,
+      cnpj,
+      responsavel,
+      cep,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      theme_color: themeColor,
+      welcome_message: welcomeMessage,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      let error;
+      
+      if (settingsId) {
+        // Update existing
+        const { error: updateError } = await supabase
+          .from('clinic_settings')
+          .update(payload)
+          .eq('id', settingsId);
+        error = updateError;
+      } else {
+        // Insert new
+        const { data, error: insertError } = await supabase
+          .from('clinic_settings')
+          .insert([payload])
+          .select()
+          .single();
+          
+        if (data) setSettingsId(data.id);
+        error = insertError;
+      }
+
+      if (error) throw error;
+
+      setInitialData(payload);
+      setHasChanges(false);
+      toast.success('Configurações salvas com sucesso!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Erro ao salvar as configurações no banco de dados.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDiscard = () => {
-    setClinicName('OrthoClinic SP');
-    setCnpj('12.345.678/0001-90');
-    setResponsavel('Dr. João Silva (CRM-SP 12345)');
-    setCep('01234-567');
-    setRua('Av. Paulista');
-    setNumero('1000');
-    setBairro('Bela Vista');
-    setCidade('São Paulo');
-    setThemeColor('#2563eb');
-    setWelcomeMessage('Olá! Seja bem-vindo à OrthoClinic. Como podemos ajudar hoje?');
+    setClinicName(initialData.clinic_name || '');
+    setCnpj(initialData.cnpj || '');
+    setResponsavel(initialData.responsavel || '');
+    setCep(initialData.cep || '');
+    setRua(initialData.rua || '');
+    setNumero(initialData.numero || '');
+    setBairro(initialData.bairro || '');
+    setCidade(initialData.cidade || '');
+    setThemeColor(initialData.theme_color || '#2563eb');
+    setWelcomeMessage(initialData.welcome_message || '');
     setHasChanges(false);
     toast.info('Alterações descartadas.');
   };
