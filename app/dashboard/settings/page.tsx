@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Camera, MapPin, Palette, Building2, Save, X, Building, Map, Check, User, Upload, CheckCircle2, AlertCircle, Phone, Mail, Clock, ShieldAlert } from 'lucide-react';
+import { Camera, MapPin, Palette, Building2, Save, X, Building, Map, Check, User, Upload, CheckCircle2, AlertCircle, Phone, Mail, Clock, ShieldAlert, CreditCard, ExternalLink, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,9 +14,16 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from '@/components/ui/field';
 import { InputGroup, InputGroupInput, InputGroupAddon } from '@/components/ui/input-group';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'address' | 'branding'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'address' | 'branding' | 'payments'>('profile');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +46,11 @@ export default function SettingsPage() {
 
   // Branding State
   const [welcomeMessage, setWelcomeMessage] = useState('');
+
+  // Payments State
+  const [activePaymentGateway, setActivePaymentGateway] = useState('none');
+  const [mpAccessToken, setMpAccessToken] = useState('');
+  const [asaasApiKey, setAsaasApiKey] = useState('');
 
   // Default values for comparison
   const [initialData, setInitialData] = useState<any>({});
@@ -74,6 +86,11 @@ export default function SettingsPage() {
           setCidade(data.cidade || '');
           setWelcomeMessage(data.welcome_message || '');
           
+          // Load payment settings
+          setActivePaymentGateway(data.active_payment_gateway || 'none');
+          setMpAccessToken(data.mp_access_token || '');
+          setAsaasApiKey(data.asaas_api_key || '');
+
           setInitialData(data);
         }
       } catch (err) {
@@ -99,10 +116,13 @@ export default function SettingsPage() {
       numero !== (initialData.numero || '') ||
       bairro !== (initialData.bairro || '') ||
       cidade !== (initialData.cidade || '') ||
-      welcomeMessage !== (initialData.welcome_message || '');
+      welcomeMessage !== (initialData.welcome_message || '') ||
+      activePaymentGateway !== (initialData.active_payment_gateway || 'none') ||
+      mpAccessToken !== (initialData.mp_access_token || '') ||
+      asaasApiKey !== (initialData.asaas_api_key || '');
       
     setHasChanges(isChanged);
-  }, [clinicName, cnpj, responsavel, cep, rua, numero, bairro, cidade, welcomeMessage, initialData, isLoading]);
+  }, [clinicName, clinicEmail, clinicPhone, clinicHours, cnpj, responsavel, cep, rua, numero, bairro, cidade, welcomeMessage, activePaymentGateway, mpAccessToken, asaasApiKey, initialData, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -120,6 +140,9 @@ export default function SettingsPage() {
       bairro,
       cidade,
       welcome_message: welcomeMessage,
+      active_payment_gateway: activePaymentGateway,
+      mp_access_token: mpAccessToken,
+      asaas_api_key: asaasApiKey,
       updated_at: new Date().toISOString(),
     };
 
@@ -160,6 +183,9 @@ export default function SettingsPage() {
 
   const handleDiscard = () => {
     setClinicName(initialData.clinic_name || '');
+    setClinicEmail(initialData.clinic_email || '');
+    setClinicPhone(initialData.clinic_phone || '');
+    setClinicHours(initialData.clinic_hours || '');
     setCnpj(initialData.cnpj || '');
     setResponsavel(initialData.responsavel || '');
     setCep(initialData.cep || '');
@@ -168,6 +194,9 @@ export default function SettingsPage() {
     setBairro(initialData.bairro || '');
     setCidade(initialData.cidade || '');
     setWelcomeMessage(initialData.welcome_message || '');
+    setActivePaymentGateway(initialData.active_payment_gateway || 'none');
+    setMpAccessToken(initialData.mp_access_token || '');
+    setAsaasApiKey(initialData.asaas_api_key || '');
     setHasChanges(false);
     toast.info('Alterações descartadas.');
   };
@@ -214,10 +243,11 @@ export default function SettingsPage() {
               </Card>
             ) : (
               <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full space-y-6">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+                <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
                   <TabsTrigger value="profile" className="gap-2"><Building2 className="h-4 w-4" /><span className="hidden sm:inline">Perfil da Clínica</span></TabsTrigger>
                   <TabsTrigger value="address" className="gap-2"><MapPin className="h-4 w-4" /><span className="hidden sm:inline">Endereço</span></TabsTrigger>
                   <TabsTrigger value="branding" className="gap-2"><Palette className="h-4 w-4" /><span className="hidden sm:inline">Personalização</span></TabsTrigger>
+                  <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Pagamentos</span></TabsTrigger>
                 </TabsList>
                 {/* PROFILE TAB */}
                 <TabsContent value="profile" className="space-y-6 mt-0">
@@ -453,6 +483,108 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
                 </TabsContent>
+                {/* PAYMENTS TAB */}
+                <TabsContent value="payments" className="space-y-6 mt-0">
+                  <Card className="animate-in fade-in duration-300 overflow-hidden">
+                    <div className="bg-muted/30 border-b px-6 py-4 flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                        <CreditCard className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Gateways de Pagamento</CardTitle>
+                        <CardDescription className="mt-1">Configure suas chaves de API para receber pagamentos via PIX e Cartão.</CardDescription>
+                      </div>
+                    </div>
+                    <CardContent className="p-6 space-y-8">
+                      <FieldGroup>
+                        <Field>
+                          <FieldLabel>Gateway Ativo</FieldLabel>
+                          <FieldDescription>Escolha qual processador de pagamento você deseja usar no sistema.</FieldDescription>
+                          <RadioGroup 
+                            value={activePaymentGateway} 
+                            onValueChange={setActivePaymentGateway}
+                            className="flex flex-col sm:flex-row gap-4 mt-4"
+                          >
+                            <div className={`flex items-center space-x-2 border rounded-xl p-4 transition-all cursor-pointer ${activePaymentGateway === 'none' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`} onClick={() => setActivePaymentGateway('none')}>
+                              <RadioGroupItem value="none" id="none" />
+                              <Label htmlFor="none" className="cursor-pointer font-medium">Nenhum (Desativado)</Label>
+                            </div>
+                            <div className={`flex items-center space-x-2 border rounded-xl p-4 transition-all cursor-pointer ${activePaymentGateway === 'mercadopago' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`} onClick={() => setActivePaymentGateway('mercadopago')}>
+                              <RadioGroupItem value="mercadopago" id="mercadopago" />
+                              <Label htmlFor="mercadopago" className="cursor-pointer font-medium flex items-center gap-2">
+                                Mercado Pago
+                              </Label>
+                            </div>
+                            <div className={`flex items-center space-x-2 border rounded-xl p-4 transition-all cursor-pointer ${activePaymentGateway === 'asaas' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`} onClick={() => setActivePaymentGateway('asaas')}>
+                              <RadioGroupItem value="asaas" id="asaas" />
+                              <Label htmlFor="asaas" className="cursor-pointer font-medium flex items-center gap-2">
+                                Asaas
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </Field>
+
+                        <Separator className="my-6" />
+
+                        {activePaymentGateway === 'mercadopago' && (
+                          <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="bg-blue-500/10 text-blue-700 dark:text-blue-400 p-4 rounded-xl flex gap-3 text-sm">
+                              <Info className="h-5 w-5 shrink-0" />
+                              <div>
+                                <p className="font-semibold mb-1">Como configurar o Mercado Pago?</p>
+                                <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
+                                  <li>Acesse o <a href="https://www.mercadopago.com.br/developers/panel/credentials" target="_blank" rel="noreferrer" className="underline font-medium hover:text-blue-800 dark:hover:text-blue-300">Painel de Desenvolvedor</a>.</li>
+                                  <li>Vá em <strong>Credenciais de Produção</strong>.</li>
+                                  <li>Copie o valor do <strong>Access Token</strong> e cole abaixo.</li>
+                                </ol>
+                              </div>
+                            </div>
+                            <Field>
+                              <FieldLabel htmlFor="mp-token">Access Token (Produção)</FieldLabel>
+                              <Input
+                                id="mp-token"
+                                type="password"
+                                value={mpAccessToken}
+                                onChange={(e) => setMpAccessToken(e.target.value)}
+                                placeholder="APP_USR-..."
+                              />
+                              <FieldDescription>O token usado para gerar links de cobrança.</FieldDescription>
+                            </Field>
+                          </div>
+                        )}
+
+                        {activePaymentGateway === 'asaas' && (
+                          <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="bg-blue-500/10 text-blue-700 dark:text-blue-400 p-4 rounded-xl flex gap-3 text-sm">
+                              <Info className="h-5 w-5 shrink-0" />
+                              <div>
+                                <p className="font-semibold mb-1">Como configurar o Asaas?</p>
+                                <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
+                                  <li>Acesse sua conta do Asaas e vá em <strong>Configurações &gt; Integração</strong>.</li>
+                                  <li>Clique em <strong>Gerar API Key</strong> (Chave de API).</li>
+                                  <li>Copie o valor da chave gerada e cole abaixo.</li>
+                                </ol>
+                              </div>
+                            </div>
+                            <Field>
+                              <FieldLabel htmlFor="asaas-key">API Key (Produção)</FieldLabel>
+                              <Input
+                                id="asaas-key"
+                                type="password"
+                                value={asaasApiKey}
+                                onChange={(e) => setAsaasApiKey(e.target.value)}
+                                placeholder="$aact_..."
+                              />
+                              <FieldDescription>A chave usada para autenticar as requisições ao Asaas.</FieldDescription>
+                            </Field>
+                          </div>
+                        )}
+
+                      </FieldGroup>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
               </Tabs>
             )}
           </div>

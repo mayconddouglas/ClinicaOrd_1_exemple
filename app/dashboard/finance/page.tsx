@@ -65,11 +65,29 @@ export default function FinancePage() {
     }
 
     setIsCreating(true);
-    
-    // Simulate generating a payment link
-    const mockPaymentLink = `https://pag.ae/${Math.random().toString(36).substring(7)}`;
 
     try {
+      // Call our new API endpoint to generate the real payment link
+      const res = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_name: newPatientName,
+          description: newDescription,
+          amount: parseFloat(newAmount),
+          payment_method: newMethod
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao comunicar com a API de pagamentos');
+      }
+
+      const generatedPaymentLink = data.payment_link;
+
+      // Save the generated link to Supabase
       const { error } = await supabase
         .from('invoices')
         .insert([{
@@ -77,7 +95,7 @@ export default function FinancePage() {
           description: newDescription,
           amount: parseFloat(newAmount),
           payment_method: newMethod,
-          payment_link: mockPaymentLink,
+          payment_link: generatedPaymentLink,
           status: 'pending'
         }]);
 
@@ -87,9 +105,9 @@ export default function FinancePage() {
       setIsDialogOpen(false);
       resetForm();
       fetchInvoices();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating invoice:', error);
-      toast.error('Erro ao gerar cobrança');
+      toast.error(error.message || 'Erro ao gerar cobrança. Verifique as configurações de pagamento.');
     } finally {
       setIsCreating(false);
     }
