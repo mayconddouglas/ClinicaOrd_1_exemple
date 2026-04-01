@@ -63,8 +63,7 @@ export async function POST(request: Request) {
           ],
           payer: {
             name: patient_name,
-          },
-          auto_return: 'approved',
+          }
         }),
       });
 
