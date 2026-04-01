@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { sendInvoiceEmail } from '@/lib/email';
+import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { patient_id, patient_name, patient_email, service_id, description, amount, payment_method, send_email } = body;
 
-    if (!patient_name || !description || !amount) {
+    // Check if amount is undefined (0 is allowed)
+    if (!patient_name || !description || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: 'Campos obrigatórios faltando.' },
         { status: 400 }
@@ -37,6 +38,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const numAmount = Number(amount);
+    const isFree = numAmount === 0;
+
     // 2. Create the invoice in the database FIRST to get its ID
     const { data: invoice, error: insertError } = await supabase
       .from('invoices')
@@ -46,9 +50,10 @@ export async function POST(request: Request) {
         customer_email: patient_email,
         service_id,
         description,
-        amount: Number(amount),
-        payment_method,
-        status: 'pending'
+        amount: numAmount,
+        payment_method: isFree ? 'free' : payment_method,
+        status: isFree ? 'paid' : 'pending',
+        paid_at: isFree ? new Date().toISOString() : null
       }])
       .select()
       .single();
@@ -66,7 +71,38 @@ export async function POST(request: Request) {
 
     let paymentLink = '';
 
-    // 3. Generate link based on selected gateway
+    if (isFree) {
+      // 3. FREE SERVICE: Bypass payment gateway
+      paymentLink = 'Agendamento Gratuito';
+      
+      // If send email, we send a Confirmation Receipt immediately instead of an Invoice
+      if (send_email && patient_email && smtp_user && smtp_pass) {
+        try {
+          await sendReceiptEmail(
+            { user: smtp_user, pass: smtp_pass },
+            patient_email,
+            {
+              patientName: patient_name,
+              clinicName: clinic_name || 'Clínica',
+              serviceName: description,
+              amount: 0
+            }
+          );
+          console.log(`[Email Service] Recibo de isenção enviado com sucesso para ${patient_email}`);
+        } catch (emailError) {
+          console.error(`[Email Service] Falha ao enviar recibo de isenção:`, emailError);
+        }
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        payment_link: paymentLink,
+        invoice_id: invoice.id,
+        is_free: true
+      });
+    }
+
+    // 4. PAID SERVICE: Generate link based on selected gateway
     if (active_payment_gateway === 'mercadopago') {
       if (!mp_access_token) {
         // Rollback invoice creation if token is missing

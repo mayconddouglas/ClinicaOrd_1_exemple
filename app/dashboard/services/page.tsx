@@ -18,6 +18,7 @@ interface Service {
   price: number;
   duration_minutes: number;
   active: boolean;
+  is_free: boolean;
 }
 
 export default function ServicesPage() {
@@ -32,6 +33,7 @@ export default function ServicesPage() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('30');
+  const [isFree, setIsFree] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -56,8 +58,8 @@ export default function ServicesPage() {
   };
 
   const handleSave = async () => {
-    if (!name || !price) {
-      toast.error('Nome e Preço são obrigatórios');
+    if (!name || (!price && !isFree)) {
+      toast.error('Nome e Preço (se não for gratuito) são obrigatórios');
       return;
     }
 
@@ -66,8 +68,9 @@ export default function ServicesPage() {
       const payload = {
         name,
         description,
-        price: parseFloat(price),
+        price: isFree ? 0 : parseFloat(price),
         duration_minutes: parseInt(duration),
+        is_free: isFree,
         active: true
       };
 
@@ -98,6 +101,7 @@ export default function ServicesPage() {
     setDescription(service.description || '');
     setPrice(service.price.toString());
     setDuration(service.duration_minutes.toString());
+    setIsFree(service.is_free);
     setIsDialogOpen(true);
   };
 
@@ -122,6 +126,7 @@ export default function ServicesPage() {
     setDescription('');
     setPrice('');
     setDuration('30');
+    setIsFree(false);
   };
 
   const formatCurrency = (value: number) => {
@@ -182,15 +187,31 @@ export default function ServicesPage() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="isFree" 
+                  checked={isFree} 
+                  onChange={(e) => {
+                    setIsFree(e.target.checked);
+                    if (e.target.checked) setPrice('0');
+                  }}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="isFree" className="font-normal cursor-pointer">
+                  Este é um serviço gratuito (Ex: Avaliação Inicial)
+                </Label>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="price">Valor Padrão (R$) *</Label>
+                  <Label htmlFor="price" className={isFree ? "text-muted-foreground" : ""}>Valor Padrão (R$) *</Label>
                   <Input 
                     id="price" 
                     type="number" 
                     placeholder="150.00" 
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
+                    disabled={isFree}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -269,8 +290,16 @@ export default function ServicesPage() {
                       <td className="px-6 py-4 text-muted-foreground">
                         {service.duration_minutes} min
                       </td>
-                      <td className="px-6 py-4 font-medium text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(service.price)}
+                      <td className="px-6 py-4 font-medium">
+                        {service.is_free ? (
+                          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                            Gratuito
+                          </Badge>
+                        ) : (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(service.price)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">

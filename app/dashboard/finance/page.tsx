@@ -26,6 +26,7 @@ interface Service {
   id: string;
   name: string;
   price: number;
+  is_free: boolean;
 }
 
 interface Invoice {
@@ -52,6 +53,7 @@ export default function FinancePage() {
   const [newMethod, setNewMethod] = useState('pix');
   const [sendEmail, setSendEmail] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCurrentServiceFree, setIsCurrentServiceFree] = useState(false);
 
   // Dynamic Select Data
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -107,7 +109,7 @@ export default function FinancePage() {
     try {
       const [patientsRes, servicesRes] = await Promise.all([
         supabase.from('pacientes').select('id, nome, email').order('nome'),
-        supabase.from('services').select('id, name, price').eq('active', true).order('name')
+        supabase.from('services').select('id, name, price, is_free').eq('active', true).order('name')
       ]);
 
       if (patientsRes.data) setPatients(patientsRes.data);
@@ -122,11 +124,12 @@ export default function FinancePage() {
     const service = services.find(s => s.id === id);
     if (service) {
       setNewAmount(service.price.toString());
+      setIsCurrentServiceFree(service.is_free);
     }
   };
 
   const handleCreateInvoice = async () => {
-    if (!newPatientId || !newServiceId || !newAmount) {
+    if (!newPatientId || !newServiceId || (!newAmount && !isCurrentServiceFree)) {
       toast.error('Preencha paciente, serviço e valor.');
       return;
     }
@@ -137,6 +140,8 @@ export default function FinancePage() {
     setIsCreating(true);
 
     try {
+      const finalAmount = isCurrentServiceFree ? 0 : parseFloat(newAmount);
+
       // Call our API endpoint
       const res = await fetch('/api/payments/create', {
         method: 'POST',
@@ -147,8 +152,8 @@ export default function FinancePage() {
           patient_email: patient?.email,
           service_id: newServiceId,
           description: service?.name,
-          amount: parseFloat(newAmount),
-          payment_method: newMethod,
+          amount: finalAmount,
+          payment_method: isCurrentServiceFree ? 'free' : newMethod,
           send_email: sendEmail
         })
       });
@@ -159,7 +164,7 @@ export default function FinancePage() {
         throw new Error(data.error || 'Erro ao comunicar com a API de pagamentos');
       }
 
-      toast.success('Cobrança gerada com sucesso!');
+      toast.success(data.is_free ? 'Agendamento gratuito confirmado com sucesso!' : 'Cobrança gerada com sucesso!');
       setIsDialogOpen(false);
       resetForm();
       fetchInvoices();
@@ -194,6 +199,7 @@ export default function FinancePage() {
     setNewAmount('');
     setNewMethod('pix');
     setSendEmail(true);
+    setIsCurrentServiceFree(false);
   };
 
   const copyToClipboard = (text: string) => {
@@ -335,25 +341,34 @@ export default function FinancePage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="amount">Valor Personalizado (R$)</Label>
+                  <Label htmlFor="amount" className={isCurrentServiceFree ? "text-muted-foreground" : ""}>
+                    Valor Personalizado (R$)
+                  </Label>
                   <Input 
                     id="amount" 
                     type="number" 
                     placeholder="150.00" 
-                    value={newAmount}
+                    value={isCurrentServiceFree ? '0' : newAmount}
                     onChange={(e) => setNewAmount(e.target.value)}
+                    disabled={isCurrentServiceFree}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Método Preferido</Label>
-                  <Select value={newMethod} onValueChange={setNewMethod}>
+                  <Label className={isCurrentServiceFree ? "text-muted-foreground" : ""}>Método Preferido</Label>
+                  <Select value={isCurrentServiceFree ? 'free' : newMethod} onValueChange={setNewMethod} disabled={isCurrentServiceFree}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                      <SelectItem value="boleto">Boleto</SelectItem>
+                      {isCurrentServiceFree ? (
+                        <SelectItem value="free">Isento / Gratuito</SelectItem>
+                      ) : (
+                        <>
+                          <SelectItem value="pix">PIX</SelectItem>
+                          <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                          <SelectItem value="boleto">Boleto</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -368,14 +383,14 @@ export default function FinancePage() {
                 />
                 <Label htmlFor="sendEmail" className="font-normal flex items-center gap-2">
                   <Send className="h-3 w-3" />
-                  Enviar link de pagamento por E-mail
+                  {isCurrentServiceFree ? "Enviar confirmação por E-mail" : "Enviar link de pagamento por E-mail"}
                 </Label>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleCreateInvoice} disabled={isCreating}>
-                {isCreating ? 'Gerando...' : 'Gerar Link'}
+                {isCreating ? 'Processando...' : (isCurrentServiceFree ? 'Confirmar Agendamento' : 'Gerar Link')}
               </Button>
             </DialogFooter>
           </DialogContent>
