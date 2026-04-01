@@ -15,32 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from '@/components/ui/field';
 import { InputGroup, InputGroupInput, InputGroupAddon } from '@/components/ui/input-group';
 
-// Utility para converter HEX para HSL para injetar no CSS Variable
-function hexToHSL(hex: string): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return '0 0% 0%';
-
-  let r = parseInt(result[1], 16) / 255;
-  let g = parseInt(result[2], 16) / 255;
-  let b = parseInt(result[3], 16) / 255;
-
-  let max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0, l = (max + min) / 2;
-
-  if (max !== min) {
-    let d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-      case g: h = (b - r) / d + 2; break;
-      case b: h = (r - g) / d + 4; break;
-    }
-    h /= 6;
-  }
-
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
-}
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'address' | 'branding'>('profile');
   const [hasChanges, setHasChanges] = useState(false);
@@ -64,7 +38,6 @@ export default function SettingsPage() {
   const [cidade, setCidade] = useState('');
 
   // Branding State
-  const [themeColor, setThemeColor] = useState('#2563eb'); // Default blue
   const [welcomeMessage, setWelcomeMessage] = useState('');
 
   // Default values for comparison
@@ -99,7 +72,6 @@ export default function SettingsPage() {
           setNumero(data.numero || '');
           setBairro(data.bairro || '');
           setCidade(data.cidade || '');
-          setThemeColor(data.theme_color || '#2563eb');
           setWelcomeMessage(data.welcome_message || '');
           
           setInitialData(data);
@@ -114,13 +86,6 @@ export default function SettingsPage() {
     fetchSettings();
   }, []);
 
-  // Injetar a cor do tema globalmente
-  useEffect(() => {
-    if (themeColor) {
-      document.documentElement.style.setProperty('--primary', hexToHSL(themeColor));
-    }
-  }, [themeColor]);
-
   // Monitor changes
   useEffect(() => {
     if (isLoading) return;
@@ -134,11 +99,10 @@ export default function SettingsPage() {
       numero !== (initialData.numero || '') ||
       bairro !== (initialData.bairro || '') ||
       cidade !== (initialData.cidade || '') ||
-      themeColor !== (initialData.theme_color || '#2563eb') ||
       welcomeMessage !== (initialData.welcome_message || '');
       
     setHasChanges(isChanged);
-  }, [clinicName, cnpj, responsavel, cep, rua, numero, bairro, cidade, themeColor, welcomeMessage, initialData, isLoading]);
+  }, [clinicName, cnpj, responsavel, cep, rua, numero, bairro, cidade, welcomeMessage, initialData, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -155,7 +119,6 @@ export default function SettingsPage() {
       numero,
       bairro,
       cidade,
-      theme_color: themeColor,
       welcome_message: welcomeMessage,
       updated_at: new Date().toISOString(),
     };
@@ -204,19 +167,10 @@ export default function SettingsPage() {
     setNumero(initialData.numero || '');
     setBairro(initialData.bairro || '');
     setCidade(initialData.cidade || '');
-    setThemeColor(initialData.theme_color || '#2563eb');
     setWelcomeMessage(initialData.welcome_message || '');
     setHasChanges(false);
     toast.info('Alterações descartadas.');
   };
-
-  const PRESET_COLORS = [
-    { name: 'Azul Médico (Padrão)', value: '#2563eb' },
-    { name: 'Verde Saúde', value: '#16a34a' },
-    { name: 'Roxo Premium', value: '#7c3aed' },
-    { name: 'Rosa Clínico', value: '#db2777' },
-    { name: 'Preto Elegante', value: '#171717' },
-  ];
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] pb-20">
@@ -434,40 +388,6 @@ export default function SettingsPage() {
                     <CardContent className="p-6 space-y-8">
                       
                       <FieldGroup>
-                        <Field>
-                          <FieldLabel>Cor Principal do Tema</FieldLabel>
-                          <FieldDescription>Essa cor será usada em botões e destaques no chat e painel.</FieldDescription>
-                          
-                          <div className="flex flex-wrap gap-4 mt-4">
-                            {PRESET_COLORS.map((color) => (
-                              <button
-                                key={color.value}
-                                onClick={() => setThemeColor(color.value)}
-                                className="group flex flex-col items-center gap-2 outline-none"
-                              >
-                                <div 
-                                  className={`w-14 h-14 rounded-full shadow-sm flex items-center justify-center transition-all duration-200 ${
-                                    themeColor === color.value 
-                                      ? 'ring-2 ring-offset-2 ring-offset-background scale-95' 
-                                      : 'border border-border hover:scale-105 hover:shadow-md'
-                                  }`}
-                                  style={{ 
-                                    backgroundColor: color.value,
-                                    boxShadow: themeColor === color.value ? `0 4px 14px 0 ${color.value}40` : ''
-                                  }}
-                                >
-                                  {themeColor === color.value && <Check className="h-6 w-6 text-white animate-in zoom-in duration-200" />}
-                                </div>
-                                <span className={`text-xs font-medium transition-colors ${themeColor === color.value ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                  {color.name}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-
-                        <Separator className="my-6" />
-
                         <Field>
                           <FieldLabel htmlFor="welcome">Mensagem de Boas-vindas</FieldLabel>
                           <FieldDescription>A primeira mensagem que o paciente vê ao abrir o chat ou WhatsApp.</FieldDescription>
