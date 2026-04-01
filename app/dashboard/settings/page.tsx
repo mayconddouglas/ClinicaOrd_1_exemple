@@ -468,7 +468,7 @@ export default function SettingsPage() {
                                 }`}
                                 style={{ 
                                   backgroundColor: color.value,
-                                  boxShadow: themeColor === color.value ? \`0 4px 14px 0 \${color.value}40\` : ''
+                                  boxShadow: themeColor === color.value ? `0 4px 14px 0 ${color.value}40` : ''
                                 }}
                               >
                                 {themeColor === color.value && <Check className="h-6 w-6 text-white animate-in zoom-in duration-200" />}
