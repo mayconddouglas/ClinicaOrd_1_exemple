@@ -76,6 +76,27 @@ export default function AgendamentosPage() {
   // Sheet State
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pacientesList, setPacientesList] = useState<{id: string, nome: string, telefone: string}[]>([]);
+  const [newAppt, setNewAppt] = useState({
+    paciente_id: '',
+    data: '',
+    hora: '',
+    especialidade: 'clinico',
+    motivo: ''
+  });
+
+  const fetchPacientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pacientes')
+        .select('id, nome, telefone')
+        .order('nome');
+      if (error) throw error;
+      if (data) setPacientesList(data);
+    } catch (error) {
+      console.error('Erro ao buscar pacientes para o formulário:', error);
+    }
+  };
 
   const fetchAgendamentos = async () => {
     setIsLoading(true);
@@ -118,6 +139,7 @@ export default function AgendamentosPage() {
 
   useEffect(() => {
     fetchAgendamentos();
+    fetchPacientes();
 
     // Configurar realtime subscription para atualizar quando o bot marcar uma consulta
     const channel = supabase
@@ -181,13 +203,46 @@ export default function AgendamentosPage() {
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!newAppt.paciente_id || !newAppt.data || !newAppt.hora) {
+      toast.error('Preencha os campos obrigatórios (Paciente, Data e Hora).');
+      return;
+    }
+
+    if (newAppt.paciente_id === 'new') {
+      toast.info('Por favor, acesse a aba "Pacientes" para cadastrar um novo paciente primeiro.');
+      return;
+    }
+
     setIsSubmitting(true);
-    // Em um cenário real, aqui seria o INSERT no Supabase
-    // Para UX, simulamos o loading e fechamos o sheet
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    setIsSheetOpen(false);
-    toast.success('Agendamento criado com sucesso!');
+    try {
+      // Montar a data ISO (ex: 2023-10-25T14:30:00)
+      const dataHoraIso = `${newAppt.data}T${newAppt.hora}:00`;
+
+      const { error } = await supabase
+        .from('agendamentos')
+        .insert([{
+          paciente_id: newAppt.paciente_id,
+          data_hora: dataHoraIso,
+          especialidade: newAppt.especialidade,
+          motivo: newAppt.motivo,
+          status: 'pendente' // Padrão
+        }]);
+
+      if (error) throw error;
+
+      toast.success('Agendamento criado com sucesso!');
+      setIsSheetOpen(false);
+      // Resetar o formulário
+      setNewAppt({ paciente_id: '', data: '', hora: '', especialidade: 'clinico', motivo: '' });
+      // Atualizar a lista
+      fetchAgendamentos();
+    } catch (error: any) {
+      console.error('Erro ao salvar agendamento:', error);
+      toast.error('Erro ao criar agendamento. Verifique se o paciente existe.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filteredAgendamentos = agendamentos.filter(agendamento => {
@@ -289,13 +344,23 @@ export default function AgendamentosPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="paciente">Selecione o Paciente</Label>
-                      <Select required>
+                      <Select 
+                        required 
+                        value={newAppt.paciente_id} 
+                        onValueChange={(val) => setNewAppt({...newAppt, paciente_id: val})}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um paciente..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">João Silva (11) 98765-4321</SelectItem>
-                          <SelectItem value="2">Maria Oliveira (11) 91234-5678</SelectItem>
+                          {pacientesList.map(paciente => (
+                            <SelectItem key={paciente.id} value={paciente.id}>
+                              {paciente.nome} {paciente.telefone ? `(${paciente.telefone})` : ''}
+                            </SelectItem>
+                          ))}
+                          {pacientesList.length === 0 && (
+                            <SelectItem value="empty" disabled>Nenhum paciente encontrado</SelectItem>
+                          )}
                           <SelectItem value="new" className="text-primary font-medium">+ Cadastrar Novo Paciente</SelectItem>
                         </SelectContent>
                       </Select>
@@ -311,11 +376,25 @@ export default function AgendamentosPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="data">Data da Consulta</Label>
-                        <Input type="date" id="data" required className="w-full focus-visible:ring-primary" />
+                        <Input 
+                          type="date" 
+                          id="data" 
+                          required 
+                          className="w-full focus-visible:ring-primary"
+                          value={newAppt.data}
+                          onChange={(e) => setNewAppt({...newAppt, data: e.target.value})}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="hora">Horário</Label>
-                        <Input type="time" id="hora" required className="w-full focus-visible:ring-primary" />
+                        <Input 
+                          type="time" 
+                          id="hora" 
+                          required 
+                          className="w-full focus-visible:ring-primary" 
+                          value={newAppt.hora}
+                          onChange={(e) => setNewAppt({...newAppt, hora: e.target.value})}
+                        />
                       </div>
                     </div>
                   </div>
@@ -328,7 +407,11 @@ export default function AgendamentosPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="especialidade">Especialidade</Label>
-                      <Select required defaultValue="clinico">
+                      <Select 
+                        required 
+                        value={newAppt.especialidade}
+                        onValueChange={(val) => setNewAppt({...newAppt, especialidade: val})}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
@@ -345,6 +428,8 @@ export default function AgendamentosPage() {
                         id="motivo" 
                         placeholder="Ex: Paciente relata dor de dente há 3 dias..."
                         className="resize-none h-20 focus-visible:ring-primary"
+                        value={newAppt.motivo}
+                        onChange={(e) => setNewAppt({...newAppt, motivo: e.target.value})}
                       />
                     </div>
                   </div>
