@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight, FileText, LogOut, Link2, Search
+  ChevronRight, FileText, LogOut, Link2, Search, Mail
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,7 @@ const navItems = [
 
 const aiItem = { href: '/dashboard/copilot', label: 'Copiloto IA', icon: Bot, accent: 'text-primary' };
 const integrationItem = { href: '/dashboard/integrations', label: 'Integrações', icon: Link2, accent: 'text-primary' };
+const workspaceItem = { href: '/dashboard/workspace', label: 'Google Workspace', icon: Mail, accent: 'text-primary' };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -241,6 +242,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <Link href={integrationItem.href}>
                         <integrationItem.icon className={cn("h-4 w-4", pathname === integrationItem.href ? integrationItem.accent : "text-muted-foreground")} />
                         <span>{integrationItem.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === workspaceItem.href} tooltip={workspaceItem.label} className={cn("transition-all duration-200", pathname === workspaceItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                      <Link href={workspaceItem.href}>
+                        <workspaceItem.icon className={cn("h-4 w-4", pathname === workspaceItem.href ? workspaceItem.accent : "text-muted-foreground")} />
+                        <span>{workspaceItem.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
