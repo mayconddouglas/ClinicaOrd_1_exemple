@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 interface Patient {
   id: string;
-  name: string;
+  nome: string;
   email: string;
 }
 
@@ -106,7 +106,7 @@ export default function FinancePage() {
   const fetchPatientsAndServices = async () => {
     try {
       const [patientsRes, servicesRes] = await Promise.all([
-        supabase.from('patients').select('id, name, email').order('name'),
+        supabase.from('patients').select('id, nome, email').order('nome'),
         supabase.from('services').select('id, name, price').eq('active', true).order('name')
       ]);
 
@@ -143,7 +143,7 @@ export default function FinancePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patient_id: newPatientId,
-          patient_name: patient?.name,
+          patient_name: patient?.nome,
           patient_email: patient?.email,
           service_id: newServiceId,
           description: service?.name,
@@ -252,7 +252,7 @@ export default function FinancePage() {
                       className="justify-between"
                     >
                       {newPatientId
-                        ? patients.find((p) => p.id === newPatientId)?.name
+                        ? patients.find((p) => p.id === newPatientId)?.nome
                         : "Procurar paciente..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -266,7 +266,7 @@ export default function FinancePage() {
                           {patients.map((patient) => (
                             <CommandItem
                               key={patient.id}
-                              value={patient.name}
+                              value={patient.nome}
                               onSelect={() => {
                                 setNewPatientId(patient.id);
                                 setOpenPatientCombobox(false);
@@ -278,7 +278,7 @@ export default function FinancePage() {
                                   newPatientId === patient.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {patient.name}
+                              {patient.nome}
                             </CommandItem>
                           ))}
                         </CommandGroup>
