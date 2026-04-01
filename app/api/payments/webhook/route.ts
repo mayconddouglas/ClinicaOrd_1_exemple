@@ -24,11 +24,18 @@ export async function POST(request: Request) {
     // MERCADO PAGO WEBHOOK (IPN / Webhook)
     // ---------------------------------------------------------
     
+    // Log headers to see what MP sends
+    console.log('[Webhook] Headers:', Object.fromEntries(request.headers.entries()));
+    console.log('[Webhook] Query Params:', url.search);
+    console.log('[Webhook] Body:', JSON.stringify(body));
+
     // Mercado Pago sends the ID either in query params (?data.id=123) or body (body.data.id)
     const mpId = url.searchParams.get('data.id') || url.searchParams.get('id') || body?.data?.id;
     const mpTopic = url.searchParams.get('type') || url.searchParams.get('topic') || body?.type || body?.action;
 
-    if ((mpTopic === 'payment' || mpTopic === 'payment.created' || mpTopic === 'payment.updated') && mpId) {
+    // Se o topic for 'payment' ou 'payment.created' / 'payment.updated', validamos.
+    // Em notificações de IPN, às vezes só vem 'payment'
+    if (mpId && (mpTopic === 'payment' || mpTopic?.startsWith('payment') || url.searchParams.has('data.id'))) {
       console.log(`[Webhook] Mercado Pago Notification Received. ID: ${mpId}`);
 
       if (!settings?.mp_access_token) {

@@ -105,22 +105,6 @@ export default function FinancePage() {
         throw new Error(data.error || 'Erro ao comunicar com a API de pagamentos');
       }
 
-      const generatedPaymentLink = data.payment_link;
-
-      // Save the generated link to Supabase
-      const { error } = await supabase
-        .from('invoices')
-        .insert([{
-          patient_name: newPatientName,
-          description: newDescription,
-          amount: parseFloat(newAmount),
-          payment_method: newMethod,
-          payment_link: generatedPaymentLink,
-          status: 'pending'
-        }]);
-
-      if (error) throw error;
-
       toast.success('Cobrança gerada com sucesso!');
       setIsDialogOpen(false);
       resetForm();
