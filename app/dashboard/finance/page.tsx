@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus } from 'lucide-react';
+import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -36,6 +36,9 @@ export default function FinancePage() {
   const [newAmount, setNewAmount] = useState('');
   const [newMethod, setNewMethod] = useState('pix');
   const [isCreating, setIsCreating] = useState(false);
+
+  // Delete invoice state
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -110,6 +113,23 @@ export default function FinancePage() {
       toast.error(error.message || 'Erro ao gerar cobrança. Verifique as configurações de pagamento.');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    try {
+      setIsDeletingId(id);
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      
+      if (error) throw error;
+      
+      toast.success('Cobrança excluída com sucesso!');
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      toast.error('Erro ao excluir a cobrança');
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -348,6 +368,24 @@ export default function FinancePage() {
                           >
                             <Link2 className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">Abrir Link</span>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm('Tem certeza que deseja excluir esta cobrança?')) {
+                                handleDeleteInvoice(invoice.id);
+                              }
+                            }}
+                            disabled={isDeletingId === invoice.id}
+                            title="Excluir Cobrança"
+                          >
+                            {isDeletingId === invoice.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </td>
