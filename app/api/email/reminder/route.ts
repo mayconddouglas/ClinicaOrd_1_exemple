@@ -16,11 +16,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Integração do Gmail não está ativa ou configurada.' }, { status: 400 });
     }
 
-    // 2. Buscar agendamentos que acontecerão nas próximas 4 horas (status: pendente)
-    // Calcula a janela de tempo: (Agora) até (Agora + 4 horas e 59 minutos)
+    // 2. Buscar agendamentos do dia todo (como o Cron da Vercel Free é diário)
+    // Calcula a janela de tempo: (Agora) até (Fim do dia)
     const now = new Date();
-    const future = new Date(now.getTime() + 5 * 60 * 60 * 1000); // +5 horas para garantir uma margem
-    const targetStart = new Date(now.getTime() + 3 * 60 * 60 * 1000); // +3 horas
+    
+    // Configura para o fim do dia atual (23:59:59)
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
 
     const { data: agendamentos, error: agendamentosError } = await supabaseServer
       .from('agendamentos')
@@ -34,8 +36,8 @@ export async function GET(req: Request) {
         )
       `)
       .eq('status', 'pendente')
-      .gte('data_hora', targetStart.toISOString())
-      .lte('data_hora', future.toISOString());
+      .gte('data_hora', now.toISOString())
+      .lte('data_hora', endOfDay.toISOString());
 
     if (agendamentosError) {
       throw agendamentosError;
