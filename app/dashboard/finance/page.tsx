@@ -9,9 +9,21 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2 } from 'lucide-react';
+import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+
+interface Patient {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+}
 
 interface Invoice {
   id: string;
@@ -31,17 +43,23 @@ export default function FinancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // New invoice state
-  const [newPatientName, setNewPatientName] = useState('');
-  const [newDescription, setNewDescription] = useState('');
+  const [newPatientId, setNewPatientId] = useState('');
+  const [newServiceId, setNewServiceId] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newMethod, setNewMethod] = useState('pix');
+  const [sendEmail, setSendEmail] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Dynamic Select Data
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
   // Delete invoice state
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInvoices();
+    fetchPatientsAndServices();
 
     // Supabase Realtime Subscription for automatic updates when webhook triggers
     const channel = supabase
@@ -78,24 +96,53 @@ export default function FinancePage() {
     }
   };
 
+  const fetchPatientsAndServices = async () => {
+    try {
+      const [patientsRes, servicesRes] = await Promise.all([
+        supabase.from('patients').select('id, name, email').order('name'),
+        supabase.from('services').select('id, name, price').eq('active', true).order('name')
+      ]);
+
+      if (patientsRes.data) setPatients(patientsRes.data);
+      if (servicesRes.data) setServices(servicesRes.data);
+    } catch (error) {
+      console.error('Error fetching select data:', error);
+    }
+  };
+
+  const handleServiceChange = (id: string) => {
+    setNewServiceId(id);
+    const service = services.find(s => s.id === id);
+    if (service) {
+      setNewAmount(service.price.toString());
+    }
+  };
+
   const handleCreateInvoice = async () => {
-    if (!newPatientName || !newDescription || !newAmount) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!newPatientId || !newServiceId || !newAmount) {
+      toast.error('Preencha paciente, serviço e valor.');
       return;
     }
+
+    const patient = patients.find(p => p.id === newPatientId);
+    const service = services.find(s => s.id === newServiceId);
 
     setIsCreating(true);
 
     try {
-      // Call our new API endpoint to generate the real payment link
+      // Call our API endpoint
       const res = await fetch('/api/payments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patient_name: newPatientName,
-          description: newDescription,
+          patient_id: newPatientId,
+          patient_name: patient?.name,
+          patient_email: patient?.email,
+          service_id: newServiceId,
+          description: service?.name,
           amount: parseFloat(newAmount),
-          payment_method: newMethod
+          payment_method: newMethod,
+          send_email: sendEmail
         })
       });
 
@@ -135,10 +182,11 @@ export default function FinancePage() {
   };
 
   const resetForm = () => {
-    setNewPatientName('');
-    setNewDescription('');
+    setNewPatientId('');
+    setNewServiceId('');
     setNewAmount('');
     setNewMethod('pix');
+    setSendEmail(true);
   };
 
   const copyToClipboard = (text: string) => {
@@ -187,26 +235,34 @@ export default function FinancePage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="patient">Nome do Paciente</Label>
-                <Input 
-                  id="patient" 
-                  placeholder="Ex: João da Silva" 
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                />
+                <Label htmlFor="patient">Selecione o Paciente</Label>
+                <Select value={newPatientId} onValueChange={setNewPatientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha um paciente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="description">Descrição / Procedimento</Label>
-                <Input 
-                  id="description" 
-                  placeholder="Ex: Consulta Inicial" 
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                />
+                <Label htmlFor="service">Serviço / Procedimento</Label>
+                <Select value={newServiceId} onValueChange={handleServiceChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha o serviço..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name} - {formatCurrency(s.price)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="amount">Valor (R$)</Label>
+                  <Label htmlFor="amount">Valor Personalizado (R$)</Label>
                   <Input 
                     id="amount" 
                     type="number" 
@@ -228,6 +284,19 @@ export default function FinancePage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="sendEmail" 
+                  checked={sendEmail} 
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="sendEmail" className="font-normal flex items-center gap-2">
+                  <Send className="h-3 w-3" />
+                  Enviar link de pagamento por E-mail
+                </Label>
               </div>
             </div>
             <DialogFooter>

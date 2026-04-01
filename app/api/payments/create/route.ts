@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { patient_name, description, amount, payment_method } = body;
+    const { patient_id, patient_name, patient_email, service_id, description, amount, payment_method, send_email } = body;
 
     if (!patient_name || !description || !amount) {
       return NextResponse.json(
@@ -40,7 +40,10 @@ export async function POST(request: Request) {
     const { data: invoice, error: insertError } = await supabase
       .from('invoices')
       .insert([{
+        patient_id,
         patient_name,
+        customer_email: patient_email,
+        service_id,
         description,
         amount: Number(amount),
         payment_method,
@@ -70,6 +73,28 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Access Token do Mercado Pago não configurado.' }, { status: 400 });
       }
 
+      let mpPayload: any = {
+        items: [
+          {
+            id: invoice.id,
+            title: description,
+            description: `Cobrança para ${patient_name}`,
+            quantity: 1,
+            currency_id: 'BRL',
+            unit_price: Number(amount),
+          },
+        ],
+        payer: {
+          name: patient_name,
+        },
+        external_reference: invoice.id,
+        notification_url: webhookUrl,
+      };
+
+      if (patient_email) {
+        mpPayload.payer.email = patient_email;
+      }
+
       // Mercado Pago API
       const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
@@ -77,23 +102,7 @@ export async function POST(request: Request) {
           'Authorization': `Bearer ${mp_access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          items: [
-            {
-              id: invoice.id,
-              title: description,
-              description: `Cobrança para ${patient_name}`,
-              quantity: 1,
-              currency_id: 'BRL',
-              unit_price: Number(amount),
-            },
-          ],
-          payer: {
-            name: patient_name,
-          },
-          external_reference: invoice.id,
-          notification_url: webhookUrl,
-        }),
+        body: JSON.stringify(mpPayload),
       });
 
       const mpData = await mpResponse.json();
@@ -167,6 +176,13 @@ export async function POST(request: Request) {
       .from('invoices')
       .update({ payment_link: paymentLink })
       .eq('id', invoice.id);
+
+    // 5. If send_email is true and patient has email, we trigger the simulated email notification
+    if (send_email && patient_email) {
+      console.log(`[Email Service] Enviando link de cobrança (${paymentLink}) para o e-mail: ${patient_email}`);
+      // Em produção, você chamaria a API do Resend ou SendGrid aqui:
+      // await resend.emails.send({ from: 'clinica@suaclinica.com', to: patient_email, subject: 'Sua Cobrança', react: <EmailTemplate link={paymentLink} /> });
+    }
 
     return NextResponse.json({ 
       success: true, 

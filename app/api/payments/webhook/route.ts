@@ -60,6 +60,13 @@ export async function POST(request: Request) {
         const invoiceId = paymentInfo.external_reference; // This is the ID we passed during creation
         
         if (invoiceId) {
+          // Get patient email before updating
+          const { data: invoiceData } = await supabase
+            .from('invoices')
+            .select('customer_email, patient_name, description')
+            .eq('id', invoiceId)
+            .single();
+
           // Update our Supabase database
           await supabase
             .from('invoices')
@@ -70,6 +77,11 @@ export async function POST(request: Request) {
             .eq('id', invoiceId);
             
           console.log(`[Webhook] Invoice ${invoiceId} marked as PAID.`);
+
+          // Simulate sending a "Payment Confirmed" email to the patient
+          if (invoiceData?.customer_email) {
+            console.log(`[Email Service] Enviando recibo de confirmação para ${invoiceData.customer_email} - Serviço: ${invoiceData.description}`);
+          }
         }
       }
 

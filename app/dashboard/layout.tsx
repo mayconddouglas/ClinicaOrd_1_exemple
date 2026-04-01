@@ -72,6 +72,7 @@ const navGroups = [
     items: [
       { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-primary' },
       { href: '/dashboard/medicos',   label: 'Médicos',              icon: Stethoscope,     accent: 'text-primary' },
+      { href: '/dashboard/services',  label: 'Catálogo de Serviços', icon: BookOpen,        accent: 'text-primary' },
       { href: '/dashboard/finance',   label: 'Faturamento',          icon: Wallet,          accent: 'text-primary' },
     ]
   },
