@@ -80,11 +80,11 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
 4. Após ele escolher o horário, peça o CPF para verificar o cadastro ('checkPatientRegistration').
 5. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient').
 6. PROIBIÇÃO ABSOLUTA DE UPSELL: Agende APENAS o que foi pedido. Não ofereça pacotes ou serviços não solicitados.
-7. Use 'getClinicServices' para descobrir o ID e o preço do serviço exato solicitado.
+7. OBRIGATÓRIO: Use 'getClinicServices' ANTES de agendar para descobrir o ID real do serviço. NUNCA INVENTE IDs (UUIDs falsos). Se você não sabe o ID do médico ou do serviço, busque no banco de dados primeiro.
 8. FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Tudo em um único passo):
-   Use a ferramenta 'scheduleAppointment' enviando todos os dados: paciente_id, data_hora, medico_id e service_id.
+   Use a ferramenta 'scheduleAppointment' enviando todos os dados: paciente_id, data_hora, medico_id e service_id reais obtidos nas ferramentas anteriores.
    Essa ferramenta JÁ FAZ TUDO: agenda, gera o link de cobrança do Mercado Pago e envia o email.
-   Após a ferramenta retornar o sucesso, responda ao paciente confirmando o agendamento. Se a ferramenta retornar um 'payment_link', você DEVE OBRIGATORIAMENTE enviar esse link na sua resposta final pedindo para ele realizar o pagamento para garantir a vaga.
+   Após a ferramenta retornar o sucesso, responda ao paciente confirmando o agendamento. Se a ferramenta retornar um 'payment_link', você DEVE OBRIGATORIAMENTE exibir o link (URL) na sua resposta final, pedindo para o paciente realizar o pagamento. NUNCA esconda o link se ele for gerado.
    
 === WORKFLOW 4: PÓS-CONSULTA ===
 - Se o paciente relatar piora ou dúvidas urgentes após um procedimento, use 'registerPatientAlert' para notificar os médicos e avise o paciente que a equipe já foi alertada.`;
@@ -160,9 +160,9 @@ export const toolDeclarations = [
           motivo: { type: 'string', description: 'Motivo da consulta.' },
           especialidade: { type: 'string', description: 'Especialidade médica desejada.' },
           medico_id: { type: 'string', description: 'O ID (UUID) do médico escolhido (opcional, mas recomendado).' },
-          service_id: { type: 'string', description: 'O ID (UUID) do serviço escolhido para buscar o preço e gerar cobrança (opcional, mas obrigatório se for pago).' }
+          service_id: { type: 'string', description: 'O ID (UUID) do serviço escolhido para buscar o preço e gerar cobrança.' }
         },
-        required: ['paciente_id', 'data_hora'],
+        required: ['paciente_id', 'data_hora', 'service_id'],
       },
     }
   },
@@ -473,10 +473,10 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const schema = z.object({
           paciente_id: z.string(),
           data_hora: z.string(),
+          service_id: z.string(),
           motivo: z.string().optional(),
           especialidade: z.string().optional(),
-          medico_id: z.string().optional(),
-          service_id: z.string().optional()
+          medico_id: z.string().optional()
         });
         const validArgs = schema.parse(args);
         return await scheduleAppointment({

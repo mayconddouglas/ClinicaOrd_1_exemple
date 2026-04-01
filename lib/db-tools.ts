@@ -316,15 +316,21 @@ export async function scheduleAppointment(params: {
     // 2. Buscar dados do médico (se aplicável)
     let medicoNome = undefined;
     if (params.medico_id) {
-      const { data: medico } = await supabase.from('medicos').select('nome').eq('id', params.medico_id).single();
-      if (medico) medicoNome = medico.nome;
+      const { data: medico, error: medicoError } = await supabase.from('medicos').select('nome').eq('id', params.medico_id).single();
+      if (medicoError || !medico) {
+        return { error: 'O ID do médico informado é inválido ou não existe no banco de dados. Por favor, use a ferramenta getAvailableDoctors para obter o ID real.' };
+      }
+      medicoNome = medico.nome;
     }
 
     // 3. Buscar dados do serviço (se aplicável)
     let service = null;
     if (params.service_id) {
-      const { data: s } = await supabase.from('services').select('id, name, price, is_free').eq('id', params.service_id).single();
-      if (s) service = s;
+      const { data: s, error: sError } = await supabase.from('services').select('id, name, price, is_free').eq('id', params.service_id).single();
+      if (sError || !s) {
+        return { error: 'O ID do serviço informado é inválido ou não existe no banco de dados. Por favor, use a ferramenta getClinicServices para obter o ID real.' };
+      }
+      service = s;
     }
 
     console.log('[scheduleAppointment] Chamando createInvoiceLink...');
@@ -971,31 +977,41 @@ export async function sendAppointmentSummary(appointment_id: string) {
     if (paciente && paciente.email) {
       try {
         const nodemailer = require('nodemailer');
-        
-        // Configuração de exemplo - o ideal é usar as variáveis de ambiente corretas
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
 
-        // Tentar enviar apenas se tiver credenciais (para não quebrar em dev sem env vars)
-        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        // Buscar configurações SMTP do banco de dados (clinic_settings)
+        const { data: settings } = await supabase
+          .from('clinic_settings')
+          .select('smtp_user, smtp_pass, clinic_name')
+          .limit(1)
+          .single();
+
+        const smtpUser = settings?.smtp_user || process.env.SMTP_USER;
+        const smtpPass = settings?.smtp_pass || process.env.SMTP_PASS;
+        const clinicName = settings?.clinic_name || 'Nossa Clínica';
+
+        if (smtpUser && smtpPass) {
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: parseInt(process.env.SMTP_PORT || '587'),
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+          });
+
           const mailOptions = {
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            from: `"${clinicName}" <${smtpUser}>`,
             to: paciente.email,
-            subject: 'Confirmação de Agendamento',
+            subject: 'Confirmação de Agendamento - ' + clinicName,
             text: `Olá ${paciente.nome},\n\nSua consulta está confirmada para ${new Date(data.data_hora).toLocaleString('pt-BR')}.\nEspecialidade: ${data.especialidade || 'Não informada'}\n\nObrigado!`,
-            html: `<p>Olá <strong>${paciente.nome}</strong>,</p><p>Sua consulta está confirmada para <strong>${new Date(data.data_hora).toLocaleString('pt-BR')}</strong>.</p><p>Especialidade: ${data.especialidade || 'Não informada'}</p><br/><p>Obrigado!</p>`
+            html: `<p>Olá <strong>${paciente.nome}</strong>,</p><p>Sua consulta está confirmada para <strong>${new Date(data.data_hora).toLocaleString('pt-BR')}</strong>.</p><p>Especialidade: ${data.especialidade || 'Não informada'}</p><br/><p>Obrigado, equipe ${clinicName}!</p>`
           };
-          
+
           await transporter.sendMail(mailOptions);
+          console.log('[sendAppointmentSummary] E-mail enviado com sucesso para:', paciente.email);
         } else {
-          console.log('Credenciais SMTP não configuradas. Pulando envio real de email.');
+          console.log('[sendAppointmentSummary] Credenciais SMTP não configuradas. Pulando envio real de email.');
         }
       } catch (emailError) {
         console.error('Error sending email:', emailError);
