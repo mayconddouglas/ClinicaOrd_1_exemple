@@ -69,10 +69,11 @@ export async function POST(request: Request) {
 
       const mpData = await mpResponse.json();
       if (!mpResponse.ok) {
-        console.error('Mercado Pago Error:', mpData);
-        return NextResponse.json({ error: 'Erro ao gerar link no Mercado Pago.' }, { status: 500 });
+        console.error('Mercado Pago Error:', JSON.stringify(mpData, null, 2));
+        return NextResponse.json({ error: 'Erro ao gerar link no Mercado Pago. Verifique as credenciais.' }, { status: 500 });
       }
       
+      console.log('Mercado Pago Success:', mpData.id);
       paymentLink = mpData.init_point; // URL for the user to pay
 
     } else if (active_payment_gateway === 'asaas') {
