@@ -26,10 +26,9 @@ export async function getAvailableDoctors() {
     const { data, error } = await supabase
       .from('medicos')
       .select('*')
-      .eq('disponivel', true)
       .order('nome', { ascending: true });
 
-    if (error) return { error: 'Erro ao buscar médicos disponíveis.' };
+    if (error) return { error: 'Erro ao buscar médicos.' };
     return { success: true, doctors: data };
   } catch (err: any) {
     return { error: err.message };
@@ -42,7 +41,6 @@ export async function getDoctorsBySpecialty(especialidade: string) {
       .from('medicos')
       .select('*')
       .ilike('especialidade', `%${especialidade}%`)
-      .eq('disponivel', true)
       .order('nome', { ascending: true });
 
     if (error) return { error: 'Erro ao buscar médicos por especialidade.' };
