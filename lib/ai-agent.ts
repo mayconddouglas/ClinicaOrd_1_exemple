@@ -1,4 +1,3 @@
-import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
 import { z } from 'zod';
 import {
   checkPatientRegistration,
@@ -146,261 +145,343 @@ export const TOOL_ROUTING = {
   ]
 };
 
-export const toolDeclarations: FunctionDeclaration[] = [
+export const toolDeclarations = [
   {
-    name: 'checkPatientRegistration',
-    description: 'Verifica se um paciente já está cadastrado no banco de dados da clínica usando CPF, Nome ou Telefone.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        cpf: { type: Type.STRING, description: 'O CPF do paciente.' },
-        nome: { type: Type.STRING, description: 'O nome do paciente para busca aproximada.' },
-        telefone: { type: Type.STRING, description: 'O telefone do paciente.' },
-      },
-    },
-  },
-  {
-    name: 'registerPatient',
-    description: 'Cadastra um novo paciente no banco de dados da clínica.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        nome: { type: Type.STRING, description: 'Nome completo do paciente.' },
-        cpf: { type: Type.STRING, description: 'CPF do paciente.' },
-        telefone: { type: Type.STRING, description: 'Telefone de contato do paciente.' },
-        email: { type: Type.STRING, description: 'E-mail do paciente para receber notificações.' },
-        data_nascimento: { type: Type.STRING, description: 'Data de nascimento no formato YYYY-MM-DD.' },
-      },
-      required: ['nome', 'telefone'],
-    },
-  },
-  {
-    name: 'scheduleAppointment',
-    description: 'Agenda uma nova consulta para um paciente já cadastrado.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        paciente_id: { type: Type.STRING, description: 'O ID (UUID) do paciente.' },
-        data_hora: { type: Type.STRING, description: 'Data e hora no formato ISO 8601.' },
-        motivo: { type: Type.STRING, description: 'Motivo da consulta.' },
-        especialidade: { type: Type.STRING, description: 'Especialidade médica desejada.' },
-      },
-      required: ['paciente_id', 'data_hora'],
-    },
-  },
-  {
-    name: 'saveTriage',
-    description: 'Salva os dados de uma triagem inicial de um paciente.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        paciente_id: { type: Type.STRING, description: 'O ID (UUID) do paciente.' },
-        pain_scale: { type: Type.INTEGER, description: 'Escala de dor de 0 a 10.' },
-        symptoms: { type: Type.STRING, description: 'Descrição dos sintomas.' },
-        red_flags: { type: Type.STRING, description: 'Sinais de alerta graves.' },
-        urgency_classification: { type: Type.STRING, description: 'Classificação de urgência.' },
-      },
-      required: ['paciente_id', 'pain_scale', 'symptoms'],
-    },
-  },
-  {
-    name: 'searchLearnedAnswers',
-    description: 'Busca respostas aprendidas para perguntas frequentes.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        keyword: { type: Type.STRING, description: 'Palavra-chave da pergunta.' },
-      },
-      required: ['keyword'],
-    },
-  },
-  {
-    name: 'saveLearnedAnswer',
-    description: 'Salva uma nova pergunta e resposta no banco de dados.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        question: { type: Type.STRING, description: 'A pergunta do usuário.' },
-        answer: { type: Type.STRING, description: 'A resposta formulada.' },
-        category: { type: Type.STRING, description: 'Categoria da pergunta.' },
-      },
-      required: ['question', 'answer', 'category'],
-    },
-  },
-  {
-    name: 'getAvailableSlots',
-    description: 'Busca todos os horários disponíveis em uma data específica.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        date: { type: Type.STRING, description: 'Data no formato YYYY-MM-DD.' },
-      },
-      required: ['date'],
-    },
-  },
-  {
-    name: 'checkAvailability',
-    description: 'Verifica se um horário específico está disponível.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        data_hora: { type: Type.STRING, description: 'Data e hora no formato ISO 8601.' },
-      },
-      required: ['data_hora'],
-    },
-  },
-  {
-    name: 'getPatientAppointments',
-    description: 'Busca todas as consultas ativas de um paciente.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        paciente_id: { type: Type.STRING, description: 'O ID (UUID) do paciente.' },
-      },
-      required: ['paciente_id'],
-    },
-  },
-  {
-    name: 'cancelAppointment',
-    description: 'Cancela uma consulta existente.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta.' },
-      },
-      required: ['appointment_id'],
-    },
-  },
-  {
-    name: 'rescheduleAppointment',
-    description: 'Reagenda uma consulta para um novo horário.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta.' },
-        new_data_hora: { type: Type.STRING, description: 'Nova data e hora no formato ISO 8601.' },
-      },
-      required: ['appointment_id', 'new_data_hora'],
-    },
-  },
-  {
-    name: 'sendAppointmentSummary',
-    description: 'Gera e simula o envio de um resumo da consulta ao paciente.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        appointment_id: { type: Type.STRING, description: 'O ID (UUID) da consulta.' },
-      },
-      required: ['appointment_id'],
-    },
-  },
-  {
-    name: 'getAvailableDoctors',
-    description: 'Busca todos os médicos disponíveis na clínica.',
-  },
-  {
-    name: 'getDoctorsBySpecialty',
-    description: 'Busca médicos disponíveis por especialidade (ex: Joelho, Coluna, Ortopedia Geral).',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        especialidade: { type: Type.STRING, description: 'A especialidade médica desejada.' },
-      },
-      required: ['especialidade'],
-    },
-  },
-  {
-    name: 'getClinicServices',
-    description: 'Retorna a lista de serviços e pacotes da clínica, com os preços e informando se o serviço é gratuito (is_free). Chame antes de criar o link de cobrança.',
-  },
-  {
-    name: 'createInvoiceLink',
-    description: 'Gera e retorna um link de pagamento (Mercado Pago) para um ou múltiplos serviços, ou agenda diretamente se for gratuito/desconto 100%.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        patient_id: { type: Type.STRING },
-        patient_name: { type: Type.STRING },
-        patient_email: { type: Type.STRING },
-        service_id: { type: Type.STRING, description: 'ID do serviço (se for apenas um)' },
-        service_name: { type: Type.STRING, description: 'Nome do serviço (se for apenas um)' },
-        amount: { type: Type.NUMBER, description: 'Valor (se for apenas um)' },
-        is_free: { type: Type.BOOLEAN, description: 'É gratuito? (se for apenas um)' },
-        items: {
-          type: Type.ARRAY,
-          description: 'Lista de múltiplos serviços (carrinho/pacote). Use isso em vez de service_id/service_name se o paciente comprar mais de um serviço.',
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              name: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              is_free: { type: Type.BOOLEAN }
-            }
-          }
+    type: 'function',
+    function: {
+      name: 'checkPatientRegistration',
+      description: 'Verifica se um paciente já está cadastrado no banco de dados da clínica usando CPF, Nome ou Telefone.',
+      parameters: {
+        type: 'object',
+        properties: {
+          cpf: { type: 'string', description: 'O CPF do paciente.' },
+          nome: { type: 'string', description: 'O nome do paciente para busca aproximada.' },
+          telefone: { type: 'string', description: 'O telefone do paciente.' },
         },
-        discount: { type: Type.NUMBER, description: 'Desconto aplicado ao valor total (em Reais)' },
-        appointment_date_time: { type: Type.STRING, description: 'Data e hora ISO da consulta se for agendada' },
-        appointment_medico_id: { type: Type.STRING },
-        appointment_medico_nome: { type: Type.STRING },
-        appointment_especialidade: { type: Type.STRING },
       },
-      required: ['patient_id', 'patient_name'],
-    },
+    }
   },
   {
-    name: 'escalateToHuman',
-    description: 'Envia uma pergunta específica que a IA não soube responder para a equipe humana da clínica responder.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        question: { type: Type.STRING, description: 'A pergunta exata do paciente.' },
-        patientPhone: { type: Type.STRING, description: 'O telefone ou identificador do paciente (opcional).' },
+    type: 'function',
+    function: {
+      name: 'registerPatient',
+      description: 'Cadastra um novo paciente no banco de dados da clínica.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nome: { type: 'string', description: 'Nome completo do paciente.' },
+          cpf: { type: 'string', description: 'CPF do paciente.' },
+          telefone: { type: 'string', description: 'Telefone de contato do paciente.' },
+          email: { type: 'string', description: 'E-mail do paciente para receber notificações.' },
+          data_nascimento: { type: 'string', description: 'Data de nascimento no formato YYYY-MM-DD.' },
+        },
+        required: ['nome', 'telefone'],
       },
-      required: ['question'],
-    },
+    }
   },
   {
-    name: 'registerPatientAlert',
-    description: 'Registra um alerta médico urgente para a equipe da clínica sobre o estado de um paciente pós-consulta.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        paciente_id: { type: Type.STRING, description: 'O identificador do paciente (ID, CPF ou Telefone).' },
-        message: { type: Type.STRING, description: 'A mensagem de alerta descrevendo os sintomas ou problema.' },
-        severity: { type: Type.STRING, description: 'Nível de gravidade: "alta", "media" ou "baixa".' },
+    type: 'function',
+    function: {
+      name: 'scheduleAppointment',
+      description: 'Agenda uma nova consulta para um paciente já cadastrado.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'O ID (UUID) do paciente.' },
+          data_hora: { type: 'string', description: 'Data e hora no formato ISO 8601.' },
+          motivo: { type: 'string', description: 'Motivo da consulta.' },
+          especialidade: { type: 'string', description: 'Especialidade médica desejada.' },
+        },
+        required: ['paciente_id', 'data_hora'],
       },
-      required: ['paciente_id', 'message', 'severity'],
-    },
+    }
   },
   {
-    name: 'getFinancialMetrics',
-    description: 'Obtém o faturamento financeiro de hoje, faturamento do mês, e os recebíveis pendentes (não pagos) do dashboard.',
+    type: 'function',
+    function: {
+      name: 'saveTriage',
+      description: 'Salva os dados de uma triagem inicial de um paciente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'O ID (UUID) do paciente.' },
+          pain_scale: { type: 'integer', description: 'Escala de dor de 0 a 10.' },
+          symptoms: { type: 'string', description: 'Descrição dos sintomas.' },
+          red_flags: { type: 'string', description: 'Sinais de alerta graves.' },
+          urgency_classification: { type: 'string', description: 'Classificação de urgência.' },
+        },
+        required: ['paciente_id', 'pain_scale', 'symptoms'],
+      },
+    }
   },
   {
-    name: 'getAppointmentsMetrics',
-    description: 'Obtém o total de agendamentos para o dia de hoje, mostrando os confirmados, pendentes, cancelados e a lista de pacientes e médicos.',
+    type: 'function',
+    function: {
+      name: 'searchLearnedAnswers',
+      description: 'Busca respostas aprendidas para perguntas frequentes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          keyword: { type: 'string', description: 'Palavra-chave da pergunta.' },
+        },
+        required: ['keyword'],
+      },
+    }
   },
   {
-    name: 'blockDoctorAgenda',
-    description: 'Bloqueia a agenda de um médico (torna indisponível) e opcionalmente cancela os agendamentos pendentes ou confirmados de um dia específico.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        medico_id: { type: Type.STRING },
-        medico_nome: { type: Type.STRING },
-        cancel_appointments_date: { type: Type.STRING, description: "Data ISO (YYYY-MM-DD) para cancelar os agendamentos do médico neste dia." }
+    type: 'function',
+    function: {
+      name: 'saveLearnedAnswer',
+      description: 'Salva uma nova pergunta e resposta no banco de dados.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'A pergunta do usuário.' },
+          answer: { type: 'string', description: 'A resposta formulada.' },
+          category: { type: 'string', description: 'Categoria da pergunta.' },
+        },
+        required: ['question', 'answer', 'category'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getAvailableSlots',
+      description: 'Busca todos os horários disponíveis em uma data específica.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
+        },
+        required: ['date'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'checkAvailability',
+      description: 'Verifica se um horário específico está disponível.',
+      parameters: {
+        type: 'object',
+        properties: {
+          data_hora: { type: 'string', description: 'Data e hora no formato ISO 8601.' },
+        },
+        required: ['data_hora'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getPatientAppointments',
+      description: 'Busca todas as consultas ativas de um paciente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'O ID (UUID) do paciente.' },
+        },
+        required: ['paciente_id'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancelAppointment',
+      description: 'Cancela uma consulta existente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'O ID (UUID) da consulta.' },
+        },
+        required: ['appointment_id'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rescheduleAppointment',
+      description: 'Reagenda uma consulta para um novo horário.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'O ID (UUID) da consulta.' },
+          new_data_hora: { type: 'string', description: 'Nova data e hora no formato ISO 8601.' },
+        },
+        required: ['appointment_id', 'new_data_hora'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendAppointmentSummary',
+      description: 'Gera e simula o envio de um resumo da consulta ao paciente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'O ID (UUID) da consulta.' },
+        },
+        required: ['appointment_id'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getAvailableDoctors',
+      description: 'Busca todos os médicos disponíveis na clínica.',
+      parameters: {
+        type: 'object',
+        properties: {}
       }
     }
   },
   {
-    name: 'cancelPendingInvoices',
-    description: 'Varre o sistema e cancela as faturas que estão pendentes há muito tempo, liberando as vagas na agenda.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        days_old: { type: Type.NUMBER, description: "Cancelar faturas com mais de X dias pendentes. Padrão: 1" }
+    type: 'function',
+    function: {
+      name: 'getDoctorsBySpecialty',
+      description: 'Busca médicos disponíveis por especialidade (ex: Joelho, Coluna, Ortopedia Geral).',
+      parameters: {
+        type: 'object',
+        properties: {
+          especialidade: { type: 'string', description: 'A especialidade médica desejada.' },
+        },
+        required: ['especialidade'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getClinicServices',
+      description: 'Retorna a lista de serviços e pacotes da clínica, com os preços e informando se o serviço é gratuito (is_free). Chame antes de criar o link de cobrança.',
+      parameters: {
+        type: 'object',
+        properties: {}
       }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'createInvoiceLink',
+      description: 'Gera e retorna um link de pagamento (Mercado Pago) para um ou múltiplos serviços, ou agenda diretamente se for gratuito/desconto 100%.',
+      parameters: {
+        type: 'object',
+        properties: {
+          patient_id: { type: 'string' },
+          patient_name: { type: 'string' },
+          patient_email: { type: 'string' },
+          service_id: { type: 'string', description: 'ID do serviço (se for apenas um)' },
+          service_name: { type: 'string', description: 'Nome do serviço (se for apenas um)' },
+          amount: { type: 'number', description: 'Valor (se for apenas um)' },
+          is_free: { type: 'boolean', description: 'É gratuito? (se for apenas um)' },
+          items: {
+            type: 'array',
+            description: 'Lista de múltiplos serviços (carrinho/pacote). Use isso em vez de service_id/service_name se o paciente comprar mais de um serviço.',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                price: { type: 'number' },
+                is_free: { type: 'boolean' }
+              }
+            }
+          },
+          discount: { type: 'number', description: 'Desconto aplicado ao valor total (em Reais)' },
+          appointment_date_time: { type: 'string', description: 'Data e hora ISO da consulta se for agendada' },
+          appointment_medico_id: { type: 'string' },
+          appointment_medico_nome: { type: 'string' },
+          appointment_especialidade: { type: 'string' },
+        },
+        required: ['patient_id', 'patient_name'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'escalateToHuman',
+      description: 'Envia uma pergunta específica que a IA não soube responder para a equipe humana da clínica responder.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'A pergunta exata do paciente.' },
+          patientPhone: { type: 'string', description: 'O telefone ou identificador do paciente (opcional).' },
+        },
+        required: ['question'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'registerPatientAlert',
+      description: 'Registra um alerta médico urgente para a equipe da clínica sobre o estado de um paciente pós-consulta.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'O identificador do paciente (ID, CPF ou Telefone).' },
+          message: { type: 'string', description: 'A mensagem de alerta descrevendo os sintomas ou problema.' },
+          severity: { type: 'string', description: 'Nível de gravidade: "alta", "media" ou "baixa".' },
+        },
+        required: ['paciente_id', 'message', 'severity'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getFinancialMetrics',
+      description: 'Obtém o faturamento financeiro de hoje, faturamento do mês, e os recebíveis pendentes (não pagos) do dashboard.',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getAppointmentsMetrics',
+      description: 'Obtém o total de agendamentos para o dia de hoje, mostrando os confirmados, pendentes, cancelados e a lista de pacientes e médicos.',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'blockDoctorAgenda',
+      description: 'Bloqueia a agenda de um médico (torna indisponível) e opcionalmente cancela os agendamentos pendentes ou confirmados de um dia específico.',
+      parameters: {
+        type: 'object',
+        properties: {
+          medico_id: { type: 'string' },
+          medico_nome: { type: 'string' },
+          cancel_appointments_date: { type: 'string', description: "Data ISO (YYYY-MM-DD) para cancelar os agendamentos do médico neste dia." }
+        }
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancelPendingInvoices',
+      description: 'Varre o sistema e cancela as faturas que estão pendentes há muito tempo, liberando as vagas na agenda.',
+      parameters: {
+        type: 'object',
+        properties: {
+          days_old: { type: 'number', description: "Cancelar faturas com mais de X dias pendentes. Padrão: 1" }
+        }
+      },
     }
   }
 ];

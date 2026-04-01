@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getDynamicAgentInstructions, toolDeclarations, TOOL_ROUTING, executeTool } from '@/lib/ai-agent';
 import { getClinicSettings } from '@/lib/db-tools';
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
-// Initialize the new Google Gen AI SDK
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Configurar o OpenAI para usar o OpenRouter
+const getOpenAI = () => new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "dummy", // Fallback se não configurado
+  defaultHeaders: {
+    "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", // Required for OpenRouter
+    "X-Title": "OrthoAdmin Copilot", // Optional
+  }
+});
 
 export async function POST(request: Request) {
   try {
@@ -23,83 +30,63 @@ export async function POST(request: Request) {
     // O Copilot sempre roda como COPILOT_ADMIN
     const adminPrompt = systemPrompts['COPILOT_ADMIN'];
     const adminToolsNames = TOOL_ROUTING['COPILOT_ADMIN'];
-    const adminTools = toolDeclarations.filter(tool => tool.name && adminToolsNames.includes(tool.name));
+    const adminTools = toolDeclarations.filter(tool => tool.function?.name && adminToolsNames.includes(tool.function.name));
 
-    // Convert OpenAI message format to Gemini format
-    const geminiHistory = messages.slice(0, -1).map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
+    // Convert message history to standard OpenAI format
+    const openRouterMessages: any[] = [
+      { role: 'system', content: adminPrompt },
+      ...messages.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }))
+    ];
 
-    // Extract the latest message text
-    const userMessage = messages[messages.length - 1].content;
-
-    // Build the request parameters for the new SDK
+    // Build the request parameters
     const generateParams: any = {
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: adminPrompt }]
-      },
-      contents: [
-        ...geminiHistory,
-        { role: 'user', parts: [{ text: userMessage }] }
-      ]
+      model: 'anthropic/claude-3.5-sonnet', // Recomendado para Copilot
+      messages: openRouterMessages,
     };
 
     if (adminTools.length > 0) {
-      generateParams.tools = [{ functionDeclarations: adminTools }];
+      generateParams.tools = adminTools as any;
+      generateParams.tool_choice = "auto";
     }
 
-    // Call the single unified Gemini execution
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      ...generateParams
-    });
+    // Call the single unified execution
+    const openai = getOpenAI();
+    const response = await openai.chat.completions.create(generateParams);
 
-    let finalResponseText = response.text || '';
+    const message = response.choices[0].message;
+    let finalResponseText = message.content || '';
 
     // Handle tool calls
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      const call = response.functionCalls[0];
-      const functionName = call.name || 'unknown';
-      const functionArgs = call.args;
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      const call = message.tool_calls[0];
+      const functionName = (call as any).function?.name || 'unknown';
+      const functionArgs = JSON.parse((call as any).function?.arguments || '{}');
 
-      console.log(`[Copilot API] Calling tool: ${functionName}`);
+      console.log(`[Copilot API] Calling tool via OpenRouter: ${functionName}`);
 
       const toolResult = await executeTool(functionName, functionArgs);
       const toolResultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);
 
-      const toolResponseParams = {
-        ...generateParams,
-        contents: [
-          ...generateParams.contents,
-          {
-            role: 'model',
-            parts: [{
-              functionCall: {
-                name: functionName,
-                args: functionArgs
-              }
-            }]
-          },
-          {
-            role: 'user',
-            parts: [{
-              functionResponse: {
-                name: functionName,
-                response: { result: toolResultStr }
-              }
-            }]
-          }
-        ]
-      };
-
-      const finalResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        ...toolResponseParams
+      // Append the assistant's tool call and the tool's result to the history
+      openRouterMessages.push(message); // The assistant's tool call
+      openRouterMessages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        name: functionName,
+        content: toolResultStr
       });
 
-      finalResponseText = finalResponse.text || '';
+      const finalResponse = await openai.chat.completions.create({
+        model: 'anthropic/claude-3.5-sonnet',
+        messages: openRouterMessages,
+        tools: adminTools as any,
+        tool_choice: "auto"
+      });
+
+      finalResponseText = finalResponse.choices[0].message.content || '';
     }
 
     return NextResponse.json({
@@ -110,7 +97,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Error in Copilot API:', error);
     return NextResponse.json(
-      { error: 'Erro ao processar a solicitação.' },
+      { error: `Erro ao processar a solicitação: ${error.message}` },
       { status: 500 }
     );
   }

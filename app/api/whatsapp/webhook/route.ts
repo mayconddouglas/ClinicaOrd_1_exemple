@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI, Type } from '@google/genai';
 import { getSetting, getWhatsappHistory, appendChatMessages } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
@@ -9,6 +8,16 @@ import {
   toolDeclarations,
   executeTool
 } from '@/lib/ai-agent';
+import OpenAI from 'openai';
+
+const getOpenAI = () => new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || "dummy",
+  defaultHeaders: {
+    "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    "X-Title": "OrthoAdmin WhatsApp",
+  }
+});
 
 async function logDebug(step: string, data: any) {
   try {
@@ -106,75 +115,93 @@ export async function POST(req: NextRequest) {
     await logStep('HISTORY_LOADED', { historyLength: history.length });
 
     // 3. Orchestrator Logic
-    const ai = new GoogleGenAI({ apiKey });
-
     // Obter instruções dinâmicas
     const ORCHESTRATOR_INSTRUCTION = await getDynamicOrchestratorInstruction();
     const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
 
     const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${messageText}"`;
     
-    const orchestratorResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: orchestratorPrompt,
-      config: {
-        systemInstruction: ORCHESTRATOR_INSTRUCTION,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.STRING,
-          enum: ['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'],
-          description: "A intenção classificada do usuário"
-        },
-        temperature: 0.1,
-      }
+    const openai = getOpenAI();
+    const orchestratorResponse = await openai.chat.completions.create({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        { role: 'system', content: ORCHESTRATOR_INSTRUCTION },
+        { role: 'user', content: orchestratorPrompt }
+      ],
+      temperature: 0.1,
     });
 
-    let intent = orchestratorResponse.text?.replace(/["\n\r]/g, '').trim() || 'GERAL';
-    if (!['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'].includes(intent)) {
-      intent = 'GERAL';
+    let intentText = orchestratorResponse.choices[0].message.content?.replace(/["\n\r]/g, '').trim().toUpperCase() || 'GERAL';
+    
+    const validIntents = ['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'];
+    let intent = 'GERAL';
+    for (const valid of validIntents) {
+      if (intentText.includes(valid)) {
+        intent = valid;
+        break;
+      }
     }
     await logStep('INTENT_DETECTED', { intent });
 
     // 4. Subagent Logic
     const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS] || AGENT_INSTRUCTIONS.GERAL;
     const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING] || [];
-    const agentTools = toolDeclarations.filter(t => t.name && allowedToolsNames.includes(t.name));
+    const agentTools = toolDeclarations.filter(t => t.function?.name && allowedToolsNames.includes(t.function.name));
 
-    const session = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      history: history.length > 0 ? history : undefined,
-      config: {
-        systemInstruction: agentInstruction,
-        temperature: 0.1,
-        tools: agentTools.length > 0 ? [{ functionDeclarations: agentTools }] : undefined,
-      },
-    });
+    // Converter histórico
+    const openRouterMessages: any[] = [
+      { role: 'system', content: agentInstruction }
+    ];
 
-    let currentMessage: any = { message: messageText };
+    if (history && history.length > 0) {
+      for (const msg of history) {
+        const role = msg.role === 'user' ? 'user' : 'assistant';
+        const content = msg.parts?.[0]?.text || msg.content || '';
+        openRouterMessages.push({ role, content });
+      }
+    }
+    openRouterMessages.push({ role: 'user', content: messageText });
+
     let finalText = '';
 
     // Limitado a 4 iterações para forçar rapidez
     for (let i = 0; i < 4; i++) {
-      await logStep('SENDING_MESSAGE_TO_AI', { iteration: i, currentMessage });
-      const response = await session.sendMessage(currentMessage);
-      const functionCalls = response.functionCalls ?? [];
+      await logStep('SENDING_MESSAGE_TO_AI', { iteration: i, messages: openRouterMessages });
+      
+      const generateParams: any = {
+        model: 'openai/gpt-4o-mini',
+        messages: openRouterMessages,
+        temperature: 0.1,
+      };
 
-      if (functionCalls.length > 0) {
-        await logStep('FUNCTION_CALLS', { functionCalls });
-        const functionResponses = await Promise.all(
-          functionCalls.map(async (call: any) => {
-            const result = await executeTool(call.name, call.args ?? {});
-            return {
-              functionResponse: {
-                name: call.name,
-                response: result,
-              },
-            };
-          })
-        );
-        currentMessage = { message: functionResponses };
+      if (agentTools.length > 0) {
+        generateParams.tools = agentTools as any;
+        generateParams.tool_choice = "auto";
+      }
+
+      const response = await openai.chat.completions.create(generateParams);
+      const assistantMessage = response.choices[0].message;
+
+      if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+        await logStep('FUNCTION_CALLS', { functionCalls: assistantMessage.tool_calls });
+        openRouterMessages.push(assistantMessage);
+
+        for (const call of assistantMessage.tool_calls) {
+          const functionName = (call as any).function?.name || 'unknown';
+          const functionArgs = JSON.parse((call as any).function?.arguments || '{}');
+          
+          const result = await executeTool(functionName, functionArgs);
+          const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
+
+          openRouterMessages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            name: functionName,
+            content: resultStr
+          });
+        }
       } else {
-        finalText = response.text ?? '';
+        finalText = assistantMessage.content || '';
         await logStep('FINAL_TEXT_GENERATED', { finalText });
         break;
       }
