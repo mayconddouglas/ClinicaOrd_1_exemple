@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDynamicAgentInstructions, toolDeclarations, TOOL_ROUTING, executeTool } from '@/lib/ai-agent';
+import { getAdminPrompt, ADMIN_TOOLS_NAMES, toolDeclarations, executeTool } from '@/lib/ai-agent';
 import { getClinicSettings } from '@/lib/db-tools';
 import OpenAI from 'openai';
 
@@ -25,12 +25,8 @@ export async function POST(request: Request) {
     const clinicName = settings?.clinic_name || 'Nossa Clínica';
 
     // Load dynamic prompts based on settings
-    const systemPrompts = await getDynamicAgentInstructions();
-    
-    // O Copilot sempre roda como COPILOT_ADMIN
-    const adminPrompt = systemPrompts['COPILOT_ADMIN'];
-    const adminToolsNames = TOOL_ROUTING['COPILOT_ADMIN'];
-    const adminTools = toolDeclarations.filter(tool => tool.function?.name && adminToolsNames.includes(tool.function.name));
+    const adminPrompt = await getAdminPrompt();
+    const adminTools = toolDeclarations.filter(tool => tool.function?.name && ADMIN_TOOLS_NAMES.includes(tool.function.name));
 
     // Convert message history to standard OpenAI format
     const openRouterMessages: any[] = [

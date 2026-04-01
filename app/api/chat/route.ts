@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import {
-  getDynamicOrchestratorInstruction,
-  getDynamicAgentInstructions,
-  TOOL_ROUTING,
+  getUniversalPatientPrompt,
+  PATIENT_TOOLS_NAMES,
   toolDeclarations,
   executeTool
 } from '../../../lib/ai-agent';
@@ -18,7 +17,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    // A interface do Web Chat envia { history: [{role: 'user', parts: [{text: '...'}]}], message: '...' }
     const { history, message } = body as {
       history: { role: string; parts: { text: string }[] }[];
       message: string;
@@ -37,43 +35,12 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    const ORCHESTRATOR_INSTRUCTION = await getDynamicOrchestratorInstruction();
-    const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
+    const AGENT_INSTRUCTION = await getUniversalPatientPrompt();
+    const agentTools = toolDeclarations.filter(t => t.function?.name && PATIENT_TOOLS_NAMES.includes(t.function.name));
 
-    // 1. ORQUESTRAÇÃO: Descobrir a intenção (usando modelo rápido do OpenRouter)
-    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-10))}\n\nMensagem atual do usuário: "${message}"`;
-    
-    const orchestratorResponse = await openai.chat.completions.create({
-      model: 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: ORCHESTRATOR_INSTRUCTION },
-        { role: 'user', content: orchestratorPrompt }
-      ],
-      temperature: 0.1,
-    });
-
-    let intentText = orchestratorResponse.choices[0].message.content?.replace(/["\n\r]/g, '').trim().toUpperCase() || 'GERAL';
-    
-    // Fallback de segurança
-    const validIntents = ['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'];
-    let intent = 'GERAL';
-    for (const valid of validIntents) {
-      if (intentText.includes(valid)) {
-        intent = valid;
-        break;
-      }
-    }
-
-    console.log(`[Orquestrador via OpenRouter] Intenção detectada: ${intent}`);
-
-    // 2. SELEÇÃO DO SUBAGENTE E CONVERSÃO DE MENSAGENS
-    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS] || AGENT_INSTRUCTIONS.GERAL;
-    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING] || [];
-    const agentTools = toolDeclarations.filter(t => t.function?.name && allowedToolsNames.includes(t.function.name));
-
-    // Converter histórico do formato Gemini para o formato OpenAI/OpenRouter
+    // Converter histórico para o formato OpenAI
     const openRouterMessages: any[] = [
-      { role: 'system', content: agentInstruction }
+      { role: 'system', content: AGENT_INSTRUCTION }
     ];
 
     if (history && history.length > 0) {
@@ -87,7 +54,7 @@ export async function POST(req: NextRequest) {
     
     openRouterMessages.push({ role: 'user', content: message });
 
-    // 3. EXECUÇÃO DO SUBAGENTE (LOOP DE TOOLS)
+    // EXECUÇÃO DO AGENTE UNIVERSAL (LOOP DE TOOLS)
     let finalText = '';
     let iterations = 0;
     const MAX_ITERATIONS = 5;
@@ -96,7 +63,7 @@ export async function POST(req: NextRequest) {
       iterations++;
       
       const generateParams: any = {
-        model: 'openai/gpt-4o-mini', // Modelo de chat
+        model: 'openai/gpt-4o-mini',
         messages: openRouterMessages,
         temperature: 0.1,
       };
@@ -134,7 +101,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ text: finalText, intent });
+    return NextResponse.json({ text: finalText, intent: 'UNIVERSAL' });
   } catch (error: any) {
     console.error('Chat API error via OpenRouter:', error);
     return NextResponse.json({ error: error.message || 'Erro interno do servidor.' }, { status: 500 });

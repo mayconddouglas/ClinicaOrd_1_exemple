@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSetting, getTelegramHistory, appendChatMessages } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
-  getDynamicOrchestratorInstruction,
-  getDynamicAgentInstructions,
-  TOOL_ROUTING,
+  getUniversalPatientPrompt,
+  PATIENT_TOOLS_NAMES,
   toolDeclarations,
   executeTool
 } from '@/lib/ai-agent';
@@ -111,43 +110,14 @@ export async function POST(req: NextRequest) {
     const history = await getTelegramHistory(chatId.toString());
     await logStep('HISTORY_LOADED', { historyLength: history.length });
 
-    // 3. Orchestrator Logic
-    const ORCHESTRATOR_INSTRUCTION = await getDynamicOrchestratorInstruction();
-    const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
-
-    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-5))}\n\nMensagem atual do usuário: "${userText}"`;
-    
+    // 3. Agent Logic
     const openai = getOpenAI();
-    const orchestratorResponse = await openai.chat.completions.create({
-      model: 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: ORCHESTRATOR_INSTRUCTION },
-        { role: 'user', content: orchestratorPrompt }
-      ],
-      temperature: 0.1,
-    });
-
-    let intentText = orchestratorResponse.choices[0].message.content?.replace(/["\n\r]/g, '').trim().toUpperCase() || 'GERAL';
-    
-    const validIntents = ['AGENDAMENTO', 'TRIAGEM', 'MEDICOS', 'FAQ', 'POS_CONSULTA', 'GERAL'];
-    let intent = 'GERAL';
-    for (const valid of validIntents) {
-      if (intentText.includes(valid)) {
-        intent = valid;
-        break;
-      }
-    }
-
-    await logStep('INTENT_DETECTED', { intent });
-
-    // 4. Subagent Logic
-    const agentInstruction = AGENT_INSTRUCTIONS[intent as keyof typeof AGENT_INSTRUCTIONS] || AGENT_INSTRUCTIONS.GERAL;
-    const allowedToolsNames = TOOL_ROUTING[intent as keyof typeof TOOL_ROUTING] || [];
-    const agentTools = toolDeclarations.filter(t => t.function?.name && allowedToolsNames.includes(t.function.name));
+    const AGENT_INSTRUCTION = await getUniversalPatientPrompt();
+    const agentTools = toolDeclarations.filter(t => t.function?.name && PATIENT_TOOLS_NAMES.includes(t.function.name));
 
     // Converter histórico
     const openRouterMessages: any[] = [
-      { role: 'system', content: agentInstruction }
+      { role: 'system', content: AGENT_INSTRUCTION }
     ];
 
     if (history && history.length > 0) {
