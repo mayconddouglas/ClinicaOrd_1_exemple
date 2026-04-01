@@ -2,15 +2,23 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Activity, Calendar, FileText, DollarSign, MessageSquare, Trash2, LayoutDashboard, Mic, MicOff, Paperclip, Loader2, Sparkles } from 'lucide-react';
+import { Send, User, Bot, Activity, Calendar, FileText, DollarSign, MessageSquare, Trash2, LayoutDashboard, Mic, MicOff, Paperclip, Loader2, Sparkles, Square, Volume2, ShieldCheck, MapPin, Activity as Pulse } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Message = {
   id: string;
   role: 'user' | 'model';
   content: string;
+  attachments?: { url: string }[];
 };
 
 const SERVICES = [
@@ -43,7 +51,7 @@ const TypingIndicator = () => (
 );
 
 export default function OrthoAI() {
-  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -53,6 +61,7 @@ export default function OrthoAI() {
   const [isUploading, setIsUploading] = useState(false);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -240,233 +249,304 @@ export default function OrthoAI() {
   };
 
   const clearChat = () => {
-    const initial = [{ ...INITIAL_MESSAGE, id: Date.now().toString() }];
-    setMessages(initial);
-    localStorage.setItem('orthoai_messages', JSON.stringify(initial));
+    if (messages.length === 0) return;
+    if (window.confirm('Tem certeza que deseja limpar toda a conversa?')) {
+      setMessages([]);
+      localStorage.removeItem('orthoai_messages');
+    }
   };
 
   return (
-    <div className="flex h-screen bg-background font-sans overflow-hidden">
-      {/* Sidebar - Redesigned for a softer, more modern look */}
-      <aside className="hidden md:flex w-72 flex-col border-r border-border/50 bg-card/30 backdrop-blur-xl">
-        <div className="p-6">
+    <TooltipProvider>
+      <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
+        
+        {/* Sidebar - Desktop */}
+        <aside className="hidden lg:flex flex-col w-80 bg-muted/20 border-r border-border/50 p-6 relative">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/60 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <Activity className="w-6 h-6 text-primary-foreground" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 blur-md rounded-xl" />
+              <div className="relative w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg border border-primary/20">
+                <Activity className="w-7 h-7 text-primary-foreground" />
+              </div>
             </div>
             <div>
-              <h1 className="font-bold text-foreground text-xl tracking-tight">OrthoAI</h1>
-              <p className="text-xs text-muted-foreground font-medium">Clínica Ortopédica</p>
+              <h1 className="text-xl font-black tracking-tight text-foreground">OrthoAI</h1>
+              <p className="text-xs text-muted-foreground font-medium">Clínica Ortopédica Inteligente</p>
             </div>
           </div>
 
-          <nav className="space-y-1">
-            <p className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mb-3 px-2">Serviços</p>
-            {SERVICES.map((service) => (
-              <div
-                key={service.id}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-all group"
-              >
-                <div className={`w-10 h-10 rounded-xl ${service.bg} flex items-center justify-center transition-transform group-hover:scale-110`}>
-                  <service.icon className={`w-5 h-5 ${service.color}`} />
-                </div>
-                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">{service.name}</span>
-              </div>
-            ))}
-          </nav>
-        </div>
-
-        <div className="mt-auto p-6">
-          <div className="bg-muted/50 rounded-2xl p-4 border border-border/50 flex items-center gap-3">
-            <div className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </div>
-            <span className="text-xs font-medium text-muted-foreground">Sistema Online e Operante</span>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col h-full relative bg-background/50">
-        {/* Ambient Background Effects */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/5 rounded-full blur-[100px] -z-10 pointer-events-none" />
-
-        {/* Header */}
-        <header className="h-16 border-b border-border/50 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8 sticky top-0 z-20">
-          <div className="flex items-center gap-2 text-primary font-bold md:hidden">
-            <Activity className="w-5 h-5" />
-            OrthoAI
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Assistente Virtual Inteligente</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary transition-colors px-3 py-2 rounded-full hover:bg-primary/10"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Acessar Dashboard</span>
-            </Link>
-            <button
-              onClick={clearChat}
-              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-3 py-2 rounded-full hover:bg-destructive/10"
-              title="Limpar conversa"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Limpar Chat</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth">
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                key={message.id}
-                className={`flex gap-4 max-w-3xl mx-auto ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                <div className={`flex-shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm border ${
-                  message.role === 'user' 
-                    ? 'bg-primary/10 border-primary/20 text-primary' 
-                    : 'bg-card border-border/50 text-foreground'
-                }`}>
-                  {message.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
-                </div>
-
-                <div className={`flex flex-col max-w-[85%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-5 py-4 shadow-sm ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-3xl rounded-tr-sm'
-                      : 'bg-card/80 backdrop-blur-sm border border-border/50 text-card-foreground rounded-3xl rounded-tl-sm'
-                  }`}>
-                    {message.role === 'user' ? (
-                      <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
-                    ) : (
-                      <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-muted/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-xl">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {message.content}
-                        </ReactMarkdown>
-                      </div>
-                    )}
+          <nav className="flex-1 space-y-8">
+            <div>
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Nossos Serviços</h2>
+              <div className="space-y-1.5">
+                {[
+                  { icon: Calendar, text: "Agendamento Inteligente" },
+                  { icon: FileText, text: "Análise de Exames (Raio-X/Ressonância)" },
+                  { icon: MessageSquare, text: "Triagem com IA" },
+                  { icon: DollarSign, text: "Planos e Convênios" }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm text-foreground/80 p-2.5 rounded-lg hover:bg-muted/50 transition-colors">
+                    <item.icon className="w-4 h-4 text-primary/70" />
+                    <span className="font-medium">{item.text}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground mt-1.5 px-2 font-medium opacity-70">
-                    {message.role === 'user' ? 'Você' : 'OrthoAI'} • Agora
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-4 max-w-3xl mx-auto"
-            >
-              <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-card border border-border/50 text-foreground flex items-center justify-center shadow-sm">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl rounded-tl-sm px-5 py-4 flex items-center shadow-sm">
-                <TypingIndicator />
-              </div>
-            </motion.div>
-          )}
-          <div ref={messagesEndRef} className="h-4" />
-        </div>
-
-        {/* Input Area */}
-        <div className="p-4 md:p-6 bg-background/80 backdrop-blur-xl border-t border-border/50 z-20">
-          <div className="max-w-3xl mx-auto">
-            {/* Quick Actions (Only show if no user messages yet) */}
-            {messages.length === 1 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap gap-2 mb-4"
-              >
-                {QUICK_ACTIONS.map((action, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(action.text)}
-                    className="flex items-center gap-2 text-xs font-medium bg-card border border-border/50 text-muted-foreground px-4 py-2 rounded-full hover:border-primary/50 hover:text-foreground hover:bg-muted/50 transition-all shadow-sm"
-                  >
-                    <action.icon className="w-3.5 h-3.5 text-primary" />
-                    {action.text}
-                  </button>
                 ))}
-              </motion.div>
-            )}
-
-            <form onSubmit={handleSubmit} className="relative flex items-end gap-3">
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading || isLoading}
-                className="flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-2xl bg-card border border-border/50 text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:opacity-50 shadow-sm"
-                title="Anexar Exame ou Imagem"
-              >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
-              </button>
-
-              <div className="relative flex-1 bg-card/50 backdrop-blur-sm border border-border/50 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 rounded-2xl transition-all shadow-sm">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                  placeholder="Digite sua mensagem aqui..."
-                  className="w-full max-h-32 min-h-[56px] resize-none bg-transparent px-5 py-4 text-[15px] placeholder:text-muted-foreground focus:outline-none"
-                  rows={1}
-                />
               </div>
+            </div>
+          </nav>
 
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-2xl border transition-all shadow-sm ${
-                  isListening
-                    ? 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 animate-pulse'
-                    : 'bg-card border-border/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-                title={isListening ? "Parar gravação" : "Falar por voz"}
-              >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
-
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-all hover:shadow-lg hover:bg-primary/90 disabled:opacity-50 disabled:hover:shadow-none shadow-md"
-              >
-                <Send className="w-5 h-5 ml-1" />
-              </button>
-            </form>
-            <div className="mt-3 text-center">
-              <span className="text-[10px] text-muted-foreground font-medium">
-                A IA pode cometer erros. Em caso de emergência, procure um pronto-socorro.
-              </span>
+          <div className="mt-auto space-y-4">
+            <div className="p-4 rounded-xl bg-background border border-border/50 shadow-sm flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-foreground">Privacidade Garantida</p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">Seus dados médicos são criptografados e protegidos (LGPD).</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="gap-1.5 py-1.5 px-3 bg-muted/30 border-border/50">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-medium text-muted-foreground">Sistema Operante</span>
+              </Badge>
+              <Button asChild variant="ghost" size="sm" className="h-8 px-3 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10">
+                <Link href="/dashboard">
+                  <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" />
+                  Staff
+                </Link>
+              </Button>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </aside>
+
+        {/* Main Chat Area */}
+        <main className="flex-1 flex flex-col relative bg-background">
+          {/* Mobile Header */}
+          <header className="lg:hidden flex items-center justify-between p-4 border-b border-border/50 bg-background/80 backdrop-blur-md z-10 sticky top-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                <Activity className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold leading-tight">OrthoAI</h1>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] text-muted-foreground font-medium">Online</span>
+                </div>
+              </div>
+            </div>
+            <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+              <Link href="/dashboard">
+                <LayoutDashboard className="w-4 h-4" />
+              </Link>
+            </Button>
+          </header>
+
+          {/* Chat Top Actions */}
+          <div className="absolute top-4 right-6 z-10 hidden lg:flex">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={clearChat} className="gap-2 bg-background/50 backdrop-blur-md border-border/50 shadow-sm text-xs h-8">
+                  <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  Limpar Conversa
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Apagar histórico atual</TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Messages List / Welcome Screen */}
+          <ScrollArea className="flex-1 px-4 md:px-8 pt-8 pb-4">
+            <div className="max-w-3xl mx-auto min-h-full flex flex-col">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-10 md:py-20 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-3xl flex items-center justify-center relative shadow-sm">
+                      <Sparkles className="w-10 h-10 text-primary" strokeWidth={1.5} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 max-w-lg">
+                    <h2 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">Olá! Como posso te ajudar?</h2>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      Sou a assistente virtual da clínica OrthoAI. Estou aqui para ajudar com agendamentos, tirar dúvidas ou analisar seu raio-x inicial.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg pt-4">
+                    {QUICK_ACTIONS.map((action, idx) => (
+                      <Button 
+                        key={idx} 
+                        variant="outline" 
+                        className="h-auto py-3 px-4 justify-start text-left font-medium hover:border-primary/40 hover:bg-primary/5 transition-all"
+                        onClick={() => setInput(action.text)}
+                      >
+                        <action.icon className="w-4 h-4 mr-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate">{action.text}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <AnimatePresence initial={false}>
+                    {messages.map((message) => (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex gap-3 md:gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+                      >
+                        <Avatar className="w-8 h-8 md:w-10 md:h-10 border border-border/50 shadow-sm flex-shrink-0">
+                          {message.role === 'user' ? (
+                            <AvatarFallback className="bg-muted text-foreground"><User className="w-4 h-4" /></AvatarFallback>
+                          ) : (
+                            <AvatarFallback className="bg-primary/10 text-primary"><Activity className="w-4 h-4" /></AvatarFallback>
+                          )}
+                        </Avatar>
+
+                        <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                          <div className={`px-4 py-3 md:px-5 md:py-4 shadow-sm ${
+                            message.role === 'user' 
+                              ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm' 
+                              : 'bg-muted/50 border border-border/50 text-foreground rounded-2xl rounded-tl-sm'
+                          }`}>
+                            {message.role === 'user' ? (
+                              <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
+                            ) : (
+                              <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border/50 prose-pre:rounded-xl">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                              </div>
+                            )}
+                            
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {message.attachments.map((file, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img src={file.url} alt="Anexo" className="w-32 md:w-48 h-32 md:h-48 object-cover rounded-xl border border-border/50 shadow-sm transition-transform hover:scale-[1.02] cursor-zoom-in" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <span className="text-[10px] text-muted-foreground mt-1.5 px-1 font-medium opacity-70">
+                            {message.role === 'user' ? 'Você' : 'OrthoAI'} • Agora
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {(isLoading || isUploading) && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 md:gap-4">
+                      <Avatar className="w-8 h-8 md:w-10 md:h-10 border border-border/50 shadow-sm flex-shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-primary"><Activity className="w-4 h-4" /></AvatarFallback>
+                      </Avatar>
+                      <div className="bg-muted/50 border border-border/50 rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3 shadow-sm min-w-[120px]">
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                            <span className="text-sm font-medium text-muted-foreground">Enviando anexo...</span>
+                          </>
+                        ) : (
+                          <div className="flex gap-1.5 items-center h-4">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                  <div ref={messagesEndRef} className="h-2" />
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          {/* Input Area */}
+          <div className="p-4 md:p-6 bg-background/80 backdrop-blur-md border-t border-border/50 z-20">
+            <div className="max-w-3xl mx-auto">
+              <form onSubmit={handleSubmit} className="relative flex items-end gap-2 md:gap-3">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  accept="image/*,.pdf"
+                  onChange={handleFileUpload}
+                  disabled={isLoading || isUploading}
+                />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-12 w-12 md:h-14 md:w-14 rounded-xl flex-shrink-0 border-border/50 bg-background hover:bg-muted"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                      disabled={isLoading || isUploading}
+                    >
+                      <Paperclip className="w-5 h-5 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Anexar Exame ou Imagem</TooltipContent>
+                </Tooltip>
+
+                <div className="relative flex-1 bg-background border border-border/50 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all shadow-sm flex items-center">
+                  <Textarea
+                    ref={inputRef as any}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
+                    placeholder="Descreva o que está sentindo..."
+                    className="w-full max-h-32 min-h-[48px] md:min-h-[56px] resize-none bg-transparent border-0 focus-visible:ring-0 px-4 py-3 md:py-4 pr-12 text-[15px] placeholder:text-muted-foreground"
+                    rows={1}
+                    disabled={isLoading || isUploading || isListening}
+                  />
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={`absolute right-2 h-8 w-8 md:h-10 md:w-10 rounded-lg ${isListening ? 'text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-600' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={toggleListening}
+                        disabled={isLoading || isUploading}
+                      >
+                        {isListening ? <Square className="w-4 h-4 md:w-5 md:h-5 fill-current" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isListening ? 'Parar gravação' : 'Falar por áudio'}</TooltipContent>
+                  </Tooltip>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!input.trim() || isLoading || isUploading || isListening}
+                  className="h-12 w-12 md:h-14 md:w-14 rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-all flex-shrink-0"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-0.5" />}
+                </Button>
+              </form>
+              
+              <div className="text-center mt-3">
+                <span className="text-[10px] text-muted-foreground/80 font-medium">
+                  A OrthoAI não substitui uma consulta médica presencial. Em caso de emergência grave, dirija-se a um hospital.
+                </span>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </TooltipProvider>
   );
 }
