@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope } from 'lucide-react';
+import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope, Mail } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
@@ -52,6 +52,7 @@ interface Paciente {
   nome: string;
   telefone: string;
   cpf?: string;
+  email?: string;
 }
 
 interface Agendamento {
@@ -113,7 +114,8 @@ export default function AgendamentosPage() {
           pacientes (
             nome,
             telefone,
-            cpf
+            cpf,
+            email
           )
         `)
         .order('data_hora', { ascending: true });
@@ -610,9 +612,19 @@ export default function AgendamentosPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5 mr-1.5" />
-                          {agendamento.pacientes?.telefone || 'Não informado'}
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                            {agendamento.pacientes?.telefone || 'Não informado'}
+                          </div>
+                          {agendamento.pacientes?.email && (
+                            <div className="flex items-center text-xs text-muted-foreground">
+                              <Mail className="h-3 w-3 mr-1.5 flex-shrink-0" />
+                              <span className="truncate max-w-[150px]" title={agendamento.pacientes.email}>
+                                {agendamento.pacientes.email}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

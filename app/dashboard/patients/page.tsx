@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getPatients, createPatient, updatePatient, deletePatient } from '../../../lib/dashboard-tools';
-import { Users, Search, Phone, FileText, Plus, Pencil, Trash2, X, User, MoreHorizontal, ArrowUpDown, Clock, Filter, Eye } from 'lucide-react';
+import { Users, Search, Phone, FileText, Plus, Pencil, Trash2, X, User, MoreHorizontal, ArrowUpDown, Clock, Filter, Eye, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,8 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type Patient = { id: string; nome: string; cpf?: string; telefone?: string; created_at?: string };
-const emptyForm = { nome: '', cpf: '', telefone: '' };
+type Patient = { id: string; nome: string; cpf?: string; telefone?: string; email?: string; created_at?: string };
+const emptyForm = { nome: '', cpf: '', telefone: '', email: '' };
 
 const AVATAR_COLORS = [
   'bg-violet-500/10 text-violet-500', 'bg-blue-500/10 text-blue-500',
@@ -103,7 +103,7 @@ export default function PatientsPage() {
   );
 
   const handleOpenModal = (patient?: Patient) => {
-    if (patient) { setEditingPatient(patient); setFormData({ nome: patient.nome || '', cpf: patient.cpf || '', telefone: patient.telefone || '' }); }
+    if (patient) { setEditingPatient(patient); setFormData({ nome: patient.nome || '', cpf: patient.cpf || '', telefone: patient.telefone || '', email: patient.email || '' }); }
     else { setEditingPatient(null); setFormData(emptyForm); }
     setIsModalOpen(true);
   };
@@ -276,7 +276,7 @@ export default function PatientsPage() {
                 <TableRow className="hover:bg-transparent border-b border-border/50">
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Paciente</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">CPF</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Telefone</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contato</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cadastro</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Ações</TableHead>
                 </TableRow>
@@ -314,14 +314,24 @@ export default function PatientsPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
-                        {patient.telefone ? (
-                          <span className="font-mono text-xs">{formatPhone(patient.telefone)}</span>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground/60 font-normal bg-transparent border-dashed">Não informado</Badge>
-                        )}
-                      </span>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
+                          {patient.telefone ? (
+                            <span className="font-mono text-xs">{formatPhone(patient.telefone)}</span>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground/60 font-normal bg-transparent border-dashed">Sem telefone</Badge>
+                          )}
+                        </span>
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
+                          {patient.email ? (
+                            <span className="text-xs truncate max-w-[150px]" title={patient.email}>{patient.email}</span>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground/60 font-normal bg-transparent border-dashed">Sem e-mail</Badge>
+                          )}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground font-medium bg-muted/50 px-2 py-1 rounded-md border border-border/50">
@@ -440,6 +450,12 @@ export default function PatientsPage() {
                 <Input id="telefone" value={formatPhone(formData.telefone || '')}
                   onChange={e => setFormData({ ...formData, telefone: e.target.value })}
                   placeholder="(11) 99999-9999" className="h-9 sm:h-12 text-sm font-mono" maxLength={15} />
+              </div>
+              <div className="space-y-1.5 sm:space-y-2.5">
+                <Label htmlFor="email" className="text-xs sm:text-sm font-semibold">E-mail</Label>
+                <Input id="email" type="email" value={formData.email || ''}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="paciente@email.com" className="h-9 sm:h-12 text-sm" />
               </div>
             </div>
             
