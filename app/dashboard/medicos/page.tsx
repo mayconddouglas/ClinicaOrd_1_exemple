@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { getMedicos, createMedico, updateMedico, deleteMedico } from '../../../lib/dashboard-tools';
-import { Stethoscope, Plus, Search, Pencil, Trash2, X, Phone, Mail, User, Building2, Loader2 } from 'lucide-react';
+import { Stethoscope, Plus, Search, Pencil, Trash2, X, Phone, Mail, User, Building2, Loader2, MoreHorizontal, Filter, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Medico = { id: string; nome: string; crm: string; especialidade: string; telefone?: string; email?: string; bio?: string; disponivel: boolean; created_at: string; };
@@ -34,6 +35,7 @@ export default function MedicosPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterDisp, setFilterDisp] = useState<'todos' | 'disponiveis' | 'indisponiveis'>('todos');
+  const [filterEspecialidade, setFilterEspecialidade] = useState<string>('todas');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -64,8 +66,11 @@ export default function MedicosPage() {
     }
     if (filterDisp === 'disponiveis') list = list.filter(m => m.disponivel);
     if (filterDisp === 'indisponiveis') list = list.filter(m => !m.disponivel);
+    if (filterEspecialidade !== 'todas') list = list.filter(m => m.especialidade === filterEspecialidade);
     return list;
-  }, [medicos, search, filterDisp]);
+  }, [medicos, search, filterDisp, filterEspecialidade]);
+
+  const uniqueEspecialidades = useMemo(() => Array.from(new Set(medicos.map(m => m.especialidade))).sort(), [medicos]);
 
   const stats = useMemo(() => ({
     total: medicos.length,
@@ -146,169 +151,246 @@ export default function MedicosPage() {
       </div>
 
       {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="relative flex-1 w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nome, CRM ou especialidade..." className="pl-9 h-9 text-sm" />
+            placeholder="Buscar médico por nome, CRM..." className="pl-9 pr-8 h-10 text-sm shadow-sm" />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <Tabs value={filterDisp} onValueChange={(v) => setFilterDisp(v as any)}>
-          <TabsList className="h-9">
-            <TabsTrigger value="todos" className="text-xs">Todos</TabsTrigger>
-            <TabsTrigger value="disponiveis" className="text-xs">Disponíveis</TabsTrigger>
-            <TabsTrigger value="indisponiveis" className="text-xs">Indisponíveis</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        
+        <div className="flex gap-2 w-full sm:w-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-2 text-muted-foreground shadow-sm flex-1 sm:flex-none">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Especialidade</span>
+                {filterEspecialidade !== 'todas' && <Badge variant="secondary" className="ml-1 h-5 px-1.5 rounded-sm">{filterEspecialidade}</Badge>}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Filtrar por Especialidade</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem checked={filterEspecialidade === 'todas'} onCheckedChange={() => setFilterEspecialidade('todas')}>
+                Todas as Especialidades
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              {uniqueEspecialidades.map(esp => (
+                <DropdownMenuCheckboxItem key={esp} checked={filterEspecialidade === esp} onCheckedChange={() => setFilterEspecialidade(esp)}>
+                  {esp}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-2 text-muted-foreground shadow-sm flex-1 sm:flex-none">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Disponibilidade</span>
+                {filterDisp !== 'todos' && <Badge variant="secondary" className="ml-1 h-5 px-1.5 rounded-sm capitalize">{filterDisp}</Badge>}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Status na Agenda</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem checked={filterDisp === 'todos'} onCheckedChange={() => setFilterDisp('todos')}>Mostrar Todos</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterDisp === 'disponiveis'} onCheckedChange={() => setFilterDisp('disponiveis')}>Apenas Disponíveis</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterDisp === 'indisponiveis'} onCheckedChange={() => setFilterDisp('indisponiveis')}>Indisponíveis</DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Doctors grid */}
+      {/* Doctors Table/List */}
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="flex gap-4">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-[150px]" />
-                      <Skeleton className="h-4 w-[100px]" />
+        <Card className="shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead className="w-[300px]">Médico</TableHead>
+                <TableHead>Especialidade</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex gap-3 items-center">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-3 w-[100px]" />
+                      </div>
                     </div>
-                  </div>
-                  <Skeleton className="h-8 w-8 rounded-md" />
-                </div>
-                <div className="mt-6 space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-[80%]" />
-                </div>
-                <div className="mt-6 flex justify-between items-center">
-                  <Skeleton className="h-5 w-[100px] rounded-full" />
-                  <Skeleton className="h-9 w-[120px] rounded-md" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-5 w-[120px] rounded-md" /></TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-[100px]" />
+                      <Skeleton className="h-3 w-[140px]" />
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-5 w-[80px] rounded-md" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-8 w-8 rounded-md ml-auto" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card className="shadow-sm">
-          <CardContent className="py-16 text-center">
-            <User className="mx-auto h-10 w-10 text-muted-foreground/30" />
-            <p className="mt-3 text-sm text-muted-foreground font-medium">
-              {search ? 'Nenhum médico encontrado.' : 'Nenhum médico cadastrado ainda.'}
+          <CardContent className="py-20 text-center flex flex-col items-center justify-center min-h-[400px]">
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center relative shadow-sm">
+                <Stethoscope className="h-10 w-10 text-primary" strokeWidth={1.5} />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-foreground tracking-tight">Nenhum médico encontrado</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-[320px] leading-relaxed">
+              {search || filterEspecialidade !== 'todas' || filterDisp !== 'todos'
+                ? 'Tente remover alguns filtros ou buscar com outros termos.' 
+                : 'Você ainda não possui nenhum especialista cadastrado no corpo clínico.'}
             </p>
-            {!search && (
-              <Button variant="link" onClick={() => handleOpenModal()} className="mt-1 text-primary hover:text-primary/80 text-sm">
-                + Cadastrar primeiro médico
+            {search || filterEspecialidade !== 'todas' || filterDisp !== 'todos' ? (
+              <Button variant="outline" onClick={() => { setSearch(''); setFilterDisp('todos'); setFilterEspecialidade('todas'); }} className="mt-6 shadow-sm">
+                Limpar todos os filtros
+              </Button>
+            ) : (
+              <Button onClick={() => handleOpenModal()} className="mt-6 gap-2 shadow-sm">
+                <Plus className="h-4 w-4" /> Cadastrar primeiro médico
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(medico => (
-            <Card key={medico.id} className={`shadow-sm transition-all hover:shadow-md ${!medico.disponivel ? 'opacity-70' : ''}`}>
-              <CardContent className="p-5">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex-shrink-0">
-                      <Avatar className="h-11 w-11">
-                        <AvatarFallback className={`text-sm font-bold ${getColor(medico.nome)}`}>
-                          {getInitials(medico.nome)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background ${medico.disponivel ? 'bg-emerald-400' : 'bg-muted-foreground/40'}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold leading-tight truncate">{medico.nome}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">CRM {medico.crm}</p>
-                    </div>
-                  </div>
-                  <Badge variant={medico.disponivel ? 'default' : 'secondary'} className="flex-shrink-0 text-[10px]">
-                    {medico.disponivel ? 'Disponível' : 'Indisponível'}
-                  </Badge>
-                </div>
-
-                {/* Specialty */}
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Building2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                  <Badge variant="outline" className="text-xs border-primary/20 text-primary bg-primary/10">{medico.especialidade}</Badge>
-                </div>
-
-                {/* Bio */}
-                {medico.bio && <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3">{medico.bio}</p>}
-
-                {/* Contact */}
-                <div className="space-y-1 mb-4">
-                  {medico.telefone && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Phone className="h-3 w-3 flex-shrink-0" /> {medico.telefone}
-                    </div>
-                  )}
-                  {medico.email && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground truncate">
-                      <Mail className="h-3 w-3 flex-shrink-0" /> {medico.email}
-                    </div>
-                  )}
-                </div>
-
-                <Separator className="mb-3" />
-
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleDisp(medico)}
-                    disabled={toggling === medico.id}
-                    className="flex-1 h-7 text-xs gap-1.5"
-                  >
-                    {toggling === medico.id
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Switch checked={medico.disponivel} className="h-3 w-5 pointer-events-none data-[state=checked]:bg-emerald-500" />
-                    }
-                    {medico.disponivel ? 'Disponível' : 'Indisponível'}
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleOpenModal(medico)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Editar</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            disabled={deletingId === medico.id}>
-                            <Trash2 className="h-3.5 w-3.5" />
+        <Card className="shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-[300px]">Médico</TableHead>
+                  <TableHead>Especialidade</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(medico => (
+                  <TableRow key={medico.id} className="border-b border-border/30 group hover:bg-muted/30 transition-colors">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="h-10 w-10 border border-border/50 shadow-sm">
+                            <AvatarFallback className={`text-xs font-bold ${getColor(medico.nome)}`}>
+                              {getInitials(medico.nome)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${medico.disponivel ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-semibold truncate">{medico.nome}</span>
+                          <span className="text-xs text-muted-foreground truncate">CRM {medico.crm}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-medium bg-muted text-foreground border-border/50">
+                        {medico.especialidade}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {medico.telefone ? (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <Phone className="h-3 w-3 text-muted-foreground/50" /> {medico.telefone}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/50 italic">Sem telefone</span>
+                        )}
+                        {medico.email && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1.5 truncate max-w-[150px]">
+                            <Mail className="h-3 w-3 text-muted-foreground/50" /> {medico.email}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {toggling === medico.id ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Atualizando...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Switch 
+                            checked={medico.disponivel} 
+                            onCheckedChange={() => handleToggleDisp(medico)}
+                            className="scale-75 origin-left data-[state=checked]:bg-emerald-500" 
+                          />
+                          <span className={`text-xs font-medium ${medico.disponivel ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                            {medico.disponivel ? 'Disponível' : 'Indisponível'}
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity data-[state=open]:opacity-100">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        </TooltipTrigger>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir Médico?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir o Dr(a). {medico.nome}? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(medico.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Sim, Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <TooltipContent>Excluir</TooltipContent>
-                  </Tooltip>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuLabel className="text-xs text-muted-foreground">Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleOpenModal(medico)}>
+                            <Pencil className="h-4 w-4 text-muted-foreground" /> Editar Médico
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => handleToggleDisp(medico)}>
+                            <ShieldCheck className="h-4 w-4 text-muted-foreground" /> {medico.disponivel ? 'Pausar Agenda' : 'Liberar Agenda'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          
+                          {/* Alert Dialog Wrapper for Dropdown Item */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={(e) => e.preventDefault()}>
+                                <Trash2 className="h-4 w-4" /> Excluir Médico
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Especialista?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o <strong className="text-foreground">{medico.nome}</strong>? Esta ação não pode ser desfeita e removerá o médico da agenda.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(medico.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Sim, Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
 
       {/* Modal / Sheet */}
