@@ -2,14 +2,44 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Camera, MapPin, Palette, Building2, Save, X, Building, Map, Check } from 'lucide-react';
+import { Camera, MapPin, Palette, Building2, Save, X, Building, Map, Check, User, Upload, CheckCircle2, AlertCircle, Phone, Mail, Clock, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Field, FieldGroup, FieldLabel, FieldDescription } from '@/components/ui/field';
+import { InputGroup, InputGroupInput, InputGroupAddon } from '@/components/ui/input-group';
+
+// Utility para converter HEX para HSL para injetar no CSS Variable
+function hexToHSL(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return '0 0% 0%';
+
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+
+  let max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    let d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'address' | 'branding'>('profile');
@@ -20,6 +50,9 @@ export default function SettingsPage() {
 
   // Profile State
   const [clinicName, setClinicName] = useState('');
+  const [clinicEmail, setClinicEmail] = useState('');
+  const [clinicPhone, setClinicPhone] = useState('');
+  const [clinicHours, setClinicHours] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [responsavel, setResponsavel] = useState('');
 
@@ -56,6 +89,9 @@ export default function SettingsPage() {
         if (data) {
           setSettingsId(data.id);
           setClinicName(data.clinic_name || '');
+          setClinicEmail(data.clinic_email || '');
+          setClinicPhone(data.clinic_phone || '');
+          setClinicHours(data.clinic_hours || '');
           setCnpj(data.cnpj || '');
           setResponsavel(data.responsavel || '');
           setCep(data.cep || '');
@@ -77,6 +113,13 @@ export default function SettingsPage() {
 
     fetchSettings();
   }, []);
+
+  // Injetar a cor do tema globalmente
+  useEffect(() => {
+    if (themeColor) {
+      document.documentElement.style.setProperty('--primary', hexToHSL(themeColor));
+    }
+  }, [themeColor]);
 
   // Monitor changes
   useEffect(() => {
@@ -102,6 +145,9 @@ export default function SettingsPage() {
     
     const payload = {
       clinic_name: clinicName,
+      clinic_email: clinicEmail,
+      clinic_phone: clinicPhone,
+      clinic_hours: clinicHours,
       cnpj,
       responsavel,
       cep,
@@ -185,48 +231,8 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-8 mt-8">
-          {/* Sidebar Menu */}
-          <aside className="md:w-64 flex-shrink-0">
-            <nav className="flex flex-col space-y-1">
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  activeTab === 'profile' 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Building2 className="h-4 w-4" />
-                Perfil da Clínica
-              </button>
-              <button
-                onClick={() => setActiveTab('address')}
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  activeTab === 'address' 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <MapPin className="h-4 w-4" />
-                Endereço
-              </button>
-              <button
-                onClick={() => setActiveTab('branding')}
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  activeTab === 'branding' 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <Palette className="h-4 w-4" />
-                Personalização (Branding)
-              </button>
-            </nav>
-          </aside>
-
-          {/* Main Content Area */}
-          <div className="flex-1 space-y-6">
-            
+          {/* Main Content Area usando Tabs */}
+          <div className="flex-1 w-full">
             {isLoading ? (
               <Card className="animate-in fade-in duration-300">
                 <CardHeader className="space-y-2">
@@ -253,9 +259,14 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <>
+              <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full space-y-6">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+                  <TabsTrigger value="profile" className="gap-2"><Building2 className="h-4 w-4" /><span className="hidden sm:inline">Perfil da Clínica</span></TabsTrigger>
+                  <TabsTrigger value="address" className="gap-2"><MapPin className="h-4 w-4" /><span className="hidden sm:inline">Endereço</span></TabsTrigger>
+                  <TabsTrigger value="branding" className="gap-2"><Palette className="h-4 w-4" /><span className="hidden sm:inline">Personalização</span></TabsTrigger>
+                </TabsList>
                 {/* PROFILE TAB */}
-                {activeTab === 'profile' && (
+                <TabsContent value="profile" className="space-y-6 mt-0">
                   <Card className="animate-in fade-in duration-300 overflow-hidden">
                     <div className="bg-muted/30 border-b px-6 py-4 flex items-center gap-3">
                       <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -268,9 +279,9 @@ export default function SettingsPage() {
                     </div>
                     <CardContent className="p-6 space-y-8">
                       {/* Logo Upload */}
-                      <div className="flex items-center gap-6 pb-6 border-b">
-                        <div className="relative group cursor-pointer">
-                          <div className="h-24 w-24 rounded-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center overflow-hidden transition-all group-hover:border-primary">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-6 pb-6 border-b">
+                        <div className="relative group cursor-pointer shrink-0">
+                          <div className="h-24 w-24 rounded-xl bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center overflow-hidden transition-all group-hover:border-primary">
                             <span className="text-3xl font-bold text-muted-foreground/50 group-hover:opacity-0 transition-opacity">
                               {clinicName.charAt(0) || 'C'}
                             </span>
@@ -282,67 +293,53 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <h3 className="text-sm font-medium text-foreground">Logo da Clínica</h3>
-                          <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-xs">
+                          <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-sm">
                             Recomendamos imagens quadradas (1:1) com fundo transparente, formato PNG ou JPG de até 2MB.
                           </p>
-                          <Button variant="outline" size="sm">Fazer Upload</Button>
+                          <Button variant="outline" size="sm" className="gap-2"><Upload className="h-4 w-4" /> Fazer Upload</Button>
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="clinic-name" className="text-base">Nome da Clínica</Label>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Nome público que os pacientes verão.
-                            </p>
-                          </div>
+                      <FieldGroup className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Field>
+                          <FieldLabel htmlFor="clinic-name">Nome da Clínica</FieldLabel>
                           <Input
                             id="clinic-name"
                             value={clinicName}
                             onChange={(e) => setClinicName(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
+                            placeholder="Ex: OrthoCenter"
                           />
-                        </div>
-
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="cnpj" className="text-base">CNPJ</Label>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Para emissão de notas e recibos.
-                            </p>
-                          </div>
+                          <FieldDescription>Nome público que os pacientes verão.</FieldDescription>
+                        </Field>
+                        
+                        <Field>
+                          <FieldLabel htmlFor="cnpj">CNPJ</FieldLabel>
                           <Input
                             id="cnpj"
                             value={cnpj}
                             onChange={(e) => setCnpj(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
                             placeholder="00.000.000/0000-00"
                           />
-                        </div>
+                          <FieldDescription>Para emissão de notas e recibos.</FieldDescription>
+                        </Field>
 
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="responsavel" className="text-base">Responsável Técnico</Label>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Nome e registro profissional (CRM/CRO).
-                            </p>
-                          </div>
+                        <Field>
+                          <FieldLabel htmlFor="responsavel">Responsável Técnico</FieldLabel>
                           <Input
                             id="responsavel"
                             value={responsavel}
                             onChange={(e) => setResponsavel(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
                             placeholder="Ex: Dr. João Silva (CRM-SP 12345)"
                           />
-                        </div>
-                      </div>
+                          <FieldDescription>Nome e registro profissional (CRM/CRO).</FieldDescription>
+                        </Field>
+                      </FieldGroup>
                     </CardContent>
                   </Card>
-                )}
+                </TabsContent>
 
                 {/* ADDRESS TAB */}
-                {activeTab === 'address' && (
+                <TabsContent value="address" className="space-y-6 mt-0">
                   <Card className="animate-in fade-in duration-300 overflow-hidden">
                     <div className="bg-muted/30 border-b px-6 py-4 flex items-center gap-3">
                       <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
@@ -355,7 +352,7 @@ export default function SettingsPage() {
                     </div>
                     <CardContent className="p-6 space-y-6">
                       {/* Fake Map Visual */}
-                      <div className="w-full h-40 bg-muted/50 rounded-lg border border-border flex items-center justify-center relative overflow-hidden mb-6 group">
+                      <div className="w-full h-40 bg-muted/50 rounded-lg border flex items-center justify-center relative overflow-hidden group">
                         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
                         <div className="flex flex-col items-center text-muted-foreground z-10 transition-transform group-hover:scale-105">
                           <Map className="h-10 w-10 mb-2 text-primary" />
@@ -364,77 +361,66 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="cep" className="text-base">CEP</Label>
-                          </div>
-                          <div className="flex gap-2 max-w-md">
-                            <Input
+                      <FieldGroup className="grid grid-cols-1 md:grid-cols-6 gap-6">
+                        <Field className="md:col-span-2">
+                          <FieldLabel htmlFor="cep">CEP</FieldLabel>
+                          <InputGroup>
+                            <InputGroupInput
                               id="cep"
                               value={cep}
                               onChange={(e) => setCep(e.target.value)}
-                              className="w-[150px] focus-visible:ring-primary"
                               placeholder="00000-000"
                             />
-                            <Button variant="secondary">Buscar</Button>
-                          </div>
-                        </div>
+                            <Button variant="secondary" className="rounded-l-none border-l-0">Buscar</Button>
+                          </InputGroup>
+                        </Field>
                         
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="rua" className="text-base">Rua / Avenida</Label>
-                          </div>
+                        <Field className="md:col-span-4">
+                          <FieldLabel htmlFor="rua">Logradouro (Rua / Avenida)</FieldLabel>
                           <Input
                             id="rua"
                             value={rua}
                             onChange={(e) => setRua(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
+                            placeholder="Ex: Av. Paulista"
                           />
-                        </div>
+                        </Field>
 
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="numero" className="text-base">Número</Label>
-                          </div>
+                        <Field className="md:col-span-2">
+                          <FieldLabel htmlFor="numero">Número</FieldLabel>
                           <Input
                             id="numero"
                             value={numero}
                             onChange={(e) => setNumero(e.target.value)}
-                            className="max-w-[150px] focus-visible:ring-primary"
+                            placeholder="123"
                           />
-                        </div>
+                        </Field>
 
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="bairro" className="text-base">Bairro</Label>
-                          </div>
+                        <Field className="md:col-span-4">
+                          <FieldLabel htmlFor="bairro">Bairro</FieldLabel>
                           <Input
                             id="bairro"
                             value={bairro}
                             onChange={(e) => setBairro(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
+                            placeholder="Centro"
                           />
-                        </div>
+                        </Field>
 
-                        <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                          <div>
-                            <Label htmlFor="cidade" className="text-base">Cidade / Estado</Label>
-                          </div>
+                        <Field className="md:col-span-4">
+                          <FieldLabel htmlFor="cidade">Cidade</FieldLabel>
                           <Input
                             id="cidade"
                             value={cidade}
                             onChange={(e) => setCidade(e.target.value)}
-                            className="max-w-md focus-visible:ring-primary"
+                            placeholder="São Paulo"
                           />
-                        </div>
-                      </div>
+                        </Field>
+                      </FieldGroup>
                     </CardContent>
                   </Card>
-                )}
+                </TabsContent>
 
                 {/* BRANDING TAB */}
-                {activeTab === 'branding' && (
+                <TabsContent value="branding" className="space-y-6 mt-0">
                   <Card className="animate-in fade-in duration-300 overflow-hidden">
                     <div className="bg-muted/30 border-b px-6 py-4 flex items-center gap-3">
                       <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
@@ -447,67 +433,65 @@ export default function SettingsPage() {
                     </div>
                     <CardContent className="p-6 space-y-8">
                       
-                      <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start">
-                        <div>
-                          <Label className="text-base">Cor Principal do Tema</Label>
-                          <p className="text-xs text-muted-foreground mt-1">Essa cor será usada em botões e destaques no chat.</p>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-4">
-                          {PRESET_COLORS.map((color) => (
-                            <button
-                              key={color.value}
-                              onClick={() => setThemeColor(color.value)}
-                              className="group flex flex-col items-center gap-2 outline-none"
-                            >
-                              <div 
-                                className={`w-14 h-14 rounded-2xl shadow-sm flex items-center justify-center transition-all duration-200 ${
-                                  themeColor === color.value 
-                                    ? 'ring-2 ring-offset-2 ring-offset-background scale-95' 
-                                    : 'border border-border hover:scale-105 hover:shadow-md'
-                                }`}
-                                style={{ 
-                                  backgroundColor: color.value,
-                                  boxShadow: themeColor === color.value ? `0 4px 14px 0 ${color.value}40` : ''
-                                }}
+                      <FieldGroup>
+                        <Field>
+                          <FieldLabel>Cor Principal do Tema</FieldLabel>
+                          <FieldDescription>Essa cor será usada em botões e destaques no chat e painel.</FieldDescription>
+                          
+                          <div className="flex flex-wrap gap-4 mt-4">
+                            {PRESET_COLORS.map((color) => (
+                              <button
+                                key={color.value}
+                                onClick={() => setThemeColor(color.value)}
+                                className="group flex flex-col items-center gap-2 outline-none"
                               >
-                                {themeColor === color.value && <Check className="h-6 w-6 text-white animate-in zoom-in duration-200" />}
-                              </div>
-                              <span className={`text-xs font-medium transition-colors ${themeColor === color.value ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                {color.name}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                                <div 
+                                  className={`w-14 h-14 rounded-full shadow-sm flex items-center justify-center transition-all duration-200 ${
+                                    themeColor === color.value 
+                                      ? 'ring-2 ring-offset-2 ring-offset-background scale-95' 
+                                      : 'border border-border hover:scale-105 hover:shadow-md'
+                                  }`}
+                                  style={{ 
+                                    backgroundColor: color.value,
+                                    boxShadow: themeColor === color.value ? `0 4px 14px 0 ${color.value}40` : ''
+                                  }}
+                                >
+                                  {themeColor === color.value && <Check className="h-6 w-6 text-white animate-in zoom-in duration-200" />}
+                                </div>
+                                <span className={`text-xs font-medium transition-colors ${themeColor === color.value ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                  {color.name}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
 
-                      <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start pt-6 border-t">
-                        <div>
-                          <Label htmlFor="welcome" className="text-base">Mensagem de Boas-vindas</Label>
-                          <p className="text-xs text-muted-foreground mt-1">A primeira mensagem que o paciente vê ao abrir o chat ou WhatsApp.</p>
-                        </div>
-                        <Textarea
-                          id="welcome"
-                          value={welcomeMessage}
-                          onChange={(e) => setWelcomeMessage(e.target.value)}
-                          className="min-h-[120px] max-w-2xl resize-none focus-visible:ring-primary"
-                        />
-                      </div>
+                        <Separator className="my-6" />
+
+                        <Field>
+                          <FieldLabel htmlFor="welcome">Mensagem de Boas-vindas</FieldLabel>
+                          <FieldDescription>A primeira mensagem que o paciente vê ao abrir o chat ou WhatsApp.</FieldDescription>
+                          <Textarea
+                            id="welcome"
+                            value={welcomeMessage}
+                            onChange={(e) => setWelcomeMessage(e.target.value)}
+                            className="min-h-[120px] max-w-2xl resize-none mt-2"
+                            placeholder="Olá! Sou a assistente virtual da clínica..."
+                          />
+                        </Field>
+                      </FieldGroup>
 
                       {/* Preview Component */}
-                      <div className="grid sm:grid-cols-[250px_1fr] gap-4 items-start pt-6 border-t">
-                        <div>
-                          <Label className="text-base">Pré-visualização</Label>
-                          <p className="text-xs text-muted-foreground mt-1">Como o paciente verá a interface do chat no celular.</p>
-                        </div>
+                      <div className="pt-6 border-t">
+                        <Label className="text-base mb-4 block">Pré-visualização do Chat</Label>
                         
-                        <div className="max-w-[320px] w-full border-[6px] border-muted rounded-[2.5rem] overflow-hidden bg-background shadow-xl relative">
+                        <div className="max-w-[320px] w-full border-[6px] border-muted rounded-[2.5rem] overflow-hidden bg-background shadow-xl relative mx-auto md:mx-0">
                           {/* Fake Notch */}
                           <div className="absolute top-0 inset-x-0 h-6 bg-muted rounded-b-xl w-32 mx-auto z-10"></div>
                           
                           {/* Chat Header */}
                           <div className="pt-8 pb-3 px-4 flex items-center gap-3 border-b bg-card relative z-0 shadow-sm">
-                            <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm" style={{ backgroundColor: themeColor }}>
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm bg-primary transition-colors duration-500">
                               {clinicName.charAt(0) || 'C'}
                             </div>
                             <div>
@@ -521,16 +505,13 @@ export default function SettingsPage() {
                             <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px]"></div>
                             
                             <div className="relative z-10 flex flex-col gap-3">
-                              {/* Incoming Message */}
                               <div className="bg-card border shadow-sm rounded-2xl rounded-tl-sm p-3 text-sm max-w-[85%] self-start animate-in slide-in-from-left-2 fade-in duration-500">
                                 {welcomeMessage || 'Sua mensagem aparecerá aqui...'}
                                 <span className="text-[9px] text-muted-foreground block text-right mt-1">10:42</span>
                               </div>
                               
-                              {/* CTA Button */}
                               <div 
-                                className="rounded-full px-4 py-2.5 text-white text-sm font-medium shadow-md self-end cursor-default hover:opacity-90 transition-opacity text-center mt-2 animate-in slide-in-from-right-2 fade-in duration-500 delay-150" 
-                                style={{ backgroundColor: themeColor }}
+                                className="rounded-full px-4 py-2.5 text-primary-foreground text-sm font-medium shadow-md self-end cursor-default hover:opacity-90 transition-all text-center mt-2 bg-primary" 
                               >
                                 Agendar Consulta
                               </div>
@@ -542,8 +523,8 @@ export default function SettingsPage() {
                             <div className="h-8 flex-1 bg-muted rounded-full px-4 flex items-center">
                               <span className="text-xs text-muted-foreground">Digite sua mensagem...</span>
                             </div>
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: themeColor }}>
-                              <MapPin className="h-4 w-4" /> {/* Fake send icon */}
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center text-primary-foreground bg-primary transition-colors duration-500">
+                              <MapPin className="h-4 w-4" />
                             </div>
                           </div>
                         </div>
@@ -551,8 +532,8 @@ export default function SettingsPage() {
 
                     </CardContent>
                   </Card>
-                )}
-              </>
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         </div>
