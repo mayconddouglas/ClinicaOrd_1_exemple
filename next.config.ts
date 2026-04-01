@@ -35,3 +35,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+// Trigger Vercel Build - Wed Apr  1 04:05:52 UTC 2026
