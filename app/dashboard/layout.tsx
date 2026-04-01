@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Activity, Calendar, AlertCircle, BookOpen, Bot,
   LayoutDashboard, MessageSquare, Users, Stethoscope,
-  ChevronRight, FileText, LogOut, Link2, Search, Mail, Settings
+  ChevronRight, FileText, LogOut, Link2, Search, Mail, Settings, CalendarDays
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 const navItems = [
   { href: '/dashboard',           label: 'Visão Geral',         icon: LayoutDashboard, accent: 'text-primary' },
-  { href: '/dashboard/schedule',  label: 'Horários',             icon: Calendar,        accent: 'text-primary' },
+  { href: '/dashboard/agendamentos',label: 'Agendamentos',      icon: CalendarDays,    accent: 'text-primary' },
+  { href: '/dashboard/schedule',  label: 'Horários da Clínica', icon: Calendar,        accent: 'text-primary' },
   { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-primary' },
   { href: '/dashboard/triages',   label: 'Triagens',             icon: AlertCircle,     accent: 'text-primary' },
   { href: '/dashboard/exames',    label: 'Exames e Laudos',      icon: FileText,        accent: 'text-primary' },
