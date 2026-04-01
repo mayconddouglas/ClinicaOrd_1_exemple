@@ -51,20 +51,20 @@ const KPI_CONFIG = [
 ];
 
 const chartConfigPain = {
-  leve: { label: "Dor Leve (0-3)", color: "hsl(var(--chart-2))" },
-  moderada: { label: "Dor Moderada (4-6)", color: "hsl(var(--chart-4))" },
-  intensa: { label: "Dor Intensa (7-10)", color: "hsl(var(--chart-1))" },
+  leve: { label: "Dor Leve (0-3)", color: "#22c55e" }, // Verde
+  moderada: { label: "Dor Moderada (4-6)", color: "#eab308" }, // Amarelo
+  intensa: { label: "Dor Intensa (7-10)", color: "#ef4444" }, // Vermelho
 }
 
 const chartConfigStatus = {
-  pendente: { label: "Pendentes", color: "hsl(var(--chart-4))" },
-  confirmada: { label: "Confirmadas", color: "hsl(var(--chart-2))" },
-  cancelada: { label: "Canceladas", color: "hsl(var(--chart-1))" },
+  pendente: { label: "Pendentes", color: "#eab308" },
+  confirmada: { label: "Confirmadas", color: "#22c55e" },
+  cancelada: { label: "Canceladas", color: "#ef4444" },
 }
 
 const chartConfigTrends = {
-  confirmadas: { label: "Confirmadas", color: "hsl(var(--chart-2))" },
-  pendentes: { label: "Pendentes", color: "hsl(var(--chart-4))" },
+  confirmadas: { label: "Confirmadas", color: "#22c55e" },
+  pendentes: { label: "Pendentes", color: "#eab308" },
 }
 
 export default function DashboardOverview() {
