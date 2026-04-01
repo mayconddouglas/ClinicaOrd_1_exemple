@@ -303,7 +303,15 @@ export async function scheduleAppointment(paciente_id: string, data_hora: string
       return { error: 'Erro ao agendar consulta no banco de dados.' };
     }
 
-    return { success: true, appointment: data };
+    // Auto-trigger: Quando agenda, já tentamos disparar o email automaticamente
+    // para garantir que mesmo se a IA esquecer, o sistema envia.
+    try {
+      await sendAppointmentSummary(data.id);
+    } catch (emailErr) {
+      console.error('Auto-email trigger failed, but appointment was saved:', emailErr);
+    }
+
+    return { success: true, appointment: data, message: 'Agendamento salvo. O ID para gerar a fatura ou enviar email é ' + data.id };
   } catch (err: any) {
     return { error: err.message };
   }
