@@ -13,8 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2 } from 'lucide-react';
+import { format, parseISO, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -26,7 +26,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose
+} from "@/components/ui/sheet";
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from '@/components/ui/textarea';
 
 interface Paciente {
   nome: string;
@@ -48,6 +68,14 @@ export default function AgendamentosPage() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filters State
+  const [dateFilter, setDateFilter] = useState<'todos' | 'hoje' | 'amanha' | 'semana'>('todos');
+  const [statusFilter, setStatusFilter] = useState<string[]>(['pendente', 'confirmada']);
+  
+  // Sheet State
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchAgendamentos = async () => {
     setIsLoading(true);
@@ -143,12 +171,47 @@ export default function AgendamentosPage() {
     return <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800">Pendente</Badge>;
   };
 
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilter(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  const handleCreateAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    // Em um cenário real, aqui seria o INSERT no Supabase
+    // Para UX, simulamos o loading e fechamos o sheet
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsSubmitting(false);
+    setIsSheetOpen(false);
+    toast.success('Agendamento criado com sucesso!');
+  };
+
   const filteredAgendamentos = agendamentos.filter(agendamento => {
+    // 1. Search Filter
     const searchLower = searchTerm.toLowerCase();
     const nomePaciente = agendamento.pacientes?.nome?.toLowerCase() || '';
     const motivo = agendamento.motivo?.toLowerCase() || '';
+    const matchesSearch = nomePaciente.includes(searchLower) || motivo.includes(searchLower);
     
-    return nomePaciente.includes(searchLower) || motivo.includes(searchLower);
+    // 2. Status Filter
+    const s = agendamento.status?.toLowerCase() || 'pendente';
+    const normalizedStatus = s === 'confirmado' ? 'confirmada' : (s === 'canceled' ? 'cancelada' : s);
+    const matchesStatus = statusFilter.length === 0 || statusFilter.includes(normalizedStatus);
+
+    // 3. Date Filter
+    let matchesDate = true;
+    if (dateFilter !== 'todos' && agendamento.data_hora) {
+      const dataObj = parseISO(agendamento.data_hora);
+      if (dateFilter === 'hoje') matchesDate = isToday(dataObj);
+      if (dateFilter === 'amanha') matchesDate = isTomorrow(dataObj);
+      if (dateFilter === 'semana') matchesDate = isThisWeek(dataObj, { weekStartsOn: 0 }); // Domingo
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   return (
@@ -164,14 +227,120 @@ export default function AgendamentosPage() {
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filtrar
-          </Button>
-          <Button className="gap-2 w-full sm:w-auto shadow-md">
-            <Plus className="h-4 w-4" />
-            Novo Agendamento
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 relative">
+                <Filter className="h-4 w-4" />
+                Filtrar
+                {statusFilter.length < 3 && statusFilter.length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full border-2 border-background"></span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Status da Consulta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem 
+                checked={statusFilter.includes('pendente')}
+                onCheckedChange={() => toggleStatusFilter('pendente')}
+              >
+                Pendente
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem 
+                checked={statusFilter.includes('confirmada')}
+                onCheckedChange={() => toggleStatusFilter('confirmada')}
+              >
+                Confirmado
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem 
+                checked={statusFilter.includes('cancelada')}
+                onCheckedChange={() => toggleStatusFilter('cancelada')}
+              >
+                Cancelado
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button className="gap-2 w-full sm:w-auto shadow-md">
+                <Plus className="h-4 w-4" />
+                Novo Agendamento
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="sm:max-w-[425px] overflow-y-auto">
+              <SheetHeader className="mb-6">
+                <SheetTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Criar Agendamento
+                </SheetTitle>
+                <SheetDescription>
+                  Preencha os dados abaixo para marcar uma nova consulta manualmente.
+                </SheetDescription>
+              </SheetHeader>
+              
+              <form onSubmit={handleCreateAppointment} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="paciente">Paciente</Label>
+                    <Select required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um paciente..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">João Silva (11) 98765-4321</SelectItem>
+                        <SelectItem value="2">Maria Oliveira (11) 91234-5678</SelectItem>
+                        <SelectItem value="new" className="text-primary font-medium">+ Cadastrar Novo Paciente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="data">Data</Label>
+                      <Input type="date" id="data" required className="focus-visible:ring-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="hora">Horário</Label>
+                      <Input type="time" id="hora" required className="focus-visible:ring-primary" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="especialidade">Especialidade</Label>
+                    <Select required defaultValue="clinico">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="clinico">Clínico Geral</SelectItem>
+                        <SelectItem value="ortodontia">Ortodontia</SelectItem>
+                        <SelectItem value="pediatria">Pediatria</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="motivo">Motivo / Observações</Label>
+                    <Textarea 
+                      id="motivo" 
+                      placeholder="Ex: Paciente relata dor de dente há 3 dias..."
+                      className="resize-none h-24 focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <SheetFooter className="pt-4 border-t mt-auto">
+                  <SheetClose asChild>
+                    <Button variant="outline" type="button">Cancelar</Button>
+                  </SheetClose>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Salvando...' : 'Salvar Agendamento'}
+                  </Button>
+                </SheetFooter>
+              </form>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
@@ -187,9 +356,34 @@ export default function AgendamentosPage() {
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            <Badge variant="outline" className="cursor-pointer hover:bg-muted whitespace-nowrap">Hoje</Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-muted whitespace-nowrap">Amanhã</Badge>
-            <Badge variant="outline" className="cursor-pointer hover:bg-muted whitespace-nowrap">Esta Semana</Badge>
+            <Badge 
+              variant={dateFilter === 'todos' ? 'default' : 'outline'} 
+              className={`cursor-pointer whitespace-nowrap transition-colors ${dateFilter === 'todos' ? '' : 'hover:bg-muted'}`}
+              onClick={() => setDateFilter('todos')}
+            >
+              Todos
+            </Badge>
+            <Badge 
+              variant={dateFilter === 'hoje' ? 'default' : 'outline'} 
+              className={`cursor-pointer whitespace-nowrap transition-colors ${dateFilter === 'hoje' ? '' : 'hover:bg-muted'}`}
+              onClick={() => setDateFilter('hoje')}
+            >
+              Hoje
+            </Badge>
+            <Badge 
+              variant={dateFilter === 'amanha' ? 'default' : 'outline'} 
+              className={`cursor-pointer whitespace-nowrap transition-colors ${dateFilter === 'amanha' ? '' : 'hover:bg-muted'}`}
+              onClick={() => setDateFilter('amanha')}
+            >
+              Amanhã
+            </Badge>
+            <Badge 
+              variant={dateFilter === 'semana' ? 'default' : 'outline'} 
+              className={`cursor-pointer whitespace-nowrap transition-colors ${dateFilter === 'semana' ? '' : 'hover:bg-muted'}`}
+              onClick={() => setDateFilter('semana')}
+            >
+              Esta Semana
+            </Badge>
           </div>
         </div>
 
@@ -225,37 +419,78 @@ export default function AgendamentosPage() {
                 ))
               ) : filteredAgendamentos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <Calendar className="h-10 w-10 mb-4 opacity-20" />
-                      <p className="text-lg font-medium text-foreground">Nenhum agendamento encontrado</p>
-                      <p className="text-sm">Os agendamentos feitos pela IA aparecerão aqui automaticamente.</p>
+                  <TableCell colSpan={6} className="h-[400px] text-center p-0">
+                    <div className="flex flex-col items-center justify-center h-full w-full bg-muted/10 relative overflow-hidden">
+                      {/* Background decorative elements */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+                      
+                      <div className="relative z-10 flex flex-col items-center max-w-sm px-4">
+                        <div className="h-20 w-20 rounded-full bg-background border shadow-sm flex items-center justify-center mb-6 relative">
+                          <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-[ping_3s_ease-in-out_infinite]"></div>
+                          <CalendarX2 className="h-10 w-10 text-muted-foreground" />
+                        </div>
+                        
+                        <h3 className="text-xl font-semibold text-foreground mb-2">Nenhum agendamento encontrado</h3>
+                        <p className="text-sm text-muted-foreground mb-8 text-center">
+                          {searchTerm || dateFilter !== 'todos' || statusFilter.length > 0 
+                            ? "Não encontramos nenhum agendamento com os filtros atuais. Tente limpar os filtros para ver mais resultados."
+                            : "Sua agenda está livre! Os agendamentos feitos pela IA aparecerão aqui ou você pode criar um manualmente."}
+                        </p>
+                        
+                        <Button 
+                          className="shadow-md transition-all hover:scale-105" 
+                          onClick={() => {
+                            setSearchTerm('');
+                            setDateFilter('todos');
+                            setStatusFilter([]);
+                            if (agendamentos.length === 0) setIsSheetOpen(true);
+                          }}
+                        >
+                          {searchTerm || dateFilter !== 'todos' || statusFilter.length > 0 ? "Limpar Filtros" : "Criar Primeiro Agendamento"}
+                        </Button>
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredAgendamentos.map((agendamento) => {
                   const dataObj = agendamento.data_hora ? parseISO(agendamento.data_hora) : null;
+                  const isHoje = dataObj ? isToday(dataObj) : false;
+                  const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
+                  const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
                   
                   return (
-                    <TableRow key={agendamento.id} className="group hover:bg-muted/30 transition-colors">
+                    <TableRow 
+                      key={agendamento.id} 
+                      className={`group transition-colors hover:bg-muted/30 ${isPendenteAtrasado ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 font-bold text-xs">
+                          <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs ${
+                            isHoje 
+                              ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-500/20' 
+                              : isPendenteAtrasado
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-primary/10 text-primary'
+                          }`}>
                             {agendamento.pacientes?.nome?.charAt(0)?.toUpperCase() || 'P'}
                           </div>
-                          <span className="truncate max-w-[150px]" title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
+                          <span className={`truncate max-w-[150px] ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`} title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
                             {agendamento.pacientes?.nome || 'Paciente não identificado'}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center text-sm font-medium">
-                            <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                            {dataObj ? format(dataObj, "dd 'de' MMM, yyyy", { locale: ptBR }) : 'Data não informada'}
+                          <div className={`flex items-center text-sm ${isHoje ? 'font-bold text-blue-600 dark:text-blue-400' : 'font-medium'} ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`}>
+                            {isHoje ? (
+                              <Clock4 className="h-3.5 w-3.5 mr-1.5 animate-pulse" />
+                            ) : (
+                              <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                            )}
+                            {isHoje ? 'Hoje' : dataObj ? format(dataObj, "dd 'de' MMM, yyyy", { locale: ptBR }) : 'Data não informada'}
                           </div>
-                          <div className="flex items-center text-xs text-muted-foreground">
+                          <div className={`flex items-center text-xs ${isHoje ? 'text-blue-600/80 dark:text-blue-400/80 font-medium' : 'text-muted-foreground'}`}>
                             <Clock className="h-3 w-3 mr-1.5" />
                             {dataObj ? format(dataObj, "HH:mm") : '--:--'}
                           </div>
