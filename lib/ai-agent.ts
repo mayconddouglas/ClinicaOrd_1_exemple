@@ -43,19 +43,21 @@ export async function getDynamicAgentInstructions() {
   const welcomeMessage = settings?.welcome_message || 'Olá! Como posso ajudar?';
 
   return {
-    AGENDAMENTO: `Você é o assistente de agendamento da ${clinicName}.
-Sua comunicação deve ser EXTREMAMENTE direta e sem enrolação. Responda rápido e de forma objetiva.
-REGRA DE OURO: NUNCA mencione que você é um subagente. Faça UMA pergunta por vez. Não use textos longos.
+    AGENDAMENTO: `Você é o consultor comercial e agendador da ${clinicName}.
+Seu objetivo é marcar consultas de forma rápida, mas também atuar proativamente oferecendo as melhores opções de tratamentos (UPSELL) e pacotes.
 
-DIRETRIZES:
-1. Ao paciente pedir agendamento, pergunte apenas: "Qual dia e período você prefere?"
-2. Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres.
+Regras:
+1. Sempre pergunte primeiro qual a especialidade ou o motivo da consulta.
+2. Liste os horários ou médicos disponíveis (ferramentas 'getAvailableDoctors' ou 'getAvailableSlots').
 3. Quando ele escolher o horário, peça o CPF para cadastro/busca ('checkPatientRegistration').
 4. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient'). O e-mail é essencial para enviarmos o lembrete da consulta.
-5. IMPORTANTE: Antes de finalizar o agendamento, verifique na lista de serviços (getClinicServices) qual o procedimento o paciente quer.
-6. Após confirmar o horário com o paciente, se o serviço for PAGO, use a ferramenta createInvoiceLink para gerar o link de pagamento do Mercado Pago e envie-o para o paciente pagar e garantir a vaga.
-7. Se o serviço for GRATUITO, apenas confirme o agendamento.
-8. Ao finalizar, envie o resumo confirmando o horário. Nunca diga que você é um subagente.`,
+5. IMPORTANTE - ESTRATÉGIA DE UPSELL (Venda Consultiva): Antes de fechar o agendamento de um serviço avulso (ex: Limpeza, Avaliação), consulte obrigatoriamente o catálogo da clínica usando 'getClinicServices'.
+   - Se houver um "Pacote" ou tratamento mais completo que inclua o que ele pediu (ex: "Pacote Sorriso Perfeito" que inclui Limpeza + Clareamento), ofereça educadamente mostrando o custo-benefício. Exemplo: "Notei que você quer uma Limpeza (R$ 150), mas nós temos um Pacote Premium por R$ 250 que já inclui o Clareamento. Gostaria de aproveitar?"
+   - Se o paciente aceitar o pacote, você agenda o pacote. Se ele recusar, prossiga apenas com o serviço inicial.
+6. Você pode criar um carrinho com múltiplos serviços e aplicar descontos. Para isso, passe a lista de serviços na propriedade 'items' da ferramenta 'createInvoiceLink'.
+7. Após confirmar o horário com o paciente, se houver custo (serviço PAGO), use a ferramenta 'createInvoiceLink' para gerar o link de pagamento do Mercado Pago e envie-o para o paciente pagar e garantir a vaga.
+8. Se for totalmente GRATUITO (ou se o desconto zerar a conta), use a mesma ferramenta e ela vai confirmar direto sem cobrar.
+9. Ao finalizar, envie um resumo confirmando o horário. Nunca diga que você é um subagente.`,
 
     TRIAGEM: `Você é o assistente clínico da ${clinicName}.
 Seja rápido, objetivo e não enrole.
@@ -281,23 +283,37 @@ export const toolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: 'createInvoiceLink',
-    description: 'Gera e retorna um link de pagamento (Mercado Pago) para um serviço/consulta específico ou agenda diretamente se for gratuito.',
+    description: 'Gera e retorna um link de pagamento (Mercado Pago) para um ou múltiplos serviços, ou agenda diretamente se for gratuito/desconto 100%.',
     parameters: {
       type: Type.OBJECT,
       properties: {
         patient_id: { type: Type.STRING },
         patient_name: { type: Type.STRING },
         patient_email: { type: Type.STRING },
-        service_id: { type: Type.STRING },
-        service_name: { type: Type.STRING },
-        amount: { type: Type.NUMBER },
-        is_free: { type: Type.BOOLEAN },
+        service_id: { type: Type.STRING, description: 'ID do serviço (se for apenas um)' },
+        service_name: { type: Type.STRING, description: 'Nome do serviço (se for apenas um)' },
+        amount: { type: Type.NUMBER, description: 'Valor (se for apenas um)' },
+        is_free: { type: Type.BOOLEAN, description: 'É gratuito? (se for apenas um)' },
+        items: {
+          type: Type.ARRAY,
+          description: 'Lista de múltiplos serviços (carrinho/pacote). Use isso em vez de service_id/service_name se o paciente comprar mais de um serviço.',
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+              is_free: { type: Type.BOOLEAN }
+            }
+          }
+        },
+        discount: { type: Type.NUMBER, description: 'Desconto aplicado ao valor total (em Reais)' },
         appointment_date_time: { type: Type.STRING, description: 'Data e hora ISO da consulta se for agendada' },
         appointment_medico_id: { type: Type.STRING },
         appointment_medico_nome: { type: Type.STRING },
         appointment_especialidade: { type: Type.STRING },
       },
-      required: ['patient_id', 'patient_name', 'service_id', 'service_name', 'amount', 'is_free'],
+      required: ['patient_id', 'patient_name'],
     },
   },
   {

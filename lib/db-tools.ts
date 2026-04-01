@@ -57,33 +57,51 @@ export async function createInvoiceLink(params: {
   patient_id: string;
   patient_name: string;
   patient_email?: string;
-  service_id: string;
-  service_name: string;
-  amount: number;
-  is_free: boolean;
+  service_id?: string;
+  service_name?: string;
+  amount?: number;
+  is_free?: boolean;
+  items?: { id: string; name: string; price: number; is_free: boolean }[];
+  discount?: number;
   appointment_date_time?: string;
   appointment_medico_id?: string;
   appointment_medico_nome?: string;
   appointment_especialidade?: string;
 }) {
   try {
-    const isFree = params.is_free || params.amount === 0;
+    // Definir a lista final de itens
+    const invoiceItems = (params.items && params.items.length > 0)
+      ? params.items
+      : [{
+          id: params.service_id || 'unknown',
+          name: params.service_name || 'Consulta',
+          price: params.amount || 0,
+          is_free: params.is_free || params.amount === 0
+        }];
+
+    // Calcular Subtotal, Desconto e Total
+    const subtotal = invoiceItems.reduce((acc, item) => acc + item.price, 0);
+    const discount = params.discount || 0;
+    const finalAmount = Math.max(0, subtotal - discount);
     
+    // É gratuito se o valor final for 0 ou se todos os itens forem gratuitos
+    const isFree = finalAmount === 0 || invoiceItems.every(i => i.is_free);
+
+    // Gerar uma descrição bonita
+    const description = invoiceItems.length > 1 
+      ? `Pacote: ${invoiceItems.map(i => i.name).join(', ')}`
+      : invoiceItems[0].name;
+
     // Create the invoice in the database directly
     const invoiceData = {
       patient_id: params.patient_id,
       patient_name: params.patient_name,
       customer_email: params.patient_email,
-      items: [{
-        id: params.service_id,
-        name: params.service_name,
-        price: params.amount,
-        is_free: isFree
-      }],
-      description: params.service_name,
-      subtotal: params.amount,
-      discount: 0,
-      amount: params.amount,
+      items: invoiceItems,
+      description: description,
+      subtotal: subtotal,
+      discount: discount,
+      amount: finalAmount,
       payment_method: isFree ? 'free' : 'pix',
       status: isFree ? 'paid' : 'pending',
       paid_at: isFree ? new Date().toISOString() : null,
@@ -100,7 +118,7 @@ export async function createInvoiceLink(params: {
           paciente_id: params.patient_id,
           medico_id: params.appointment_medico_id || null,
           data_hora: params.appointment_date_time,
-          motivo: params.service_name,
+          motivo: description,
           especialidade: params.appointment_especialidade || 'Consulta',
           status: isFree ? 'confirmada' : 'pendente'
         }])
@@ -156,11 +174,11 @@ export async function createInvoiceLink(params: {
     const mpPayload: any = {
       items: [{
         id: invoice.id,
-        title: params.service_name,
+        title: description,
         description: especialidadeStr ? `Consulta com ${especialidadeStr}` : `Cobrança para ${params.patient_name}`,
         quantity: 1,
         currency_id: 'BRL',
-        unit_price: params.amount,
+        unit_price: finalAmount,
       }],
       payer: { name: params.patient_name },
       external_reference: invoice.id,
