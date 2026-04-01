@@ -111,7 +111,11 @@ export async function POST(request: Request) {
                   items: invoiceData.items,
                   appointmentDate: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[0] : undefined,
                   appointmentTime: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[1].substring(0, 5) : undefined,
-                  appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? (invoiceData.agendamentos as any).especialidade : undefined
+                  appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) 
+                    ? ((invoiceData.agendamentos as any).medicos?.nome 
+                        ? `Dr(a). ${(invoiceData.agendamentos as any).medicos.nome} (${(invoiceData.agendamentos as any).especialidade})` 
+                        : (invoiceData.agendamentos as any).especialidade) 
+                    : undefined
                 }
               );
               console.log(`[Email Service] Recibo enviado com sucesso!`);

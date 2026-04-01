@@ -17,6 +17,8 @@ export async function POST(request: Request) {
       payment_method, 
       send_email,
       appointment_date_time,
+      appointment_medico_id,
+      appointment_medico_nome,
       appointment_especialidade 
     } = body;
 
@@ -64,9 +66,10 @@ export async function POST(request: Request) {
         .from('agendamentos')
         .insert([{
           paciente_id: patient_id,
+          medico_id: appointment_medico_id,
           data_hora: appointment_date_time,
           motivo: description,
-          especialidade: appointment_especialidade || 'clinico',
+          especialidade: appointment_especialidade || 'Consulta',
           status: isFree ? 'confirmada' : 'pendente' // If free, auto confirm!
         }])
         .select()
@@ -117,6 +120,10 @@ export async function POST(request: Request) {
       // 3. FREE SERVICE: Bypass payment gateway
       paymentLink = 'Agendamento Gratuito';
       
+      const especialidadeStr = appointment_medico_nome 
+        ? `Dr(a). ${appointment_medico_nome} (${appointment_especialidade})` 
+        : appointment_especialidade;
+
       // If send email, we send a Confirmation Receipt immediately instead of an Invoice
       if (send_email && patient_email && smtp_user && smtp_pass) {
         try {
@@ -131,7 +138,7 @@ export async function POST(request: Request) {
               items: items,
               appointmentDate: appointment_date_time ? appointment_date_time.split('T')[0] : undefined,
               appointmentTime: appointment_date_time ? appointment_date_time.split('T')[1].substring(0, 5) : undefined,
-              appointmentEspecialidade: appointment_especialidade
+              appointmentEspecialidade: appointment_medico_nome ? `Dr(a). ${appointment_medico_nome} (${appointment_especialidade})` : appointment_especialidade
             }
           );
           console.log(`[Email Service] Recibo de isenção enviado com sucesso para ${patient_email}`);
@@ -150,6 +157,9 @@ export async function POST(request: Request) {
 
     // 4. PAID SERVICE: Generate link based on selected gateway
     if (active_payment_gateway === 'mercadopago') {
+      const especialidadeStr = appointment_medico_nome 
+        ? `Dr(a). ${appointment_medico_nome} (${appointment_especialidade})` 
+        : appointment_especialidade;
       if (!mp_access_token) {
         // Rollback invoice creation if token is missing
         await supabase.from('invoices').delete().eq('id', invoice.id);
@@ -277,7 +287,7 @@ export async function POST(request: Request) {
               items: items,
               appointmentDate: appointment_date_time ? appointment_date_time.split('T')[0] : undefined,
               appointmentTime: appointment_date_time ? appointment_date_time.split('T')[1].substring(0, 5) : undefined,
-              appointmentEspecialidade: appointment_especialidade
+              appointmentEspecialidade: appointment_medico_nome ? `Dr(a). ${appointment_medico_nome} (${appointment_especialidade})` : appointment_especialidade
             }
           );
           console.log(`[Email Service] E-mail de cobrança enviado com sucesso!`);

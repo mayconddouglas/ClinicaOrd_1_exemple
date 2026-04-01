@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send, ChevronsUpDown, Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -40,6 +40,13 @@ interface Invoice {
   created_at: string;
 }
 
+interface Medico {
+  id: string;
+  nome: string;
+  especialidade: string;
+  disponivel?: boolean;
+}
+
 export default function FinancePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +63,7 @@ export default function FinancePage() {
   // Appointment Details
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
-  const [appointmentEspecialidade, setAppointmentEspecialidade] = useState('clinico');
+  const [appointmentMedicoId, setAppointmentMedicoId] = useState('');
 
   const [isCreating, setIsCreating] = useState(false);
 
@@ -67,8 +74,9 @@ export default function FinancePage() {
   const isTotalFree = finalAmount === 0 || isAnyServiceFree;
 
   // Dynamic Select Data
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [medicos, setMedicos] = useState<Medico[]>([]);
 
   // Delete invoice state
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
@@ -107,6 +115,12 @@ export default function FinancePage() {
     };
   }, []);
 
+  const medicosByEspecialidade = medicos.reduce((acc, medico) => {
+    if (!acc[medico.especialidade]) acc[medico.especialidade] = [];
+    acc[medico.especialidade].push(medico);
+    return acc;
+  }, {} as Record<string, Medico[]>);
+
   const fetchInvoices = async () => {
     try {
       const { data, error } = await supabase
@@ -126,13 +140,15 @@ export default function FinancePage() {
 
   const fetchPatientsAndServices = async () => {
     try {
-      const [patientsRes, servicesRes] = await Promise.all([
+      const [patientsRes, servicesRes, medicosRes] = await Promise.all([
         supabase.from('pacientes').select('id, nome, email').order('nome'),
-        supabase.from('services').select('id, name, price, is_free').eq('active', true).order('name')
+        supabase.from('services').select('id, name, price, is_free').eq('active', true).order('name'),
+        supabase.from('medicos').select('id, nome, especialidade').eq('disponivel', true).order('nome')
       ]);
 
       if (patientsRes.data) setPatients(patientsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
+      if (medicosRes.data) setMedicos(medicosRes.data);
     } catch (error) {
       console.error('Error fetching select data:', error);
     }
@@ -161,6 +177,7 @@ export default function FinancePage() {
     }
 
     const patient = patients.find(p => p.id === newPatientId);
+    const selectedMedico = medicos.find(m => m.id === appointmentMedicoId);
 
     setIsCreating(true);
 
@@ -187,7 +204,9 @@ export default function FinancePage() {
           payment_method: isTotalFree ? 'free' : newMethod,
           send_email: sendEmail,
           appointment_date_time: dataHoraIso,
-          appointment_especialidade: appointmentEspecialidade
+          appointment_medico_id: selectedMedico?.id,
+          appointment_medico_nome: selectedMedico?.nome,
+          appointment_especialidade: selectedMedico?.especialidade
         })
       });
 
@@ -234,7 +253,7 @@ export default function FinancePage() {
     setSendEmail(true);
     setAppointmentDate('');
     setAppointmentTime('');
-    setAppointmentEspecialidade('clinico');
+    setAppointmentMedicoId('');
   };
 
   const copyToClipboard = (text: string) => {
@@ -396,17 +415,23 @@ export default function FinancePage() {
                   </div>
                   
                   <div className="grid gap-2 mt-2">
-                    <Label htmlFor="especialidade">Especialidade / Profissional</Label>
-                    <Select value={appointmentEspecialidade} onValueChange={setAppointmentEspecialidade}>
+                    <Label htmlFor="especialidade">Profissional (Especialidade)</Label>
+                    <Select value={appointmentMedicoId} onValueChange={setAppointmentMedicoId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
+                        <SelectValue placeholder="Selecione o profissional..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="clinico">Clínico Geral</SelectItem>
-                        <SelectItem value="ortodontia">Ortodontia</SelectItem>
-                        <SelectItem value="pediatria">Odontopediatria</SelectItem>
-                        <SelectItem value="endodontia">Endodontia</SelectItem>
-                        <SelectItem value="implantodontia">Implantodontia</SelectItem>
+                        {Object.entries(medicosByEspecialidade).map(([esp, profs]) => (
+                          <SelectGroup key={esp}>
+                            <SelectLabel className="bg-muted/50">{esp}</SelectLabel>
+                            {profs.map(p => (
+                              <SelectItem key={p.id} value={p.id}>Dr(a). {p.nome}</SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                        {medicos.length === 0 && (
+                          <SelectItem value="empty" disabled>Nenhum médico cadastrado</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

@@ -39,13 +39,7 @@ import {
   SheetClose
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
 interface Paciente {
@@ -63,6 +57,7 @@ interface Agendamento {
   especialidade: string;
   status: string;
   pacientes: Paciente;
+  medicos?: { nome: string };
 }
 
 export default function AgendamentosPage() {
@@ -78,11 +73,12 @@ export default function AgendamentosPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pacientesList, setPacientesList] = useState<{id: string, nome: string, telefone: string}[]>([]);
+  const [medicosList, setMedicosList] = useState<{id: string, nome: string, especialidade: string}[]>([]);
   const [newAppt, setNewAppt] = useState({
     paciente_id: '',
+    medico_id: '',
     data: '',
     hora: '',
-    especialidade: 'clinico',
     motivo: ''
   });
 
@@ -96,6 +92,20 @@ export default function AgendamentosPage() {
       if (data) setPacientesList(data);
     } catch (error) {
       console.error('Erro ao buscar pacientes para o formulário:', error);
+    }
+  };
+
+  const fetchMedicos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medicos')
+        .select('id, nome, especialidade')
+        .eq('disponivel', true)
+        .order('nome');
+      if (error) throw error;
+      if (data) setMedicosList(data);
+    } catch (error) {
+      console.error('Erro ao buscar médicos para o formulário:', error);
     }
   };
 
@@ -116,6 +126,9 @@ export default function AgendamentosPage() {
             telefone,
             cpf,
             email
+          ),
+          medicos (
+            nome
           )
         `)
         .order('data_hora', { ascending: true });
@@ -126,7 +139,8 @@ export default function AgendamentosPage() {
         // Formatar o retorno do Supabase (lidar com joins 1:1)
         const formattedData = data.map((item: any) => ({
           ...item,
-          pacientes: Array.isArray(item.pacientes) ? item.pacientes[0] : item.pacientes
+          pacientes: Array.isArray(item.pacientes) ? item.pacientes[0] : item.pacientes,
+          medicos: Array.isArray(item.medicos) ? item.medicos[0] : item.medicos
         })) as Agendamento[];
         
         setAgendamentos(formattedData);
@@ -142,6 +156,7 @@ export default function AgendamentosPage() {
   useEffect(() => {
     fetchAgendamentos();
     fetchPacientes();
+    fetchMedicos();
 
     // Configurar realtime subscription para atualizar quando o bot marcar uma consulta
     const channel = supabase
@@ -166,6 +181,12 @@ export default function AgendamentosPage() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const medicosByEspecialidade = medicosList.reduce((acc, medico) => {
+    if (!acc[medico.especialidade]) acc[medico.especialidade] = [];
+    acc[medico.especialidade].push(medico);
+    return acc;
+  }, {} as Record<string, typeof medicosList>);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
@@ -221,12 +242,16 @@ export default function AgendamentosPage() {
       // Montar a data ISO (ex: 2023-10-25T14:30:00)
       const dataHoraIso = `${newAppt.data}T${newAppt.hora}:00`;
 
+      const selectedMedico = medicosList.find(m => m.id === newAppt.medico_id);
+      const especialidade = selectedMedico ? selectedMedico.especialidade : 'Consulta';
+
       const { error } = await supabase
         .from('agendamentos')
         .insert([{
           paciente_id: newAppt.paciente_id,
+          medico_id: newAppt.medico_id || null,
           data_hora: dataHoraIso,
-          especialidade: newAppt.especialidade,
+          especialidade: especialidade,
           motivo: newAppt.motivo,
           status: 'pendente' // Padrão
         }]);
@@ -236,7 +261,7 @@ export default function AgendamentosPage() {
       toast.success('Agendamento criado com sucesso!');
       setIsSheetOpen(false);
       // Resetar o formulário
-      setNewAppt({ paciente_id: '', data: '', hora: '', especialidade: 'clinico', motivo: '' });
+      setNewAppt({ paciente_id: '', medico_id: '', data: '', hora: '', motivo: '' });
       // Atualizar a lista
       fetchAgendamentos();
     } catch (error: any) {
@@ -408,19 +433,26 @@ export default function AgendamentosPage() {
                       <h4 className="text-sm font-semibold text-foreground">Detalhes da Consulta</h4>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="especialidade">Especialidade</Label>
+                      <Label htmlFor="medico_id">Especialidade / Profissional</Label>
                       <Select 
-                        required 
-                        value={newAppt.especialidade}
-                        onValueChange={(val) => setNewAppt({...newAppt, especialidade: val})}
+                        value={newAppt.medico_id}
+                        onValueChange={(val) => setNewAppt({...newAppt, medico_id: val})}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
+                          <SelectValue placeholder="Selecione o profissional..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="clinico">Clínico Geral</SelectItem>
-                          <SelectItem value="ortodontia">Ortodontia</SelectItem>
-                          <SelectItem value="pediatria">Pediatria</SelectItem>
+                          {Object.entries(medicosByEspecialidade).map(([esp, profs]) => (
+                            <SelectGroup key={esp}>
+                              <SelectLabel className="bg-muted/50">{esp}</SelectLabel>
+                              {profs.map(p => (
+                                <SelectItem key={p.id} value={p.id}>Dr(a). {p.nome}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                          {medicosList.length === 0 && (
+                            <SelectItem value="empty" disabled>Nenhum médico cadastrado</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -605,7 +637,11 @@ export default function AgendamentosPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm font-medium">{agendamento.especialidade || 'Clínico Geral'}</span>
+                          <span className="text-sm font-medium">
+                            {agendamento.medicos?.nome 
+                              ? `Dr(a). ${agendamento.medicos.nome} (${agendamento.especialidade})` 
+                              : agendamento.especialidade || 'Clínico Geral'}
+                          </span>
                           <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={agendamento.motivo}>
                             {agendamento.motivo || 'Nenhum motivo especificado'}
                           </span>
