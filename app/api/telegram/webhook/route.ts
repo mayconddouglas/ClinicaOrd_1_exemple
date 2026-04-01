@@ -131,8 +131,8 @@ export async function POST(req: NextRequest) {
 
     let responseText = '';
     
-    // Limitado a 4 iterações para forçar rapidez
-    for (let i = 0; i < 4; i++) {
+    // Limitado a 8 iterações para garantir que fluxos complexos sejam concluídos
+    for (let i = 0; i < 8; i++) {
       await logStep('SENDING_MESSAGE_TO_AI', { iteration: i });
       
       const generateParams: any = {

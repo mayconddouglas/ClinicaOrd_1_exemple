@@ -299,6 +299,8 @@ export async function scheduleAppointment(params: {
   service_id?: string;
 }) {
   try {
+    console.log('[scheduleAppointment] Início com params:', params);
+
     // 1. Buscar dados do paciente
     const { data: paciente, error: patientError } = await supabase
       .from('pacientes')
@@ -307,6 +309,7 @@ export async function scheduleAppointment(params: {
       .single();
 
     if (patientError || !paciente) {
+      console.log('[scheduleAppointment] Paciente não encontrado.');
       return { error: 'Paciente não encontrado no banco de dados.' };
     }
 
@@ -324,6 +327,7 @@ export async function scheduleAppointment(params: {
       if (s) service = s;
     }
 
+    console.log('[scheduleAppointment] Chamando createInvoiceLink...');
     // 4. Delegar para createInvoiceLink que já faz: agendamento + fatura + mp link
     const invoiceParams = {
       patient_id: params.paciente_id,
@@ -340,11 +344,9 @@ export async function scheduleAppointment(params: {
     };
 
     const result = await createInvoiceLink(invoiceParams);
+    console.log('[scheduleAppointment] createInvoiceLink retornou:', result);
 
     // 5. Enviar email de resumo (Auto-trigger)
-    // Assumindo que createInvoiceLink salva o agendamento em agendamentos e coloca o ID em result.invoice?.appointment_id
-    // Mas wait, createInvoiceLink retorna invoice?
-    // Vamos garantir que createInvoiceLink retorne o invoice. Se não, podemos tentar buscar pelo paciente e data_hora
     let appointmentId = null;
     
     // Tentar buscar o agendamento recém criado
@@ -353,20 +355,23 @@ export async function scheduleAppointment(params: {
       .select('id')
       .eq('paciente_id', params.paciente_id)
       .eq('data_hora', params.data_hora)
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false }) // mudado de created_at para id porque created_at estava dando erro
       .limit(1)
       .single();
       
     if (appt) {
       appointmentId = appt.id;
       try {
+        console.log('[scheduleAppointment] Disparando sendAppointmentSummary...');
         await sendAppointmentSummary(appointmentId);
+        console.log('[scheduleAppointment] sendAppointmentSummary ok.');
       } catch (emailErr) {
         console.error('Auto-email trigger failed:', emailErr);
       }
     }
 
     if (result.success) {
+      console.log('[scheduleAppointment] Sucesso total.');
       return { 
         success: true, 
         message: 'Agendamento finalizado com sucesso. Email enviado.', 
@@ -375,10 +380,12 @@ export async function scheduleAppointment(params: {
         appointment_id: appointmentId
       };
     } else {
+      console.log('[scheduleAppointment] Erro em result:', result.message);
       return { error: result.message };
     }
 
   } catch (err: any) {
+    console.error('[scheduleAppointment] Catch fatal:', err);
     return { error: err.message };
   }
 }

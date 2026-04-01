@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // EXECUÇÃO DO AGENTE UNIVERSAL (LOOP DE TOOLS)
     let finalText = '';
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = 8;
     
     while (iterations < MAX_ITERATIONS) {
       iterations++;
