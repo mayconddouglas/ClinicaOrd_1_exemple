@@ -24,6 +24,20 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel
+} from '@/components/ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -39,27 +53,51 @@ import {
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-const navItems = [
-  { href: '/dashboard',           label: 'Visão Geral',         icon: LayoutDashboard, accent: 'text-primary' },
-  { href: '/dashboard/agendamentos',label: 'Agendamentos',      icon: CalendarDays,    accent: 'text-primary' },
-  { href: '/dashboard/schedule',  label: 'Horários da Clínica', icon: Calendar,        accent: 'text-primary' },
-  { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-primary' },
-  { href: '/dashboard/triages',   label: 'Triagens',             icon: AlertCircle,     accent: 'text-primary' },
-  { href: '/dashboard/exames',    label: 'Exames e Laudos',      icon: FileText,        accent: 'text-primary' },
-  { href: '/dashboard/faqs',      label: 'Base de Conhecimento', icon: BookOpen,        accent: 'text-primary' },
-  { href: '/dashboard/medicos',   label: 'Médicos',              icon: Stethoscope,     accent: 'text-primary' },
+const navGroups = [
+  {
+    title: 'Atendimentos',
+    collapsible: false,
+    items: [
+      { href: '/dashboard/agendamentos',label: 'Agendamentos',      icon: CalendarDays,    accent: 'text-primary' },
+      { href: '/dashboard/schedule',  label: 'Horários da Clínica', icon: Calendar,        accent: 'text-primary' },
+      { href: '/dashboard/triages',   label: 'Triagens',             icon: AlertCircle,     accent: 'text-primary' },
+      { href: '/dashboard/exames',    label: 'Exames e Laudos',      icon: FileText,        accent: 'text-primary' },
+    ]
+  },
+  {
+    title: 'Gestão',
+    collapsible: false,
+    items: [
+      { href: '/dashboard/patients',  label: 'Pacientes',            icon: Users,           accent: 'text-primary' },
+      { href: '/dashboard/medicos',   label: 'Médicos',              icon: Stethoscope,     accent: 'text-primary' },
+    ]
+  },
+  {
+    title: 'Ferramentas',
+    collapsible: false,
+    items: [
+      { href: '/dashboard',           label: 'Visão Geral',         icon: LayoutDashboard, accent: 'text-primary' },
+      { href: '/dashboard/copilot', label: 'Copiloto IA', icon: Bot, accent: 'text-primary' },
+      { href: '/dashboard/faqs',      label: 'Base de Conhecimento', icon: BookOpen,        accent: 'text-primary' },
+    ]
+  },
+  {
+    title: 'Sistema',
+    collapsible: true,
+    items: [
+      { href: '/dashboard/integrations', label: 'Integrações', icon: Link2, accent: 'text-primary' },
+      { href: '/dashboard/workspace', label: 'Google Workspace', icon: Mail, accent: 'text-primary' },
+      { href: '/dashboard/settings', label: 'Configurações', icon: Settings, accent: 'text-primary' },
+    ]
+  }
 ];
-
-const aiItem = { href: '/dashboard/copilot', label: 'Copiloto IA', icon: Bot, accent: 'text-primary' };
-const integrationItem = { href: '/dashboard/integrations', label: 'Integrações', icon: Link2, accent: 'text-primary' };
-const workspaceItem = { href: '/dashboard/workspace', label: 'Google Workspace', icon: Mail, accent: 'text-primary' };
-const settingsItem = { href: '/dashboard/settings', label: 'Configurações', icon: Settings, accent: 'text-primary' };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [openCommand, setOpenCommand] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -88,6 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (!session) {
           window.location.href = '/login'; // Força o redirecionamento se o router.push falhar
         } else {
+          setUser(session.user);
           setIsLoading(false);
         }
       } catch (error) {
@@ -134,7 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <CommandList>
               <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
               <CommandGroup heading="Atalhos">
-                {navItems.map((item) => (
+                {navGroups.flatMap(group => group.items).map((item) => (
                   <CommandItem
                     key={item.href}
                     onSelect={() => runCommand(() => router.push(item.href))}
@@ -145,18 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ))}
               </CommandGroup>
               <CommandSeparator />
-              <CommandGroup heading="Inteligência">
-                <CommandItem onSelect={() => runCommand(() => router.push(aiItem.href))}>
-                  <aiItem.icon className="mr-2 h-4 w-4" />
-                  <span>{aiItem.label}</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
               <CommandGroup heading="Ações">
-                <CommandItem onSelect={() => runCommand(() => router.push(integrationItem.href))}>
-                  <integrationItem.icon className="mr-2 h-4 w-4" />
-                  <span>{integrationItem.label}</span>
-                </CommandItem>
                 <CommandItem onSelect={() => runCommand(() => { supabase.auth.signOut(); router.push('/login'); })}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sair do sistema</span>
@@ -193,99 +221,129 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </SidebarHeader>
 
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Principal
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={cn("transition-all duration-200", isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                          <Link href={item.href}>
-                            <item.icon className={cn("h-4 w-4", isActive ? item.accent : "text-muted-foreground")} />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            {navGroups.map((group) => {
+              if (group.collapsible) {
+                return (
+                  <Collapsible key={group.title} defaultOpen className="group/collapsible">
+                    <SidebarGroup>
+                      <SidebarGroupLabel asChild>
+                        <CollapsibleTrigger className="w-full flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-accent hover:text-accent-foreground p-2 rounded-md transition-colors cursor-pointer">
+                          {group.title}
+                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                        </CollapsibleTrigger>
+                      </SidebarGroupLabel>
+                      <CollapsibleContent>
+                        <SidebarGroupContent>
+                          <SidebarMenu>
+                            {group.items.map((item) => {
+                              const isActive = pathname === item.href;
+                              return (
+                                <SidebarMenuItem key={item.href}>
+                                  <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={cn("transition-all duration-200", isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                                    <Link href={item.href}>
+                                      <item.icon className={cn("h-4 w-4", isActive ? item.accent : "text-muted-foreground")} />
+                                      <span>{item.label}</span>
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              );
+                            })}
+                          </SidebarMenu>
+                        </SidebarGroupContent>
+                      </CollapsibleContent>
+                    </SidebarGroup>
+                  </Collapsible>
+                );
+              }
 
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Inteligência
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === aiItem.href} tooltip={aiItem.label} className={cn("transition-all duration-200", pathname === aiItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                      <Link href={aiItem.href}>
-                        <aiItem.icon className={cn("h-4 w-4", pathname === aiItem.href ? aiItem.accent : "text-muted-foreground")} />
-                        <span>{aiItem.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Configurações
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === integrationItem.href} tooltip={integrationItem.label} className={cn("transition-all duration-200", pathname === integrationItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                      <Link href={integrationItem.href}>
-                        <integrationItem.icon className={cn("h-4 w-4", pathname === integrationItem.href ? integrationItem.accent : "text-muted-foreground")} />
-                        <span>{integrationItem.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === workspaceItem.href} tooltip={workspaceItem.label} className={cn("transition-all duration-200", pathname === workspaceItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                      <Link href={workspaceItem.href}>
-                        <workspaceItem.icon className={cn("h-4 w-4", pathname === workspaceItem.href ? workspaceItem.accent : "text-muted-foreground")} />
-                        <span>{workspaceItem.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === settingsItem.href} tooltip={settingsItem.label} className={cn("transition-all duration-200", pathname === settingsItem.href ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                      <Link href={settingsItem.href}>
-                        <settingsItem.icon className={cn("h-4 w-4", pathname === settingsItem.href ? settingsItem.accent : "text-muted-foreground")} />
-                        <span>{settingsItem.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              return (
+                <SidebarGroup key={group.title}>
+                  <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    {group.title}
+                  </SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {group.items.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                          <SidebarMenuItem key={item.href}>
+                            <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={cn("transition-all duration-200", isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                              <Link href={item.href}>
+                                <item.icon className={cn("h-4 w-4", isActive ? item.accent : "text-muted-foreground")} />
+                                <span>{item.label}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              );
+            })}
           </SidebarContent>
 
           <SidebarFooter className="p-4 space-y-2">
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground border shadow-sm"
-              >
-                <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-medium">Chat do Paciente</span>
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="w-full justify-start gap-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm font-medium">Sair do Sistema</span>
-            </Button>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      size="lg"
+                      className="w-full justify-between hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground border shadow-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8 rounded-lg bg-primary/10">
+                          <AvatarFallback className="rounded-lg text-primary font-semibold text-xs">
+                            {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold text-foreground">
+                            {user?.user_metadata?.full_name || 'Administrador'}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {user?.email || 'admin@orthoadmin.com'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 rounded-lg" side="top" align="start" sideOffset={8}>
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <Avatar className="h-8 w-8 rounded-lg bg-primary/10">
+                          <AvatarFallback className="rounded-lg text-primary font-semibold text-xs">
+                            {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold text-foreground">
+                            {user?.user_metadata?.full_name || 'Administrador'}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {user?.email || 'admin@orthoadmin.com'}
+                          </span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/">
+                        <MessageSquare className="mr-2 h-4 w-4 text-primary" />
+                        <span className="font-medium">Chat do Paciente</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span className="font-medium">Sair do Sistema</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
 
