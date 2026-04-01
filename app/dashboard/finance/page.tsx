@@ -106,7 +106,7 @@ export default function FinancePage() {
   const fetchPatientsAndServices = async () => {
     try {
       const [patientsRes, servicesRes] = await Promise.all([
-        supabase.from('patients').select('id, nome, email').order('nome'),
+        supabase.from('pacientes').select('id, nome, email').order('nome'),
         supabase.from('services').select('id, name, price').eq('active', true).order('name')
       ]);
 
