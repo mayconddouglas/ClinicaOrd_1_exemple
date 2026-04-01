@@ -87,55 +87,44 @@ export default function DashboardOverview() {
 
   if (loading) {
     return (
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <Skeleton className="h-9 w-[250px]" />
-          <Skeleton className="h-9 w-[120px]" />
+      <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8 lg:space-y-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-[250px]" />
+            <Skeleton className="h-5 w-[150px]" />
+          </div>
+          <Skeleton className="h-9 w-[140px]" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        
+        {/* KPI Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-[100px]" />
-                <Skeleton className="h-4 w-4 rounded-full" />
+            <Card key={i} className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <Skeleton className="h-4 w-[120px]" />
+                <Skeleton className="h-8 w-8 rounded-full" />
               </CardHeader>
               <CardContent>
                 <Skeleton className="h-8 w-[60px] mb-2" />
-                <Skeleton className="h-3 w-[120px]" />
+                <Skeleton className="h-3 w-[140px]" />
               </CardContent>
             </Card>
           ))}
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
-            <CardHeader>
-              <Skeleton className="h-6 w-[200px] mb-2" />
-              <Skeleton className="h-4 w-[300px]" />
-            </CardHeader>
-            <CardContent className="pl-2">
-              <Skeleton className="h-[300px] w-full" />
-            </CardContent>
-          </Card>
-          <Card className="col-span-3">
-            <CardHeader>
-              <Skeleton className="h-6 w-[200px] mb-2" />
-              <Skeleton className="h-4 w-[250px]" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center">
-                    <Skeleton className="h-9 w-9 rounded-full" />
-                    <div className="ml-4 space-y-1">
-                      <Skeleton className="h-4 w-[150px]" />
-                      <Skeleton className="h-3 w-[100px]" />
-                    </div>
-                    <Skeleton className="ml-auto h-5 w-[80px] rounded-full" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        
+        {/* Charts Skeleton */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i} className="shadow-sm flex flex-col">
+              <CardHeader className="pb-6">
+                <Skeleton className="h-6 w-[200px] mb-2" />
+                <Skeleton className="h-4 w-[250px]" />
+              </CardHeader>
+              <CardContent className="flex-1 pb-8">
+                <Skeleton className="h-[350px] w-full rounded-xl" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
@@ -144,7 +133,7 @@ export default function DashboardOverview() {
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-8 lg:space-y-10">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8 lg:space-y-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Visão Geral</h2>
@@ -155,7 +144,7 @@ export default function DashboardOverview() {
           size="sm"
           onClick={() => fetchData(true)}
           disabled={refreshing}
-          className="gap-2 self-start md:self-auto bg-card"
+          className="gap-2 self-start md:self-auto bg-card shadow-sm"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Atualizar Dados
@@ -244,19 +233,29 @@ export default function DashboardOverview() {
               <CardDescription className="text-sm">Intensidade relatada nas triagens</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-8">
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                      {analytics.painDistribution.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} strokeWidth={0} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip formatter={(v: any) => [`${v} triagem(s)`, '']} />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: '20px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {analytics.painDistribution?.length > 0 ? (
+                <div className="h-[350px] w-full">
+                  <ChartContainer config={{}}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={analytics.painDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                          {analytics.painDistribution.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} strokeWidth={0} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: '20px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              ) : (
+                <div className="h-[350px] w-full flex flex-col items-center justify-center text-center text-muted-foreground">
+                  <Activity className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="text-sm font-medium">Sem dados suficientes</p>
+                  <p className="text-xs mt-1">Aguardando mais triagens para gerar o gráfico.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -269,21 +268,31 @@ export default function DashboardOverview() {
               <CardDescription className="text-sm">Total de agendamentos por situação</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-8">
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.appointmentStatus} barSize={40} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                    <RechartsTooltip cursor={{ fill: 'hsl(var(--muted))' }} formatter={(v: any) => [`${v} consulta(s)`, '']} />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {analytics.appointmentStatus.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {analytics.appointmentStatus?.length > 0 ? (
+                <div className="h-[350px] w-full">
+                  <ChartContainer config={{}}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.appointmentStatus} barSize={40} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                        <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                          {analytics.appointmentStatus.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              ) : (
+                <div className="h-[350px] w-full flex flex-col items-center justify-center text-center text-muted-foreground">
+                  <Calendar className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="text-sm font-medium">Sem dados suficientes</p>
+                  <p className="text-xs mt-1">Aguardando consultas para gerar o gráfico.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
