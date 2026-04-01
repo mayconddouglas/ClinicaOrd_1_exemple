@@ -52,6 +52,12 @@ export default function FinancePage() {
   const [discount, setDiscount] = useState('');
   const [newMethod, setNewMethod] = useState('pix');
   const [sendEmail, setSendEmail] = useState(true);
+  
+  // Appointment Details
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentEspecialidade, setAppointmentEspecialidade] = useState('clinico');
+
   const [isCreating, setIsCreating] = useState(false);
 
   // Derived calculations
@@ -80,10 +86,18 @@ export default function FinancePage() {
       .channel('invoices_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'invoices' },
+        { event: 'UPDATE', schema: 'public', table: 'invoices' },
         (payload) => {
           console.log('Realtime update received!', payload);
           fetchInvoices(); // Reload the list automatically
+          
+          // Toast notification for real-time payment confirmation
+          if (payload.new && payload.new.status === 'paid' && payload.old && payload.old.status !== 'paid') {
+            toast.success(`🎉 Novo pagamento confirmado: ${payload.new.patient_name}`, {
+              description: `Agendamento efetivado com sucesso.`,
+              duration: 5000,
+            });
+          }
         }
       )
       .subscribe();
@@ -141,15 +155,21 @@ export default function FinancePage() {
       return;
     }
 
+    if (!appointmentDate || !appointmentTime) {
+      toast.error('Preencha a data e o horário do agendamento.');
+      return;
+    }
+
     const patient = patients.find(p => p.id === newPatientId);
 
     setIsCreating(true);
 
     try {
-      // Create a description listing all services
       const description = selectedServices.length > 1 
         ? `Pacote: ${selectedServices.map(s => s.name).join(', ')}`
         : selectedServices[0].name;
+
+      const dataHoraIso = `${appointmentDate}T${appointmentTime}:00`;
 
       // Call our API endpoint
       const res = await fetch('/api/payments/create', {
@@ -165,7 +185,9 @@ export default function FinancePage() {
           discount: parseFloat(discount) || 0,
           amount: finalAmount,
           payment_method: isTotalFree ? 'free' : newMethod,
-          send_email: sendEmail
+          send_email: sendEmail,
+          appointment_date_time: dataHoraIso,
+          appointment_especialidade: appointmentEspecialidade
         })
       });
 
@@ -210,6 +232,9 @@ export default function FinancePage() {
     setDiscount('');
     setNewMethod('pix');
     setSendEmail(true);
+    setAppointmentDate('');
+    setAppointmentTime('');
+    setAppointmentEspecialidade('clinico');
   };
 
   const copyToClipboard = (text: string) => {
@@ -249,11 +274,11 @@ export default function FinancePage() {
               Nova Cobrança
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Gerar Nova Cobrança</DialogTitle>
               <DialogDescription>
-                Crie um link de pagamento para enviar ao paciente.
+                Selecione o paciente, os serviços e defina a data do agendamento.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -342,6 +367,51 @@ export default function FinancePage() {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {selectedServices.length > 0 && (
+                <div className="bg-muted/30 border rounded-lg p-3 space-y-2 mt-4">
+                  <div className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Data do Agendamento</div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="appointmentDate">Data</Label>
+                      <Input 
+                        id="appointmentDate" 
+                        type="date" 
+                        value={appointmentDate}
+                        onChange={(e) => setAppointmentDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="appointmentTime">Horário</Label>
+                      <Input 
+                        id="appointmentTime" 
+                        type="time" 
+                        value={appointmentTime}
+                        onChange={(e) => setAppointmentTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-2 mt-2">
+                    <Label htmlFor="especialidade">Especialidade / Profissional</Label>
+                    <Select value={appointmentEspecialidade} onValueChange={setAppointmentEspecialidade}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="clinico">Clínico Geral</SelectItem>
+                        <SelectItem value="ortodontia">Ortodontia</SelectItem>
+                        <SelectItem value="pediatria">Odontopediatria</SelectItem>
+                        <SelectItem value="endodontia">Endodontia</SelectItem>
+                        <SelectItem value="implantodontia">Implantodontia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               {selectedServices.length > 0 && (
                 <div className="bg-muted/30 border rounded-lg p-3 space-y-2">

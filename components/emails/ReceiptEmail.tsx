@@ -17,6 +17,9 @@ interface ReceiptEmailProps {
   serviceName: string;
   amount: number;
   items?: any[];
+  appointmentDate?: string;
+  appointmentTime?: string;
+  appointmentEspecialidade?: string;
 }
 
 const formatCurrency = (value: number) => {
@@ -29,6 +32,9 @@ export const ReceiptEmail = ({
   serviceName,
   amount,
   items,
+  appointmentDate,
+  appointmentTime,
+  appointmentEspecialidade,
 }: ReceiptEmailProps) => (
   <Html>
     <Head />
@@ -42,8 +48,16 @@ export const ReceiptEmail = ({
         </Text>
         
         <Section style={card}>
-          <Text style={cardTitle}>Detalhes do Recibo</Text>
+          <Text style={cardTitle}>Detalhes do Agendamento</Text>
           
+          {(appointmentDate && appointmentTime) && (
+            <div style={appointmentContainer}>
+              <Text style={cardItem}><strong>Data:</strong> {new Date(appointmentDate).toLocaleDateString('pt-BR')} às {appointmentTime}</Text>
+              <Text style={cardItem}><strong>Especialidade:</strong> {appointmentEspecialidade}</Text>
+              <Hr style={innerHr} />
+            </div>
+          )}
+
           {items && items.length > 1 ? (
             <div style={itemsContainer}>
               <Text style={cardItem}><strong>Pacote de Serviços:</strong></Text>
@@ -131,6 +145,10 @@ const cardTitle = {
   color: '#1a1a1a',
   marginBottom: '16px',
   marginTop: '0',
+};
+
+const appointmentContainer = {
+  marginBottom: '16px',
 };
 
 const cardItem = {

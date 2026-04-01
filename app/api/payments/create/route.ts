@@ -5,7 +5,20 @@ import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { patient_id, patient_name, patient_email, items, description, subtotal, discount, amount, payment_method, send_email } = body;
+    const { 
+      patient_id, 
+      patient_name, 
+      patient_email, 
+      items, 
+      description, 
+      subtotal, 
+      discount, 
+      amount, 
+      payment_method, 
+      send_email,
+      appointment_date_time,
+      appointment_especialidade 
+    } = body;
 
     // Check if amount is undefined (0 is allowed)
     if (!patient_name || !items || items.length === 0 || amount === undefined || amount === null) {
@@ -41,7 +54,33 @@ export async function POST(request: Request) {
     const numAmount = Number(amount);
     const isFree = numAmount === 0;
 
-    // 2. Create the invoice in the database FIRST to get its ID
+    let appointmentId = null;
+
+    // 1.5. If appointment date/time provided, create appointment first
+    if (appointment_date_time) {
+      // Optional conflict check can be added here
+      
+      const { data: appointment, error: appointmentError } = await supabase
+        .from('agendamentos')
+        .insert([{
+          paciente_id: patient_id,
+          data_hora: appointment_date_time,
+          motivo: description,
+          especialidade: appointment_especialidade || 'clinico',
+          status: isFree ? 'confirmada' : 'pendente' // If free, auto confirm!
+        }])
+        .select()
+        .single();
+
+      if (appointmentError) {
+        console.error('Error creating appointment:', appointmentError);
+        return NextResponse.json({ error: 'Erro ao reservar horário.' }, { status: 500 });
+      }
+
+      appointmentId = appointment.id;
+    }
+
+    // 2. Create the invoice in the database
     const { data: invoice, error: insertError } = await supabase
       .from('invoices')
       .insert([{
@@ -55,7 +94,8 @@ export async function POST(request: Request) {
         amount: numAmount,
         payment_method: isFree ? 'free' : payment_method,
         status: isFree ? 'paid' : 'pending',
-        paid_at: isFree ? new Date().toISOString() : null
+        paid_at: isFree ? new Date().toISOString() : null,
+        appointment_id: appointmentId
       }])
       .select()
       .single();
@@ -88,7 +128,10 @@ export async function POST(request: Request) {
               clinicName: clinic_name || 'Clínica',
               serviceName: description,
               amount: 0,
-              items: items
+              items: items,
+              appointmentDate: appointment_date_time ? appointment_date_time.split('T')[0] : undefined,
+              appointmentTime: appointment_date_time ? appointment_date_time.split('T')[1].substring(0, 5) : undefined,
+              appointmentEspecialidade: appointment_especialidade
             }
           );
           console.log(`[Email Service] Recibo de isenção enviado com sucesso para ${patient_email}`);
@@ -231,7 +274,10 @@ export async function POST(request: Request) {
               serviceName: description,
               amount: numAmount,
               paymentLink: paymentLink,
-              items: items
+              items: items,
+              appointmentDate: appointment_date_time ? appointment_date_time.split('T')[0] : undefined,
+              appointmentTime: appointment_date_time ? appointment_date_time.split('T')[1].substring(0, 5) : undefined,
+              appointmentEspecialidade: appointment_especialidade
             }
           );
           console.log(`[Email Service] E-mail de cobrança enviado com sucesso!`);

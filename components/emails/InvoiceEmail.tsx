@@ -19,6 +19,9 @@ interface InvoiceEmailProps {
   amount: number;
   paymentLink: string;
   items?: any[];
+  appointmentDate?: string;
+  appointmentTime?: string;
+  appointmentEspecialidade?: string;
 }
 
 const formatCurrency = (value: number) => {
@@ -32,21 +35,36 @@ export const InvoiceEmail = ({
   amount,
   paymentLink,
   items,
-}: InvoiceEmailProps) => (
-  <Html>
-    <Head />
-    <Preview>Sua cobrança para {serviceName} - {clinicName}</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={heading}>Olá, {patientName} 👋</Heading>
-        
-        <Text style={paragraph}>
-          Aqui está o link para o pagamento referente ao seu procedimento na clínica <strong>{clinicName}</strong>.
-        </Text>
+  appointmentDate,
+  appointmentTime,
+  appointmentEspecialidade,
+}: InvoiceEmailProps) => {
+  const isFree = amount === 0;
+
+  return (
+    <Html>
+      <Head />
+      <Preview>{isFree ? 'Sua Confirmação de Agendamento' : 'Sua cobrança para o agendamento'} - {clinicName}</Preview>
+      <Body style={main}>
+        <Container style={container}>
+          <Heading style={heading}>Olá, {patientName} 👋</Heading>
+          
+          <Text style={paragraph}>
+            Aqui estão os detalhes do seu agendamento na clínica <strong>{clinicName}</strong>.
+            {!isFree && " Para confirmar seu horário, por favor realize o pagamento no link abaixo."}
+          </Text>
         
         <Section style={card}>
-          <Text style={cardTitle}>Resumo da Cobrança</Text>
+          <Text style={cardTitle}>Resumo do Agendamento</Text>
           
+          {(appointmentDate && appointmentTime) && (
+            <div style={appointmentContainer}>
+              <Text style={cardItem}><strong>Data:</strong> {new Date(appointmentDate).toLocaleDateString('pt-BR')} às {appointmentTime}</Text>
+              <Text style={cardItem}><strong>Especialidade:</strong> {appointmentEspecialidade}</Text>
+              <Hr style={innerHr} />
+            </div>
+          )}
+
           {items && items.length > 1 ? (
             <div style={itemsContainer}>
               <Text style={cardItem}><strong>Pacote de Serviços:</strong></Text>
@@ -68,19 +86,23 @@ export const InvoiceEmail = ({
           )}
         </Section>
 
-        <Section style={btnContainer}>
-          <Link style={button} href={paymentLink}>
-            Realizar Pagamento Seguro
-          </Link>
-        </Section>
+        {!isFree && (
+          <>
+            <Section style={btnContainer}>
+              <Link style={button} href={paymentLink}>
+                Realizar Pagamento Seguro
+              </Link>
+            </Section>
 
-        <Text style={subtext}>
-          Se o botão acima não funcionar, copie e cole o link abaixo no seu navegador:
-          <br />
-          <Link href={paymentLink} style={link}>
-            {paymentLink}
-          </Link>
-        </Text>
+            <Text style={subtext}>
+              Se o botão acima não funcionar, copie e cole o link abaixo no seu navegador:
+              <br />
+              <Link href={paymentLink} style={link}>
+                {paymentLink}
+              </Link>
+            </Text>
+          </>
+        )}
 
         <Hr style={hr} />
         
@@ -92,7 +114,8 @@ export const InvoiceEmail = ({
       </Container>
     </Body>
   </Html>
-);
+  );
+};
 
 export default InvoiceEmail;
 
@@ -142,6 +165,10 @@ const cardTitle = {
   color: '#1a1a1a',
   marginBottom: '16px',
   marginTop: '0',
+};
+
+const appointmentContainer = {
+  marginBottom: '16px',
 };
 
 const cardItem = {

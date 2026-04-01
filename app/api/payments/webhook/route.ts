@@ -61,14 +61,21 @@ export async function POST(request: Request) {
         const invoiceId = paymentInfo.external_reference; // This is the ID we passed during creation
         
         if (invoiceId) {
-          // Get patient email before updating
+          // Get patient email and appointment info before updating
           const { data: invoiceData } = await supabase
             .from('invoices')
-            .select('customer_email, patient_name, description, items')
+            .select(`
+              customer_email, 
+              patient_name, 
+              description, 
+              items, 
+              appointment_id,
+              agendamentos(data_hora, especialidade)
+            `)
             .eq('id', invoiceId)
             .single();
 
-          // Update our Supabase database
+          // Update our Supabase database invoice
           await supabase
             .from('invoices')
             .update({
@@ -78,6 +85,16 @@ export async function POST(request: Request) {
             .eq('id', invoiceId);
             
           console.log(`[Webhook] Invoice ${invoiceId} marked as PAID.`);
+
+          // Update the associated appointment to confirmed
+          if (invoiceData?.appointment_id) {
+            await supabase
+              .from('agendamentos')
+              .update({ status: 'confirmada' })
+              .eq('id', invoiceData.appointment_id);
+              
+            console.log(`[Webhook] Appointment ${invoiceData.appointment_id} marked as CONFIRMADA.`);
+          }
 
           // Send a "Payment Confirmed" email to the patient using Nodemailer
           if (invoiceData?.customer_email && settings?.smtp_user && settings?.smtp_pass) {
@@ -91,7 +108,10 @@ export async function POST(request: Request) {
                   clinicName: settings.clinic_name || 'Clínica',
                   serviceName: invoiceData.description,
                   amount: Number(paymentInfo.transaction_amount),
-                  items: invoiceData.items
+                  items: invoiceData.items,
+                  appointmentDate: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[0] : undefined,
+                  appointmentTime: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[1].substring(0, 5) : undefined,
+                  appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? (invoiceData.agendamentos as any).especialidade : undefined
                 }
               );
               console.log(`[Email Service] Recibo enviado com sucesso!`);

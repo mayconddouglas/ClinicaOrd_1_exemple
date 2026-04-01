@@ -18,6 +18,9 @@ export const sendInvoiceEmail = async (
     amount: number;
     paymentLink: string;
     items?: any[];
+    appointmentDate?: string;
+    appointmentTime?: string;
+    appointmentEspecialidade?: string;
   }
 ) => {
   const transporter = nodemailer.createTransport({
@@ -51,6 +54,9 @@ export const sendReceiptEmail = async (
     serviceName: string;
     amount: number;
     items?: any[];
+    appointmentDate?: string;
+    appointmentTime?: string;
+    appointmentEspecialidade?: string;
   }
 ) => {
   const transporter = nodemailer.createTransport({
