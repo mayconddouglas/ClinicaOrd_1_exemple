@@ -19,7 +19,11 @@ import {
   registerPatientAlert,
   getClinicSettings,
   getClinicServices,
-  createInvoiceLink
+  createInvoiceLink,
+  getFinancialMetrics,
+  getAppointmentsMetrics,
+  blockDoctorAgenda,
+  cancelPendingInvoices,
 } from './db-tools';
 
 export async function getDynamicOrchestratorInstruction() {
@@ -101,7 +105,24 @@ REGRA DE OURO: NUNCA mencione que você é um subagente. Não use textos longos.
 
 DIRETRIZES:
 1. Saudação inicial: Baseie-se nesta mensagem da clínica: "${welcomeMessage}"
-2. Tente responder rápido ou usar 'searchLearnedAnswers'.`
+2. Tente responder rápido ou usar 'searchLearnedAnswers'.`,
+
+    COPILOT_ADMIN: `Você é o Diretor Executivo (Copilot) do Dashboard da ${clinicName}.
+Seu usuário é o Dono/Administrador da clínica. Você não fala com pacientes.
+Sua função é gerenciar o ERP, fornecer relatórios em tempo real e executar tarefas operacionais.
+
+Ferramentas disponíveis e quando usar:
+- getFinancialMetrics: Quando o dono perguntar "quanto faturamos?", "quantas faturas pendentes?".
+- getAppointmentsMetrics: Quando perguntar "como está a agenda hoje?", "quantos pacientes vêm?".
+- blockDoctorAgenda: Quando o dono disser "O Dr. X vai faltar", "Bloqueie a agenda do médico Y amanhã". Você pode bloquear e cancelar as consultas daquele dia automaticamente.
+- cancelPendingInvoices: Para limpeza de sistema ("Cancele faturas antigas", "Limpe faturas pendentes há mais de 2 dias").
+- createInvoiceLink / scheduleAppointment: Você também pode gerar links de cobrança e marcar pacientes se o administrador pedir para você fazer isso por ele.
+
+Regras de Ouro:
+1. Seja analítico, rápido e proativo.
+2. Formate dados financeiros usando "R$".
+3. Formate relatórios em listas com bullet points.
+4. Antes de cancelar ou bloquear agendas, confirme o nome do médico, a menos que ele já tenha sido bem específico na frase.`
   };
 }
 
@@ -111,7 +132,18 @@ export const TOOL_ROUTING = {
   MEDICOS: ['getAvailableDoctors', 'getDoctorsBySpecialty', 'getAvailableSlots'],
   FAQ: ['searchLearnedAnswers', 'saveLearnedAnswer', 'escalateToHuman'],
   POS_CONSULTA: ['registerPatientAlert', 'checkPatientRegistration'],
-  GERAL: ['searchLearnedAnswers']
+  GERAL: ['searchLearnedAnswers'],
+  COPILOT_ADMIN: [
+    'getFinancialMetrics', 
+    'getAppointmentsMetrics', 
+    'blockDoctorAgenda', 
+    'cancelPendingInvoices', 
+    'getClinicServices', 
+    'createInvoiceLink',
+    'getAvailableDoctors',
+    'checkPatientRegistration',
+    'scheduleAppointment'
+  ]
 };
 
 export const toolDeclarations: FunctionDeclaration[] = [
@@ -341,6 +373,36 @@ export const toolDeclarations: FunctionDeclaration[] = [
       required: ['paciente_id', 'message', 'severity'],
     },
   },
+  {
+    name: 'getFinancialMetrics',
+    description: 'Obtém o faturamento financeiro de hoje, faturamento do mês, e os recebíveis pendentes (não pagos) do dashboard.',
+  },
+  {
+    name: 'getAppointmentsMetrics',
+    description: 'Obtém o total de agendamentos para o dia de hoje, mostrando os confirmados, pendentes, cancelados e a lista de pacientes e médicos.',
+  },
+  {
+    name: 'blockDoctorAgenda',
+    description: 'Bloqueia a agenda de um médico (torna indisponível) e opcionalmente cancela os agendamentos pendentes ou confirmados de um dia específico.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        medico_id: { type: Type.STRING },
+        medico_nome: { type: Type.STRING },
+        cancel_appointments_date: { type: Type.STRING, description: "Data ISO (YYYY-MM-DD) para cancelar os agendamentos do médico neste dia." }
+      }
+    }
+  },
+  {
+    name: 'cancelPendingInvoices',
+    description: 'Varre o sistema e cancela as faturas que estão pendentes há muito tempo, liberando as vagas na agenda.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        days_old: { type: Type.NUMBER, description: "Cancelar faturas com mais de X dias pendentes. Padrão: 1" }
+      }
+    }
+  }
 ];
 
 export async function executeTool(name: string, args: any): Promise<any> {
@@ -427,6 +489,14 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const validArgs = schema.parse(args);
         return await registerPatientAlert(validArgs.paciente_id, validArgs.message, validArgs.severity);
       }
+      case 'getFinancialMetrics':
+        return await getFinancialMetrics();
+      case 'getAppointmentsMetrics':
+        return await getAppointmentsMetrics();
+      case 'blockDoctorAgenda':
+        return await blockDoctorAgenda(args);
+      case 'cancelPendingInvoices':
+        return await cancelPendingInvoices(args.days_old);
       default:
         return { error: 'Função não encontrada.' };
     }

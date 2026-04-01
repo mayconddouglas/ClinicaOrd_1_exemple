@@ -16,13 +16,13 @@ import { toast } from 'sonner';
 
 type Message = {
   id: string;
-  role: 'user' | 'model';
+  role: 'user' | 'assistant';
   content: string;
 };
 
 const INITIAL_MESSAGE: Message = {
   id: '1',
-  role: 'model',
+  role: 'assistant',
   content: 'Olá! Sou o **Copiloto OrthoAdmin**, sua IA de gestão clínica.\n\nEstou conectado ao banco de dados e posso ajudar você a analisar triagens, verificar agendas, buscar médicos e responder dúvidas operacionais. Como posso otimizar seu dia hoje?',
 };
 
@@ -71,32 +71,33 @@ export default function CopilotPage() {
     setIsLoading(true);
 
     try {
-      const history = updatedMessages.slice(0, -1).map((m) => ({
-        role: m.role,
-        parts: [{ text: m.content }],
-      }));
-
       const response = await fetch('/api/copilot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history, message: userMessage }),
+        body: JSON.stringify({
+          messages: messages.map(m => ({ role: m.role, content: m.content })).concat([{ role: 'user', content: userMessage }])
+        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Erro na resposta do servidor.');
+      if (!response.ok) {
+        throw new Error('Erro na comunicação com o Copilot.');
       }
 
+      const data = await response.json();
+      
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: 'model', content: data.text },
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.content || 'Desculpe, não consegui gerar uma resposta.'
+        }
       ]);
     } catch (error) {
       console.error('Error:', error);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: 'model', content: 'Desculpe, ocorreu um erro ao processar sua solicitação.' },
+        { id: Date.now().toString(), role: 'assistant', content: 'Desculpe, ocorreu um erro ao processar sua solicitação.' },
       ]);
     } finally {
       setIsLoading(false);
@@ -181,9 +182,13 @@ export default function CopilotPage() {
                   >
                     <Avatar className="h-10 w-10 flex-shrink-0 shadow-sm border border-border/50">
                       {message.role === 'user' ? (
-                        <AvatarFallback className="bg-muted text-foreground"><User className="w-5 h-5" /></AvatarFallback>
+                        <AvatarFallback className="bg-muted text-foreground">
+                          <User className="w-5 h-5" />
+                        </AvatarFallback>
                       ) : (
-                        <AvatarFallback className="bg-primary/10 text-primary"><Bot className="w-5 h-5" /></AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          <Bot className="w-5 h-5" />
+                        </AvatarFallback>
                       )}
                     </Avatar>
 

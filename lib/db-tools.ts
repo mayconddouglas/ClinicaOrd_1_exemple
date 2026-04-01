@@ -903,3 +903,176 @@ export async function sendAppointmentSummary(appointment_id: string) {
     return { error: err.message };
   }
 }
+
+// --- FERRAMENTAS DO COPILOT ADMINISTRADOR (DASHBOARD) --- //
+
+// 1. Obter métricas financeiras do dia/mês
+export async function getFinancialMetrics() {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const { data: invoices, error } = await supabase
+      .from('invoices')
+      .select('amount, status, created_at, paid_at');
+
+    if (error) throw error;
+
+    let todayRevenue = 0;
+    let monthRevenue = 0;
+    let pendingAmount = 0;
+
+    invoices.forEach(inv => {
+      const invDate = new Date(inv.created_at);
+      const paidDate = inv.paid_at ? new Date(inv.paid_at) : null;
+
+      if (inv.status === 'paid' && paidDate) {
+        if (paidDate >= today) todayRevenue += Number(inv.amount);
+        if (paidDate >= firstDayOfMonth) monthRevenue += Number(inv.amount);
+      } else if (inv.status === 'pending') {
+        pendingAmount += Number(inv.amount);
+      }
+    });
+
+    return {
+      success: true,
+      data: {
+        faturamento_hoje: todayRevenue,
+        faturamento_mes: monthRevenue,
+        recebiveis_pendentes: pendingAmount,
+        total_faturas: invoices.length
+      }
+    };
+  } catch (error: any) {
+    console.error('Error fetching financial metrics:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// 2. Obter métricas de agendamentos do dia
+export async function getAppointmentsMetrics() {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const { data: agendamentos, error } = await supabase
+      .from('agendamentos')
+      .select('id, status, data_hora, pacientes(nome), medicos(nome)')
+      .gte('data_hora', `${todayStr}T00:00:00`)
+      .lte('data_hora', `${todayStr}T23:59:59`);
+
+    if (error) throw error;
+
+    const confirmados = agendamentos.filter(a => a.status === 'confirmada');
+    const pendentes = agendamentos.filter(a => a.status === 'pendente');
+    const cancelados = agendamentos.filter(a => a.status === 'cancelada');
+
+    return {
+      success: true,
+      data: {
+        total_hoje: agendamentos.length,
+        confirmados: confirmados.length,
+        pendentes: pendentes.length,
+        cancelados: cancelados.length,
+        lista_hoje: agendamentos.map(a => ({
+          paciente: (a.pacientes as any)?.nome,
+          medico: (a.medicos as any)?.nome || 'Clínico Geral',
+          hora: new Date(a.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          status: a.status
+        }))
+      }
+    };
+  } catch (error: any) {
+    console.error('Error fetching appointments metrics:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// 3. Bloquear agenda de um médico (Muda status e opcionalmente cancela consultas do dia)
+export async function blockDoctorAgenda(params: { medico_id?: string; medico_nome?: string; cancel_appointments_date?: string }) {
+  try {
+    let doctorId = params.medico_id;
+
+    if (!doctorId && params.medico_nome) {
+      const { data: doctor } = await supabase
+        .from('medicos')
+        .select('id')
+        .ilike('nome', `%${params.medico_nome}%`)
+        .limit(1)
+        .single();
+      
+      if (doctor) doctorId = doctor.id;
+    }
+
+    if (!doctorId) return { success: false, message: 'Médico não encontrado.' };
+
+    // Bloquear a agenda (marcar como indisponível)
+    await supabase.from('medicos').update({ disponivel: false }).eq('id', doctorId);
+
+    let canceledCount = 0;
+
+    // Se passou uma data (ex: YYYY-MM-DD), cancela as consultas daquele dia
+    if (params.cancel_appointments_date) {
+      const { data: agendamentos } = await supabase
+        .from('agendamentos')
+        .select('id')
+        .eq('medico_id', doctorId)
+        .gte('data_hora', `${params.cancel_appointments_date}T00:00:00`)
+        .lte('data_hora', `${params.cancel_appointments_date}T23:59:59`)
+        .neq('status', 'cancelada');
+
+      if (agendamentos && agendamentos.length > 0) {
+        const ids = agendamentos.map(a => a.id);
+        await supabase.from('agendamentos').update({ status: 'cancelada' }).in('id', ids);
+        canceledCount = ids.length;
+      }
+    }
+
+    return {
+      success: true,
+      message: `Agenda bloqueada com sucesso.${canceledCount > 0 ? ` ${canceledCount} consulta(s) foram canceladas no dia ${params.cancel_appointments_date}.` : ''}`
+    };
+  } catch (error: any) {
+    console.error('Error blocking doctor agenda:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// 4. Cancelar faturas atrasadas/pendentes antigas
+export async function cancelPendingInvoices(days_old: number = 1) {
+  try {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - days_old);
+
+    const { data: invoices, error } = await supabase
+      .from('invoices')
+      .select('id, appointment_id')
+      .eq('status', 'pending')
+      .lte('created_at', targetDate.toISOString());
+
+    if (error) throw error;
+    if (!invoices || invoices.length === 0) return { success: true, message: 'Nenhuma fatura pendente antiga encontrada.', count: 0 };
+
+    const invoiceIds = invoices.map(i => i.id);
+    const appointmentIds = invoices.filter(i => i.appointment_id).map(i => i.appointment_id);
+
+    // Cancelar faturas
+    await supabase.from('invoices').update({ status: 'canceled' }).in('id', invoiceIds);
+
+    // Liberar/Cancelar os agendamentos pendentes dessas faturas
+    if (appointmentIds.length > 0) {
+      await supabase.from('agendamentos').update({ status: 'cancelada' }).in('id', appointmentIds);
+    }
+
+    return {
+      success: true,
+      message: `Foram canceladas ${invoiceIds.length} fatura(s) pendentes há mais de ${days_old} dia(s).`,
+      count: invoiceIds.length
+    };
+  } catch (error: any) {
+    console.error('Error canceling pending invoices:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// --- FIM FERRAMENTAS COPILOT --- //

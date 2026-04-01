@@ -1,111 +1,117 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI, FunctionDeclaration } from '@google/genai';
-import { getDashboardKPIs, getRecentAppointments, getUrgentTriages, getMedicos } from '../../../lib/dashboard-tools';
+import { NextResponse } from 'next/server';
+import { getDynamicAgentInstructions, toolDeclarations, TOOL_ROUTING, executeTool } from '@/lib/ai-agent';
+import { getClinicSettings } from '@/lib/db-tools';
+import { GoogleGenAI } from '@google/genai';
 
-const SYSTEM_INSTRUCTION = `Você é o **Copiloto OrthoAdmin**, um assistente de IA exclusivo para a equipe médica e recepcionistas da clínica de ortopedia.
-Seu objetivo é ajudar a equipe a extrair informações do banco de dados, resumir triagens, verificar a agenda e auxiliar na gestão.
-Responda de forma profissional, técnica (pode usar jargões médicos, pois está falando com a equipe) e direta.
+// Initialize the new Google Gen AI SDK
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-FERRAMENTAS DISPONÍVEIS:
-- 'getDashboardKPIs': Para ver o resumo do dia.
-- 'getRecentAppointments': Para ver a agenda geral.
-- 'getUrgentTriages': Para ver pacientes com dor ou red flags.
-- Você também pode responder dúvidas gerais sobre a clínica.
-
-Seja prestativo e forneça resumos claros e estruturados.`;
-
-const toolDeclarations: FunctionDeclaration[] = [
-  {
-    name: 'getDashboardKPIs',
-    description: 'Obtém os indicadores principais do dia (total de consultas, triagens urgentes, FAQs aprendidas).',
-  },
-  {
-    name: 'getRecentAppointments',
-    description: 'Busca as próximas consultas agendadas na clínica.',
-  },
-  {
-    name: 'getUrgentTriages',
-    description: 'Busca as triagens recentes, ordenadas por nível de dor e urgência.',
-  },
-  {
-    name: 'getMedicos',
-    description: 'Lista todos os médicos cadastrados na clínica, com nome, CRM, especialidade e disponibilidade.',
-  },
-];
-
-async function executeTool(name: string): Promise<any> {
-  switch (name) {
-    case 'getDashboardKPIs':
-      return getDashboardKPIs();
-    case 'getRecentAppointments':
-      return getRecentAppointments();
-    case 'getUrgentTriages':
-      return getUrgentTriages();
-    case 'getMedicos':
-      return getMedicos();
-    default:
-      return { error: 'Função não encontrada.' };
-  }
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY não configurada.' }, { status: 500 });
+    const { messages } = await request.json();
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Formato de mensagens inválido.' }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { history, message } = body as {
-      history: { role: string; parts: { text: string }[] }[];
-      message: string;
+    const settings = await getClinicSettings();
+    const clinicName = settings?.clinic_name || 'Nossa Clínica';
+
+    // Load dynamic prompts based on settings
+    const systemPrompts = await getDynamicAgentInstructions();
+    
+    // O Copilot sempre roda como COPILOT_ADMIN
+    const adminPrompt = systemPrompts['COPILOT_ADMIN'];
+    const adminToolsNames = TOOL_ROUTING['COPILOT_ADMIN'];
+    const adminTools = toolDeclarations.filter(tool => tool.name && adminToolsNames.includes(tool.name));
+
+    // Convert OpenAI message format to Gemini format
+    const geminiHistory = messages.slice(0, -1).map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Extract the latest message text
+    const userMessage = messages[messages.length - 1].content;
+
+    // Build the request parameters for the new SDK
+    const generateParams: any = {
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: adminPrompt }]
+      },
+      contents: [
+        ...geminiHistory,
+        { role: 'user', parts: [{ text: userMessage }] }
+      ]
     };
 
-    if (!message) {
-      return NextResponse.json({ error: 'Mensagem não fornecida.' }, { status: 400 });
+    if (adminTools.length > 0) {
+      generateParams.tools = [{ functionDeclarations: adminTools }];
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-
-    const session = ai.chats.create({
-      model: 'gemini-2.0-flash',
-      history: history.length > 0 ? history : undefined,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.2,
-        tools: [{ functionDeclarations: toolDeclarations }],
-      },
+    // Call the single unified Gemini execution
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      ...generateParams
     });
 
-    let currentMessage: any = { message };
-    let finalText = '';
+    let finalResponseText = response.text || '';
 
-    for (let i = 0; i < 10; i++) {
-      const response = await session.sendMessage(currentMessage);
-      const functionCalls = response.functionCalls ?? [];
+    // Handle tool calls
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      const call = response.functionCalls[0];
+      const functionName = call.name || 'unknown';
+      const functionArgs = call.args;
 
-      if (functionCalls.length > 0) {
-        const functionResponses = await Promise.all(
-          functionCalls.map(async (call: any) => {
-            const result = await executeTool(call.name);
-            return {
+      console.log(`[Copilot API] Calling tool: ${functionName}`);
+
+      const toolResult = await executeTool(functionName, functionArgs);
+      const toolResultStr = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);
+
+      const toolResponseParams = {
+        ...generateParams,
+        contents: [
+          ...generateParams.contents,
+          {
+            role: 'model',
+            parts: [{
+              functionCall: {
+                name: functionName,
+                args: functionArgs
+              }
+            }]
+          },
+          {
+            role: 'user',
+            parts: [{
               functionResponse: {
-                name: call.name,
-                response: result,
-              },
-            };
-          })
-        );
-        currentMessage = { message: functionResponses };
-      } else {
-        finalText = response.text ?? '';
-        break;
-      }
+                name: functionName,
+                response: { result: toolResultStr }
+              }
+            }]
+          }
+        ]
+      };
+
+      const finalResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        ...toolResponseParams
+      });
+
+      finalResponseText = finalResponse.text || '';
     }
 
-    return NextResponse.json({ text: finalText });
+    return NextResponse.json({
+      role: 'assistant',
+      content: finalResponseText
+    });
+
   } catch (error: any) {
-    console.error('Copilot API error:', error);
-    return NextResponse.json({ error: error.message || 'Erro interno do servidor.' }, { status: 500 });
+    console.error('Error in Copilot API:', error);
+    return NextResponse.json(
+      { error: 'Erro ao processar a solicitação.' },
+      { status: 500 }
+    );
   }
 }
