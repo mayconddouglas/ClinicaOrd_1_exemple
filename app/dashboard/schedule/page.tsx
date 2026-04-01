@@ -254,109 +254,127 @@ CREATE TABLE schedule_blocks (
               </CardContent>
             </Card>
           ) : (
-            <Card className="shadow-sm overflow-hidden">
-              <div className="divide-y divide-border/50">
-                {businessHours.map((day) => (
-                  <div key={day.id} className={`p-4 sm:p-5 transition-colors hover:bg-muted/20 ${day.is_closed ? 'opacity-60 bg-muted/10' : ''}`}>
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 sm:gap-6">
-                      {/* Day + toggle */}
-                      <div className="flex items-center gap-3 sm:gap-4 md:w-60 flex-shrink-0">
-                        <div className={`flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl text-xs sm:text-sm font-bold ${day.is_closed ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
-                          {DAYS_SHORT[day.day_of_week]}
-                        </div>
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
+            <div className="space-y-4">
+              {businessHours.map((day) => (
+                <Card 
+                  key={day.id} 
+                  className={`shadow-sm transition-all duration-200 overflow-hidden ${day.is_closed ? 'bg-muted/30 border-dashed opacity-70 hover:opacity-100' : 'bg-card'}`}
+                >
+                  <div className="p-4 sm:p-5">
+                    <div className="flex flex-col xl:flex-row xl:items-center gap-5 sm:gap-6">
+                      
+                      {/* 1. Day Header + Toggle */}
+                      <div className="flex items-center justify-between xl:justify-start gap-4 xl:w-64 flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={!day.is_closed}
+                            onCheckedChange={checked => handleUpdateHour(day.id, 'is_closed', !checked)}
+                            disabled={savingHours === day.id}
+                            className="data-[state=checked]:bg-emerald-500 shadow-sm"
+                          />
                           <div>
-                            <p className="text-sm sm:text-base font-semibold truncate">{DAYS_OF_WEEK[day.day_of_week]}</p>
+                            <p className="text-sm sm:text-base font-semibold">{DAYS_OF_WEEK[day.day_of_week]}</p>
                             <p className={`text-[10px] sm:text-xs font-medium ${day.is_closed ? 'text-muted-foreground' : 'text-emerald-500'}`}>
                               {day.is_closed ? 'Fechado' : 'Aberto para agendamento'}
                             </p>
                           </div>
-                          {day.day_of_week === 1 && !day.is_closed && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={handleCopyMondayToWeek}
-                                  disabled={savingHours !== null}
-                                  className="h-6 w-6 ml-1 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Copiar horários para os dias úteis (Ter-Sex)</TooltipContent>
-                            </Tooltip>
-                          )}
                         </div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center">
-                              <Switch
-                                checked={!day.is_closed}
-                                onCheckedChange={checked => handleUpdateHour(day.id, 'is_closed', !checked)}
-                                disabled={savingHours === day.id}
-                                className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-slate-200 dark:data-[state=unchecked]:bg-slate-700 shadow-sm scale-90 sm:scale-100 transition-all duration-200 ease-in-out"
-                              />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>{day.is_closed ? 'Habilitar dia' : 'Desabilitar dia'}</TooltipContent>
-                        </Tooltip>
+
+                        {/* Replicate Button (Only on Monday if open) */}
+                        {day.day_of_week === 1 && !day.is_closed && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleCopyMondayToWeek}
+                            disabled={savingHours !== null}
+                            className="h-8 px-3 text-[10px] sm:text-xs font-medium bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 xl:ml-auto"
+                          >
+                            <Copy className="h-3.5 w-3.5 mr-1.5" />
+                            Replicar (Ter-Sex)
+                          </Button>
+                        )}
                       </div>
 
-                      {/* Time pickers */}
+                      {/* 2. Time Inputs Area (Progressive Disclosure) */}
                       {!day.is_closed && (
-                        <div className="flex-1 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 items-end">
-                          {[
-                            { label: 'Abertura', field: 'open_time', value: day.open_time },
-                            { label: 'Fechamento', field: 'close_time', value: day.close_time },
-                            { label: 'Almoço Início', field: 'lunch_start', value: day.lunch_start, optional: true },
-                            { label: 'Almoço Fim', field: 'lunch_end', value: day.lunch_end, optional: true },
-                          ].map(({ label, field, value, optional }) => (
-                            <div key={field} className="flex flex-col gap-1.5 sm:flex-1 sm:min-w-[100px]">
-                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 xl:pl-6 xl:border-l border-border/50 items-center">
+                          
+                          {/* Working Hours Group */}
+                          <div className="md:col-span-5 bg-muted/30 p-3 sm:p-4 rounded-xl border border-border/40 flex flex-row gap-3 sm:gap-4 items-center">
+                            <div className="flex-1 space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Abertura</Label>
                               <Input
                                 type="time"
-                                value={value?.substring(0, 5) || ''}
-                                onChange={e => handleUpdateHour(day.id, field, e.target.value ? e.target.value + ':00' : optional ? null : e.target.value)}
-                                className="h-9 sm:h-10 text-xs sm:text-sm bg-background w-full"
+                                value={day.open_time?.substring(0, 5) || ''}
+                                onChange={e => handleUpdateHour(day.id, 'open_time', e.target.value ? e.target.value + ':00' : e.target.value)}
+                                className="h-9 sm:h-10 text-sm bg-background shadow-sm"
                               />
                             </div>
-                          ))}
-                          <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1 sm:flex-1 sm:min-w-[100px]">
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Slot (Duração)</Label>
-                            <Select
-                              value={String(day.slot_duration || 30)}
-                              onValueChange={v => handleUpdateHour(day.id, 'slot_duration', parseInt(v))}
-                            >
-                              <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm bg-background w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[15, 20, 30, 45, 60].map(m => (
-                                  <SelectItem key={m} value={String(m)}>{m === 60 ? '1 hora' : `${m} min`}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {savingHours === day.id && (
-                            <div className="col-span-2 sm:col-span-1 flex items-center justify-center sm:justify-start h-9 sm:h-10 w-full sm:w-10">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <div className="flex-1 space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Fechamento</Label>
+                              <Input
+                                type="time"
+                                value={day.close_time?.substring(0, 5) || ''}
+                                onChange={e => handleUpdateHour(day.id, 'close_time', e.target.value ? e.target.value + ':00' : e.target.value)}
+                                className="h-9 sm:h-10 text-sm bg-background shadow-sm"
+                              />
                             </div>
-                          )}
-                        </div>
-                      )}
-                      {day.is_closed && (
-                        <div className="flex-1 flex items-center h-full">
-                          <p className="text-xs text-muted-foreground italic bg-muted/30 px-3 py-2 rounded-md w-full border border-border/40">
-                            Ative o toggle ao lado para configurar os horários de funcionamento deste dia.
-                          </p>
+                          </div>
+
+                          {/* Lunch Break Group */}
+                          <div className="md:col-span-5 bg-muted/30 p-3 sm:p-4 rounded-xl border border-border/40 flex flex-row gap-3 sm:gap-4 items-center">
+                            <div className="flex-1 space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">Pausa Início <span className="text-[9px] font-normal opacity-50">(Opcional)</span></Label>
+                              <Input
+                                type="time"
+                                value={day.lunch_start?.substring(0, 5) || ''}
+                                onChange={e => handleUpdateHour(day.id, 'lunch_start', e.target.value ? e.target.value + ':00' : null)}
+                                className="h-9 sm:h-10 text-sm bg-background shadow-sm"
+                              />
+                            </div>
+                            <div className="flex-1 space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">Pausa Fim <span className="text-[9px] font-normal opacity-50">(Opcional)</span></Label>
+                              <Input
+                                type="time"
+                                value={day.lunch_end?.substring(0, 5) || ''}
+                                onChange={e => handleUpdateHour(day.id, 'lunch_end', e.target.value ? e.target.value + ':00' : null)}
+                                className="h-9 sm:h-10 text-sm bg-background shadow-sm"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Slot Duration & Spinner */}
+                          <div className="md:col-span-2 flex flex-row md:flex-col items-end md:items-start gap-3 sm:gap-4 md:pl-2">
+                            <div className="flex-1 md:w-full space-y-1.5">
+                              <Label className="text-xs font-medium text-muted-foreground">Duração</Label>
+                              <Select
+                                value={String(day.slot_duration || 30)}
+                                onValueChange={v => handleUpdateHour(day.id, 'slot_duration', parseInt(v))}
+                              >
+                                <SelectTrigger className="h-9 sm:h-10 text-sm bg-background shadow-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[15, 20, 30, 45, 60].map(m => (
+                                    <SelectItem key={m} value={String(m)}>{m === 60 ? '1 hora' : `${m} min`}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {savingHours === day.id && (
+                              <div className="flex items-center justify-center h-9 sm:h-10 w-9 sm:w-10 flex-shrink-0">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                              </div>
+                            )}
+                          </div>
+
                         </div>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </Card>
+                </Card>
+              ))}
+            </div>
           )}
         </>
       )}
