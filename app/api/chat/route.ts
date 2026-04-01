@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const AGENT_INSTRUCTIONS = await getDynamicAgentInstructions();
 
     // 1. ORQUESTRAÇÃO: Descobrir a intenção
-    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-4))}\n\nMensagem atual do usuário: "${message}"`;
+    const orchestratorPrompt = `Histórico da conversa:\n${JSON.stringify(history.slice(-10))}\n\nMensagem atual do usuário: "${message}"`;
     
     const orchestratorResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -80,8 +80,12 @@ export async function POST(req: NextRequest) {
     let currentMessage: any = { message };
     let finalText = '';
 
-    // Limitado a 4 iterações para forçar rapidez
-    for (let i = 0; i < 4; i++) {
+    // Loop de execução dinâmico
+    let iterations = 0;
+    const MAX_ITERATIONS = 10;
+    
+    while (iterations < MAX_ITERATIONS) {
+      iterations++;
       const response = await session.sendMessage(currentMessage);
 
       const functionCalls = response.functionCalls ?? [];

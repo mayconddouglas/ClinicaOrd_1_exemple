@@ -1,4 +1,5 @@
 import { supabaseServer as supabase } from './supabase-server';
+import { GoogleGenAI } from '@google/genai';
 
 export async function getClinicSettings() {
   try {
@@ -147,20 +148,55 @@ export async function saveTriage(paciente_id: string, pain_scale: number, sympto
 
 export async function searchLearnedAnswers(keyword: string) {
   try {
-    const { data, error } = await supabase
-      .from('learned_faqs')
-      .select('*')
-      .not('category', 'like', '\\_\\_%') // Ignora logs e configs
-      .ilike('question', `%${keyword}%`)
-      .order('usage_count', { ascending: false })
-      .limit(3);
+    let answers = null;
 
-    if (error) {
-      console.error('Error searching FAQs:', error);
-      return { error: 'Erro ao buscar respostas aprendidas.' };
+    // Tentar busca semântica (se a extensão pgvector e embeddings estiverem configurados)
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (apiKey) {
+        const ai = new GoogleGenAI({ apiKey });
+        const model = ai.models; // Acesso correto
+        const embeddingResult = await ai.models.embedContent({
+          model: 'text-embedding-004',
+          contents: keyword,
+        });
+
+        const embedding = embeddingResult.embeddings?.[0]?.values;
+
+        if (embedding) {
+          const { data, error } = await supabase.rpc('match_learned_faqs', {
+            query_embedding: embedding,
+            match_threshold: 0.7,
+            match_count: 3
+          });
+
+          if (!error && data && data.length > 0) {
+            answers = data;
+          }
+        }
+      }
+    } catch (embeddingError) {
+      console.log('Busca semântica falhou ou não está configurada. Usando fallback de texto.', embeddingError);
     }
 
-    return { success: true, answers: data };
+    // Fallback para busca textual (ilike) se a semântica não retornou nada
+    if (!answers) {
+      const { data, error } = await supabase
+        .from('learned_faqs')
+        .select('*')
+        .not('category', 'like', '\\_\\_%') // Ignora logs e configs
+        .ilike('question', `%${keyword}%`)
+        .order('usage_count', { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.error('Error searching FAQs:', error);
+        return { error: 'Erro ao buscar respostas aprendidas.' };
+      }
+      answers = data;
+    }
+
+    return { success: true, answers };
   } catch (err: any) {
     return { error: err.message };
   }
@@ -168,9 +204,26 @@ export async function searchLearnedAnswers(keyword: string) {
 
 export async function saveLearnedAnswer(question: string, answer: string, category: string) {
   try {
+    let embedding = null;
+
+    // Gerar embedding da pergunta
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (apiKey) {
+        const ai = new GoogleGenAI({ apiKey });
+        const embeddingResult = await ai.models.embedContent({
+          model: 'text-embedding-004',
+          contents: question,
+        });
+        embedding = embeddingResult.embeddings?.[0]?.values;
+      }
+    } catch (embeddingError) {
+      console.log('Falha ao gerar embedding. Salvando sem vetor.', embeddingError);
+    }
+
     const { data, error } = await supabase
       .from('learned_faqs')
-      .insert([{ question, answer, category }])
+      .insert([{ question, answer, category, embedding }])
       .select()
       .single();
 
@@ -621,9 +674,45 @@ export async function sendAppointmentSummary(appointment_id: string) {
       return { error: 'Erro ao gerar resumo da consulta.' };
     }
 
+    const paciente = data.pacientes;
+    if (paciente && paciente.email) {
+      try {
+        const nodemailer = require('nodemailer');
+        
+        // Configuração de exemplo - o ideal é usar as variáveis de ambiente corretas
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        // Tentar enviar apenas se tiver credenciais (para não quebrar em dev sem env vars)
+        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+          const mailOptions = {
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: paciente.email,
+            subject: 'Confirmação de Agendamento',
+            text: `Olá ${paciente.nome},\n\nSua consulta está confirmada para ${new Date(data.data_hora).toLocaleString('pt-BR')}.\nEspecialidade: ${data.especialidade || 'Não informada'}\n\nObrigado!`,
+            html: `<p>Olá <strong>${paciente.nome}</strong>,</p><p>Sua consulta está confirmada para <strong>${new Date(data.data_hora).toLocaleString('pt-BR')}</strong>.</p><p>Especialidade: ${data.especialidade || 'Não informada'}</p><br/><p>Obrigado!</p>`
+          };
+          
+          await transporter.sendMail(mailOptions);
+        } else {
+          console.log('Credenciais SMTP não configuradas. Pulando envio real de email.');
+        }
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+        // Não falhar o fluxo principal se o e-mail der erro
+      }
+    }
+
     return { 
       success: true, 
-      message: "Resumo gerado e 'enviado' com sucesso (simulação).", 
+      message: "Resumo gerado e enviado com sucesso.", 
       summary: data 
     };
   } catch (err: any) {

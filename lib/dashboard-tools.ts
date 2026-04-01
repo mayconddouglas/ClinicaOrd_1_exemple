@@ -198,7 +198,10 @@ export async function answerPendingQuestion(id: string, question: string, answer
       .eq('id', id);
     if (updateError) throw updateError;
 
-    // 2. Add to learned_faqs
+    // 2. Generate embedding (if possible via an API route or server action in the future)
+    // As this is client-side code, we might not have GEMINI_API_KEY.
+    // For now, we will insert without embedding. A background job or trigger could generate it later,
+    // or we can just leave it as text-only fallback.
     const { error: insertError } = await supabase
       .from('learned_faqs')
       .insert([{ question, answer, category }]);

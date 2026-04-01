@@ -1,4 +1,5 @@
 import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
+import { z } from 'zod';
 import {
   checkPatientRegistration,
   registerPatient,
@@ -49,7 +50,8 @@ DIRETRIZES:
 2. Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres.
 3. Quando ele escolher o horário, peça o CPF para cadastro/busca ('checkPatientRegistration').
 4. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient'). O e-mail é essencial para enviarmos o lembrete da consulta.
-5. Confirme o agendamento de forma breve e avise que ele receberá um e-mail de confirmação.`,
+5. ANTES de usar 'scheduleAppointment', mostre um resumo dos dados (Data, Hora, Médico/Especialidade) e PERGUNTE se ele confirma o agendamento.
+6. Apenas chame 'scheduleAppointment' APÓS o paciente responder que confirma. Confirme o agendamento de forma breve e avise que ele receberá um e-mail de confirmação.`,
 
     TRIAGEM: `Você é o assistente clínico da ${clinicName}.
 Seja rápido, objetivo e não enrole.
@@ -297,40 +299,90 @@ export const toolDeclarations: FunctionDeclaration[] = [
 ];
 
 export async function executeTool(name: string, args: any): Promise<any> {
-  switch (name) {
-    case 'checkPatientRegistration':
-      return checkPatientRegistration(args.cpf, args.nome, args.telefone);
-    case 'registerPatient':
-      return registerPatient(args.nome, args.cpf, args.telefone, args.email, args.data_nascimento);
-    case 'scheduleAppointment':
-      return scheduleAppointment(args.paciente_id, args.data_hora, args.motivo, args.especialidade);
-    case 'saveTriage':
-      return saveTriage(args.paciente_id, args.pain_scale, args.symptoms, args.red_flags, args.urgency_classification);
-    case 'searchLearnedAnswers':
-      return searchLearnedAnswers(args.keyword);
-    case 'saveLearnedAnswer':
-      return saveLearnedAnswer(args.question, args.answer, args.category);
-    case 'checkAvailability':
-      return checkAvailability(args.data_hora);
-    case 'getAvailableSlots':
-      return getAvailableSlots(args.date);
-    case 'getPatientAppointments':
-      return getPatientAppointments(args.paciente_id);
-    case 'cancelAppointment':
-      return cancelAppointment(args.appointment_id);
-    case 'rescheduleAppointment':
-      return rescheduleAppointment(args.appointment_id, args.new_data_hora);
-    case 'sendAppointmentSummary':
-      return sendAppointmentSummary(args.appointment_id);
-    case 'getAvailableDoctors':
-      return getAvailableDoctors();
-    case 'getDoctorsBySpecialty':
-      return getDoctorsBySpecialty(args.especialidade);
-    case 'escalateToHuman':
-      return escalateToHuman(args.question, args.patientPhone);
-    case 'registerPatientAlert':
-      return registerPatientAlert(args.paciente_id, args.message, args.severity);
-    default:
-      return { error: 'Função não encontrada.' };
+  try {
+    switch (name) {
+      case 'checkPatientRegistration': {
+        const schema = z.object({ cpf: z.string().optional(), nome: z.string().optional(), telefone: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await checkPatientRegistration(validArgs.cpf, validArgs.nome, validArgs.telefone);
+      }
+      case 'registerPatient': {
+        const schema = z.object({ nome: z.string(), cpf: z.string().optional(), telefone: z.string().optional(), email: z.string().optional(), data_nascimento: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await registerPatient(validArgs.nome, validArgs.cpf || '', validArgs.telefone, validArgs.email, validArgs.data_nascimento);
+      }
+      case 'scheduleAppointment': {
+        const schema = z.object({ paciente_id: z.string(), data_hora: z.string(), motivo: z.string().optional(), especialidade: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await scheduleAppointment(validArgs.paciente_id, validArgs.data_hora, validArgs.motivo, validArgs.especialidade);
+      }
+      case 'saveTriage': {
+        const schema = z.object({ paciente_id: z.string(), pain_scale: z.number(), symptoms: z.string(), red_flags: z.string().optional(), urgency_classification: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await saveTriage(validArgs.paciente_id, validArgs.pain_scale, validArgs.symptoms, validArgs.red_flags, validArgs.urgency_classification);
+      }
+      case 'searchLearnedAnswers': {
+        const schema = z.object({ keyword: z.string() });
+        const validArgs = schema.parse(args);
+        return await searchLearnedAnswers(validArgs.keyword);
+      }
+      case 'saveLearnedAnswer': {
+        const schema = z.object({ question: z.string(), answer: z.string(), category: z.string() });
+        const validArgs = schema.parse(args);
+        return await saveLearnedAnswer(validArgs.question, validArgs.answer, validArgs.category);
+      }
+      case 'checkAvailability': {
+        const schema = z.object({ data_hora: z.string() });
+        const validArgs = schema.parse(args);
+        return await checkAvailability(validArgs.data_hora);
+      }
+      case 'getAvailableSlots': {
+        const schema = z.object({ date: z.string() });
+        const validArgs = schema.parse(args);
+        return await getAvailableSlots(validArgs.date);
+      }
+      case 'getPatientAppointments': {
+        const schema = z.object({ paciente_id: z.string() });
+        const validArgs = schema.parse(args);
+        return await getPatientAppointments(validArgs.paciente_id);
+      }
+      case 'cancelAppointment': {
+        const schema = z.object({ appointment_id: z.string() });
+        const validArgs = schema.parse(args);
+        return await cancelAppointment(validArgs.appointment_id);
+      }
+      case 'rescheduleAppointment': {
+        const schema = z.object({ appointment_id: z.string(), new_data_hora: z.string() });
+        const validArgs = schema.parse(args);
+        return await rescheduleAppointment(validArgs.appointment_id, validArgs.new_data_hora);
+      }
+      case 'sendAppointmentSummary': {
+        const schema = z.object({ appointment_id: z.string() });
+        const validArgs = schema.parse(args);
+        return await sendAppointmentSummary(validArgs.appointment_id);
+      }
+      case 'getAvailableDoctors':
+        return await getAvailableDoctors();
+      case 'getDoctorsBySpecialty': {
+        const schema = z.object({ especialidade: z.string() });
+        const validArgs = schema.parse(args);
+        return await getDoctorsBySpecialty(validArgs.especialidade);
+      }
+      case 'escalateToHuman': {
+        const schema = z.object({ question: z.string(), patientPhone: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await escalateToHuman(validArgs.question, validArgs.patientPhone);
+      }
+      case 'registerPatientAlert': {
+        const schema = z.object({ paciente_id: z.string(), message: z.string(), severity: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await registerPatientAlert(validArgs.paciente_id, validArgs.message, validArgs.severity);
+      }
+      default:
+        return { error: 'Função não encontrada.' };
+    }
+  } catch (error: any) {
+    console.error(`Erro de validação na ferramenta ${name}:`, error);
+    return { error: `Parâmetros inválidos para a função ${name}. ${error.message || ''}` };
   }
 }
