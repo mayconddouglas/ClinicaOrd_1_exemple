@@ -36,11 +36,37 @@ export async function POST(request: Request) {
       );
     }
 
+    // 2. Create the invoice in the database FIRST to get its ID
+    const { data: invoice, error: insertError } = await supabase
+      .from('invoices')
+      .insert([{
+        patient_name,
+        description,
+        amount: Number(amount),
+        payment_method,
+        status: 'pending'
+      }])
+      .select()
+      .single();
+
+    if (insertError || !invoice) {
+      console.error('Invoice Insert Error:', insertError);
+      return NextResponse.json({ error: 'Erro ao criar registro da fatura.' }, { status: 500 });
+    }
+
+    // Generate dynamic Webhook URL based on the request's origin
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host');
+    const origin = `${protocol}://${host}`;
+    const webhookUrl = `${origin}/api/payments/webhook`;
+
     let paymentLink = '';
 
-    // 2. Generate link based on selected gateway
+    // 3. Generate link based on selected gateway
     if (active_payment_gateway === 'mercadopago') {
       if (!mp_access_token) {
+        // Rollback invoice creation if token is missing
+        await supabase.from('invoices').delete().eq('id', invoice.id);
         return NextResponse.json({ error: 'Access Token do Mercado Pago não configurado.' }, { status: 400 });
       }
 
@@ -54,6 +80,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           items: [
             {
+              id: invoice.id,
               title: description,
               description: `Cobrança para ${patient_name}`,
               quantity: 1,
@@ -63,13 +90,17 @@ export async function POST(request: Request) {
           ],
           payer: {
             name: patient_name,
-          }
+          },
+          external_reference: invoice.id,
+          notification_url: webhookUrl,
         }),
       });
 
       const mpData = await mpResponse.json();
       if (!mpResponse.ok) {
         console.error('Mercado Pago Error:', JSON.stringify(mpData, null, 2));
+        // Rollback
+        await supabase.from('invoices').delete().eq('id', invoice.id);
         return NextResponse.json({ error: 'Erro ao gerar link no Mercado Pago. Verifique as credenciais.' }, { status: 500 });
       }
       
@@ -78,6 +109,7 @@ export async function POST(request: Request) {
 
     } else if (active_payment_gateway === 'asaas') {
       if (!asaas_api_key) {
+        await supabase.from('invoices').delete().eq('id', invoice.id);
         return NextResponse.json({ error: 'API Key do Asaas não configurada.' }, { status: 400 });
       }
 
@@ -97,6 +129,7 @@ export async function POST(request: Request) {
       const customerData = await customerRes.json();
       if (!customerRes.ok) {
         console.error('Asaas Customer Error:', customerData);
+        await supabase.from('invoices').delete().eq('id', invoice.id);
         return NextResponse.json({ error: 'Erro ao registrar cliente no Asaas.' }, { status: 500 });
       }
 
@@ -115,21 +148,30 @@ export async function POST(request: Request) {
           value: Number(amount),
           dueDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString().split('T')[0], // +3 days
           description: description,
+          externalReference: invoice.id,
         }),
       });
 
       const paymentData = await paymentRes.json();
       if (!paymentRes.ok) {
         console.error('Asaas Payment Error:', paymentData);
+        await supabase.from('invoices').delete().eq('id', invoice.id);
         return NextResponse.json({ error: 'Erro ao gerar link no Asaas.' }, { status: 500 });
       }
 
       paymentLink = paymentData.invoiceUrl; // The public URL to pay
     }
 
+    // 4. Update the invoice with the generated payment link
+    await supabase
+      .from('invoices')
+      .update({ payment_link: paymentLink })
+      .eq('id', invoice.id);
+
     return NextResponse.json({ 
       success: true, 
-      payment_link: paymentLink 
+      payment_link: paymentLink,
+      invoice_id: invoice.id
     });
 
   } catch (error: any) {

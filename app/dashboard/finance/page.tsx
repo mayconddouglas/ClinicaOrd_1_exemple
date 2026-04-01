@@ -42,6 +42,23 @@ export default function FinancePage() {
 
   useEffect(() => {
     fetchInvoices();
+
+    // Supabase Realtime Subscription for automatic updates when webhook triggers
+    const channel = supabase
+      .channel('invoices_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'invoices' },
+        (payload) => {
+          console.log('Realtime update received!', payload);
+          fetchInvoices(); // Reload the list automatically
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchInvoices = async () => {
