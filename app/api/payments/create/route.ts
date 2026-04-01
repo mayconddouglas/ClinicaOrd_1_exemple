@@ -5,10 +5,10 @@ import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { patient_id, patient_name, patient_email, service_id, description, amount, payment_method, send_email } = body;
+    const { patient_id, patient_name, patient_email, items, description, subtotal, discount, amount, payment_method, send_email } = body;
 
     // Check if amount is undefined (0 is allowed)
-    if (!patient_name || !description || amount === undefined || amount === null) {
+    if (!patient_name || !items || items.length === 0 || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: 'Campos obrigatórios faltando.' },
         { status: 400 }
@@ -48,8 +48,10 @@ export async function POST(request: Request) {
         patient_id,
         patient_name,
         customer_email: patient_email,
-        service_id,
+        items,
         description,
+        subtotal: Number(subtotal) || 0,
+        discount: Number(discount) || 0,
         amount: numAmount,
         payment_method: isFree ? 'free' : payment_method,
         status: isFree ? 'paid' : 'pending',
@@ -85,7 +87,8 @@ export async function POST(request: Request) {
               patientName: patient_name,
               clinicName: clinic_name || 'Clínica',
               serviceName: description,
-              amount: 0
+              amount: 0,
+              items: items
             }
           );
           console.log(`[Email Service] Recibo de isenção enviado com sucesso para ${patient_email}`);
@@ -110,7 +113,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Access Token do Mercado Pago não configurado.' }, { status: 400 });
       }
 
-      let mpPayload: any = {
+      // Mercado Pago API
+      const mpPayload: any = {
         items: [
           {
             id: invoice.id,
@@ -118,7 +122,7 @@ export async function POST(request: Request) {
             description: `Cobrança para ${patient_name}`,
             quantity: 1,
             currency_id: 'BRL',
-            unit_price: Number(amount),
+            unit_price: numAmount,
           },
         ],
         payer: {
@@ -132,7 +136,6 @@ export async function POST(request: Request) {
         mpPayload.payer.email = patient_email;
       }
 
-      // Mercado Pago API
       const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
@@ -226,8 +229,9 @@ export async function POST(request: Request) {
               patientName: patient_name,
               clinicName: clinic_name || 'Clínica',
               serviceName: description,
-              amount: Number(amount),
-              paymentLink: paymentLink
+              amount: numAmount,
+              paymentLink: paymentLink,
+              items: items
             }
           );
           console.log(`[Email Service] E-mail de cobrança enviado com sucesso!`);

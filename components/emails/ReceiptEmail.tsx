@@ -16,6 +16,7 @@ interface ReceiptEmailProps {
   clinicName: string;
   serviceName: string;
   amount: number;
+  items?: any[];
 }
 
 const formatCurrency = (value: number) => {
@@ -27,6 +28,7 @@ export const ReceiptEmail = ({
   clinicName,
   serviceName,
   amount,
+  items,
 }: ReceiptEmailProps) => (
   <Html>
     <Head />
@@ -41,8 +43,27 @@ export const ReceiptEmail = ({
         
         <Section style={card}>
           <Text style={cardTitle}>Detalhes do Recibo</Text>
-          <Text style={cardItem}><strong>Procedimento:</strong> {serviceName}</Text>
-          <Text style={cardItem}><strong>Valor Pago:</strong> {formatCurrency(amount)}</Text>
+          
+          {items && items.length > 1 ? (
+            <div style={itemsContainer}>
+              <Text style={cardItem}><strong>Pacote de Serviços:</strong></Text>
+              <ul style={itemsList}>
+                {items.map((item, i) => (
+                  <li key={i} style={listItem}>
+                    {item.name}
+                  </li>
+                ))}
+              </ul>
+              <Hr style={innerHr} />
+              <Text style={totalItem}><strong>Valor Total:</strong> {amount === 0 ? 'Gratuito / Isento' : formatCurrency(amount)}</Text>
+            </div>
+          ) : (
+            <>
+              <Text style={cardItem}><strong>Procedimento:</strong> {serviceName}</Text>
+              <Text style={cardItem}><strong>Valor Pago:</strong> {amount === 0 ? 'Gratuito / Isento' : formatCurrency(amount)}</Text>
+            </>
+          )}
+
           <Text style={cardItem}><strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')}</Text>
         </Section>
 
@@ -115,6 +136,33 @@ const cardTitle = {
 const cardItem = {
   fontSize: '15px',
   color: '#4a4a4a',
+  margin: '8px 0',
+};
+
+const itemsContainer = {
+  marginTop: '12px',
+};
+
+const itemsList = {
+  margin: '8px 0 16px 0',
+  paddingLeft: '20px',
+  color: '#4a4a4a',
+  fontSize: '14px',
+  lineHeight: '1.6',
+};
+
+const listItem = {
+  marginBottom: '4px',
+};
+
+const innerHr = {
+  borderColor: '#e2e8f0',
+  margin: '12px 0',
+};
+
+const totalItem = {
+  fontSize: '16px',
+  color: '#1a1a1a',
   margin: '8px 0',
 };
 

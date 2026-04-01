@@ -64,7 +64,7 @@ export async function POST(request: Request) {
           // Get patient email before updating
           const { data: invoiceData } = await supabase
             .from('invoices')
-            .select('customer_email, patient_name, description')
+            .select('customer_email, patient_name, description, items')
             .eq('id', invoiceId)
             .single();
 
@@ -90,7 +90,8 @@ export async function POST(request: Request) {
                   patientName: invoiceData.patient_name,
                   clinicName: settings.clinic_name || 'Clínica',
                   serviceName: invoiceData.description,
-                  amount: Number(paymentInfo.transaction_amount)
+                  amount: Number(paymentInfo.transaction_amount),
+                  items: invoiceData.items
                 }
               );
               console.log(`[Email Service] Recibo enviado com sucesso!`);

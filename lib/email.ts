@@ -17,6 +17,7 @@ export const sendInvoiceEmail = async (
     serviceName: string;
     amount: number;
     paymentLink: string;
+    items?: any[];
   }
 ) => {
   const transporter = nodemailer.createTransport({
@@ -49,6 +50,7 @@ export const sendReceiptEmail = async (
     clinicName: string;
     serviceName: string;
     amount: number;
+    items?: any[];
   }
 ) => {
   const transporter = nodemailer.createTransport({

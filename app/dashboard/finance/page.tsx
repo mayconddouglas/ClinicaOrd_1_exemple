@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send, ChevronsUpDown, Check } from 'lucide-react';
+import { Wallet, DollarSign, ArrowUpRight, Copy, CheckCircle2, Search, Link2, Plus, Trash2, Send, ChevronsUpDown, Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,14 +46,19 @@ export default function FinancePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // New invoice state
+  // New Invoice Form State
   const [newPatientId, setNewPatientId] = useState('');
-  const [newServiceId, setNewServiceId] = useState('');
-  const [newAmount, setNewAmount] = useState('');
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [discount, setDiscount] = useState('');
   const [newMethod, setNewMethod] = useState('pix');
   const [sendEmail, setSendEmail] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [isCurrentServiceFree, setIsCurrentServiceFree] = useState(false);
+
+  // Derived calculations
+  const subtotal = selectedServices.reduce((acc, curr) => acc + curr.price, 0);
+  const isAnyServiceFree = selectedServices.some(s => s.is_free);
+  const finalAmount = Math.max(0, subtotal - (parseFloat(discount) || 0));
+  const isTotalFree = finalAmount === 0 || isAnyServiceFree;
 
   // Dynamic Select Data
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -120,27 +125,31 @@ export default function FinancePage() {
   };
 
   const handleServiceChange = (id: string) => {
-    setNewServiceId(id);
     const service = services.find(s => s.id === id);
-    if (service) {
-      setNewAmount(service.price.toString());
-      setIsCurrentServiceFree(service.is_free);
+    if (service && !selectedServices.some(s => s.id === id)) {
+      setSelectedServices([...selectedServices, service]);
     }
   };
 
+  const removeService = (id: string) => {
+    setSelectedServices(selectedServices.filter(s => s.id !== id));
+  };
+
   const handleCreateInvoice = async () => {
-    if (!newPatientId || !newServiceId || (!newAmount && !isCurrentServiceFree)) {
-      toast.error('Preencha paciente, serviço e valor.');
+    if (!newPatientId || selectedServices.length === 0) {
+      toast.error('Preencha o paciente e adicione ao menos um serviço.');
       return;
     }
 
     const patient = patients.find(p => p.id === newPatientId);
-    const service = services.find(s => s.id === newServiceId);
 
     setIsCreating(true);
 
     try {
-      const finalAmount = isCurrentServiceFree ? 0 : parseFloat(newAmount);
+      // Create a description listing all services
+      const description = selectedServices.length > 1 
+        ? `Pacote: ${selectedServices.map(s => s.name).join(', ')}`
+        : selectedServices[0].name;
 
       // Call our API endpoint
       const res = await fetch('/api/payments/create', {
@@ -150,10 +159,12 @@ export default function FinancePage() {
           patient_id: newPatientId,
           patient_name: patient?.nome,
           patient_email: patient?.email,
-          service_id: newServiceId,
-          description: service?.name,
+          items: selectedServices,
+          description: description,
+          subtotal: subtotal,
+          discount: parseFloat(discount) || 0,
           amount: finalAmount,
-          payment_method: isCurrentServiceFree ? 'free' : newMethod,
+          payment_method: isTotalFree ? 'free' : newMethod,
           send_email: sendEmail
         })
       });
@@ -195,11 +206,10 @@ export default function FinancePage() {
 
   const resetForm = () => {
     setNewPatientId('');
-    setNewServiceId('');
-    setNewAmount('');
+    setSelectedServices([]);
+    setDiscount('');
     setNewMethod('pix');
     setSendEmail(true);
-    setIsCurrentServiceFree(false);
   };
 
   const copyToClipboard = (text: string) => {
@@ -294,7 +304,7 @@ export default function FinancePage() {
                 </Popover>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="service">Serviço / Procedimento</Label>
+                <Label htmlFor="service">Adicionar Serviço / Procedimento</Label>
                 <Popover open={openServiceCombobox} onOpenChange={setOpenServiceCombobox} modal={true}>
                   <PopoverTrigger asChild>
                     <Button
@@ -303,9 +313,7 @@ export default function FinancePage() {
                       aria-expanded={openServiceCombobox}
                       className="justify-between"
                     >
-                      {newServiceId
-                        ? services.find((s) => s.id === newServiceId)?.name
-                        : "Procurar serviço..."}
+                      Buscar e adicionar serviço...
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -324,12 +332,7 @@ export default function FinancePage() {
                                 setOpenServiceCombobox(false);
                               }}
                             >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newServiceId === service.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
+                              <Plus className="mr-2 h-4 w-4 text-muted-foreground" />
                               {service.name} - {formatCurrency(service.price)}
                             </CommandItem>
                           ))}
@@ -339,40 +342,76 @@ export default function FinancePage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="amount" className={isCurrentServiceFree ? "text-muted-foreground" : ""}>
-                    Valor Personalizado (R$)
-                  </Label>
-                  <Input 
-                    id="amount" 
-                    type="number" 
-                    placeholder="150.00" 
-                    value={isCurrentServiceFree ? '0' : newAmount}
-                    onChange={(e) => setNewAmount(e.target.value)}
-                    disabled={isCurrentServiceFree}
-                  />
+
+              {selectedServices.length > 0 && (
+                <div className="bg-muted/30 border rounded-lg p-3 space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Itens do Pacote</div>
+                  {selectedServices.map(s => (
+                    <div key={s.id} className="flex items-center justify-between bg-background border rounded-md p-2 text-sm">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="truncate font-medium">{s.name}</span>
+                        {s.is_free && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Grátis</span>}
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={s.is_free ? 'text-muted-foreground line-through' : 'font-medium'}>
+                          {formatCurrency(s.price)}
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => removeService(s.id)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="border-t pt-2 mt-2 space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    
+                    {!isTotalFree && (
+                      <div className="flex justify-between items-center text-sm gap-4">
+                        <span className="text-muted-foreground">Desconto (R$)</span>
+                        <Input 
+                          type="number" 
+                          placeholder="0.00" 
+                          value={discount} 
+                          onChange={(e) => setDiscount(e.target.value)}
+                          className="h-7 w-24 text-right"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between font-bold pt-1">
+                      <span>Total</span>
+                      <span className={isTotalFree ? "text-emerald-600" : ""}>
+                        {isTotalFree ? 'Grátis' : formatCurrency(finalAmount)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label className={isCurrentServiceFree ? "text-muted-foreground" : ""}>Método Preferido</Label>
-                  <Select value={isCurrentServiceFree ? 'free' : newMethod} onValueChange={setNewMethod} disabled={isCurrentServiceFree}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isCurrentServiceFree ? (
-                        <SelectItem value="free">Isento / Gratuito</SelectItem>
-                      ) : (
-                        <>
-                          <SelectItem value="pix">PIX</SelectItem>
-                          <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                          <SelectItem value="boleto">Boleto</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+              )}
+
+              <div className="grid gap-2">
+                <Label className={isTotalFree ? "text-muted-foreground" : ""}>Método Preferido</Label>
+                <Select value={isTotalFree ? 'free' : newMethod} onValueChange={setNewMethod} disabled={isTotalFree}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isTotalFree ? (
+                      <SelectItem value="free">Isento / Gratuito</SelectItem>
+                    ) : (
+                      <>
+                        <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                        <SelectItem value="boleto">Boleto</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
+
               <div className="flex items-center gap-2 mt-2">
                 <input 
                   type="checkbox" 
@@ -383,14 +422,14 @@ export default function FinancePage() {
                 />
                 <Label htmlFor="sendEmail" className="font-normal flex items-center gap-2">
                   <Send className="h-3 w-3" />
-                  {isCurrentServiceFree ? "Enviar confirmação por E-mail" : "Enviar link de pagamento por E-mail"}
+                  {isTotalFree ? "Enviar confirmação por E-mail" : "Enviar link de pagamento por E-mail"}
                 </Label>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateInvoice} disabled={isCreating}>
-                {isCreating ? 'Processando...' : (isCurrentServiceFree ? 'Confirmar Agendamento' : 'Gerar Link')}
+              <Button onClick={handleCreateInvoice} disabled={isCreating} className="bg-[#8cc63f] hover:bg-[#7ab331] text-white">
+                {isCreating ? 'Processando...' : (isTotalFree ? 'Confirmar Agendamento' : 'Gerar Link')}
               </Button>
             </DialogFooter>
           </DialogContent>
