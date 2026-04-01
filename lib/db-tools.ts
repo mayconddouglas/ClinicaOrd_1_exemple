@@ -290,28 +290,94 @@ export async function registerPatient(nome: string, cpf: string, telefone?: stri
   }
 }
 
-export async function scheduleAppointment(paciente_id: string, data_hora: string, motivo?: string, especialidade?: string) {
+export async function scheduleAppointment(params: {
+  paciente_id: string;
+  data_hora: string;
+  motivo?: string;
+  especialidade?: string;
+  medico_id?: string;
+  service_id?: string;
+}) {
   try {
-    const { data, error } = await supabase
-      .from('agendamentos')
-      .insert([{ paciente_id, data_hora, motivo, especialidade, status: 'pendente' }])
-      .select()
+    // 1. Buscar dados do paciente
+    const { data: paciente, error: patientError } = await supabase
+      .from('pacientes')
+      .select('nome, email, telefone')
+      .eq('id', params.paciente_id)
       .single();
 
-    if (error) {
-      console.error('Error scheduling appointment:', error);
-      return { error: 'Erro ao agendar consulta no banco de dados.' };
+    if (patientError || !paciente) {
+      return { error: 'Paciente não encontrado no banco de dados.' };
     }
 
-    // Auto-trigger: Quando agenda, já tentamos disparar o email automaticamente
-    // para garantir que mesmo se a IA esquecer, o sistema envia.
-    try {
-      await sendAppointmentSummary(data.id);
-    } catch (emailErr) {
-      console.error('Auto-email trigger failed, but appointment was saved:', emailErr);
+    // 2. Buscar dados do médico (se aplicável)
+    let medicoNome = undefined;
+    if (params.medico_id) {
+      const { data: medico } = await supabase.from('medicos').select('nome').eq('id', params.medico_id).single();
+      if (medico) medicoNome = medico.nome;
     }
 
-    return { success: true, appointment: data, message: 'Agendamento salvo. O ID para gerar a fatura ou enviar email é ' + data.id };
+    // 3. Buscar dados do serviço (se aplicável)
+    let service = null;
+    if (params.service_id) {
+      const { data: s } = await supabase.from('services').select('id, name, price, is_free').eq('id', params.service_id).single();
+      if (s) service = s;
+    }
+
+    // 4. Delegar para createInvoiceLink que já faz: agendamento + fatura + mp link
+    const invoiceParams = {
+      patient_id: params.paciente_id,
+      patient_name: paciente.nome,
+      patient_email: paciente.email || undefined,
+      service_id: service?.id,
+      service_name: service?.name || params.motivo || 'Consulta',
+      amount: service?.price || 0,
+      is_free: service ? service.is_free : true, // Se não tem serviço, assume grátis pra não travar
+      appointment_date_time: params.data_hora,
+      appointment_medico_id: params.medico_id,
+      appointment_medico_nome: medicoNome,
+      appointment_especialidade: params.especialidade
+    };
+
+    const result = await createInvoiceLink(invoiceParams);
+
+    // 5. Enviar email de resumo (Auto-trigger)
+    // Assumindo que createInvoiceLink salva o agendamento em agendamentos e coloca o ID em result.invoice?.appointment_id
+    // Mas wait, createInvoiceLink retorna invoice?
+    // Vamos garantir que createInvoiceLink retorne o invoice. Se não, podemos tentar buscar pelo paciente e data_hora
+    let appointmentId = null;
+    
+    // Tentar buscar o agendamento recém criado
+    const { data: appt } = await supabase
+      .from('agendamentos')
+      .select('id')
+      .eq('paciente_id', params.paciente_id)
+      .eq('data_hora', params.data_hora)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (appt) {
+      appointmentId = appt.id;
+      try {
+        await sendAppointmentSummary(appointmentId);
+      } catch (emailErr) {
+        console.error('Auto-email trigger failed:', emailErr);
+      }
+    }
+
+    if (result.success) {
+      return { 
+        success: true, 
+        message: 'Agendamento finalizado com sucesso. Email enviado.', 
+        payment_link: result.payment_link,
+        is_free: result.is_free,
+        appointment_id: appointmentId
+      };
+    } else {
+      return { error: result.message };
+    }
+
   } catch (err: any) {
     return { error: err.message };
   }

@@ -30,13 +30,13 @@ import {
 export const PATIENT_TOOLS_NAMES = [
   'checkPatientRegistration', 'registerPatient', 'scheduleAppointment', 'saveTriage',
   'searchLearnedAnswers', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments',
-  'cancelAppointment', 'rescheduleAppointment', 'sendAppointmentSummary', 'getAvailableDoctors',
-  'getDoctorsBySpecialty', 'getClinicServices', 'createInvoiceLink', 'escalateToHuman', 'registerPatientAlert'
+  'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
+  'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
   ...PATIENT_TOOLS_NAMES,
-  'getFinancialMetrics', 'getAppointmentsMetrics', 'blockDoctorAgenda', 'cancelPendingInvoices', 'saveLearnedAnswer'
+  'createInvoiceLink', 'sendAppointmentSummary', 'getFinancialMetrics', 'getAppointmentsMetrics', 'blockDoctorAgenda', 'cancelPendingInvoices', 'saveLearnedAnswer'
 ];
 
 export async function getUniversalPatientPrompt() {
@@ -80,11 +80,11 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
 4. Após ele escolher o horário, peça o CPF para verificar o cadastro ('checkPatientRegistration').
 5. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient').
 6. PROIBIÇÃO ABSOLUTA DE UPSELL: Agende APENAS o que foi pedido. Não ofereça pacotes ou serviços não solicitados.
-7. Use 'getClinicServices' para descobrir o preço do serviço exato solicitado.
-8. FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Não termine a conversa sem fazer isso):
-   A) Use 'scheduleAppointment' para salvar a consulta no banco de dados.
-   B) Se o serviço for PAGO (is_free: false), use OBRIGATORIAMENTE 'createInvoiceLink' passando o valor e os dados.
-   C) Responda ao paciente confirmando o sucesso do agendamento. SE FOR PAGO, você DEVE enviar o link do Mercado Pago (gerado no passo B) na mensagem final pedindo para ele realizar o pagamento para garantir a vaga.
+7. Use 'getClinicServices' para descobrir o ID e o preço do serviço exato solicitado.
+8. FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Tudo em um único passo):
+   Use a ferramenta 'scheduleAppointment' enviando todos os dados: paciente_id, data_hora, medico_id e service_id.
+   Essa ferramenta JÁ FAZ TUDO: agenda, gera o link de cobrança do Mercado Pago e envia o email.
+   Após a ferramenta retornar o sucesso, responda ao paciente confirmando o agendamento. Se a ferramenta retornar um 'payment_link', você DEVE OBRIGATORIAMENTE enviar esse link na sua resposta final pedindo para ele realizar o pagamento para garantir a vaga.
    
 === WORKFLOW 4: PÓS-CONSULTA ===
 - Se o paciente relatar piora ou dúvidas urgentes após um procedimento, use 'registerPatientAlert' para notificar os médicos e avise o paciente que a equipe já foi alertada.`;
@@ -151,7 +151,7 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'scheduleAppointment',
-      description: 'Agenda uma nova consulta para um paciente já cadastrado.',
+      description: 'FINALIZA O AGENDAMENTO: Salva a consulta no banco de dados, gera a fatura de cobrança se for pago e envia o email de confirmação em um único passo.',
       parameters: {
         type: 'object',
         properties: {
@@ -159,6 +159,8 @@ export const toolDeclarations = [
           data_hora: { type: 'string', description: 'Data e hora no formato ISO 8601.' },
           motivo: { type: 'string', description: 'Motivo da consulta.' },
           especialidade: { type: 'string', description: 'Especialidade médica desejada.' },
+          medico_id: { type: 'string', description: 'O ID (UUID) do médico escolhido (opcional, mas recomendado).' },
+          service_id: { type: 'string', description: 'O ID (UUID) do serviço escolhido para buscar o preço e gerar cobrança (opcional, mas obrigatório se for pago).' }
         },
         required: ['paciente_id', 'data_hora'],
       },
@@ -468,9 +470,23 @@ export async function executeTool(name: string, args: any): Promise<any> {
         return await registerPatient(validArgs.nome, validArgs.cpf || '', validArgs.telefone, validArgs.email, validArgs.data_nascimento);
       }
       case 'scheduleAppointment': {
-        const schema = z.object({ paciente_id: z.string(), data_hora: z.string(), motivo: z.string().optional(), especialidade: z.string().optional() });
+        const schema = z.object({
+          paciente_id: z.string(),
+          data_hora: z.string(),
+          motivo: z.string().optional(),
+          especialidade: z.string().optional(),
+          medico_id: z.string().optional(),
+          service_id: z.string().optional()
+        });
         const validArgs = schema.parse(args);
-        return await scheduleAppointment(validArgs.paciente_id, validArgs.data_hora, validArgs.motivo, validArgs.especialidade);
+        return await scheduleAppointment({
+          paciente_id: validArgs.paciente_id,
+          data_hora: validArgs.data_hora,
+          motivo: validArgs.motivo,
+          especialidade: validArgs.especialidade,
+          medico_id: validArgs.medico_id,
+          service_id: validArgs.service_id
+        });
       }
       case 'saveTriage': {
         const schema = z.object({ paciente_id: z.string(), pain_scale: z.number(), symptoms: z.string(), red_flags: z.string().optional(), urgency_classification: z.string().optional() });
