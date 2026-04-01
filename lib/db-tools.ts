@@ -621,6 +621,20 @@ export async function getAvailableSlots(dateStr: string) {
     const date = new Date(year, month - 1, day);
     
     if (isNaN(date.getTime())) return { error: 'Data inválida. Use o formato YYYY-MM-DD.' };
+
+    // Bloqueio de segurança: A IA não pode consultar datas no passado
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date.getTime() < today.getTime()) {
+      return { error: 'Não é possível agendar em datas passadas. Por favor, escolha uma data a partir de hoje.' };
+    }
+
+    // Bloqueio de segurança: Evita que a IA consulte 3 anos no futuro aleatoriamente
+    const maxFutureDate = new Date();
+    maxFutureDate.setMonth(maxFutureDate.getMonth() + 3); // Máximo de 3 meses no futuro
+    if (date.getTime() > maxFutureDate.getTime()) {
+       return { error: 'A agenda só está aberta para os próximos 3 meses.' };
+    }
     
     const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
 
