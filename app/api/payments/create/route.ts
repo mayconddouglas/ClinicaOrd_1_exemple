@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
       if (appointmentError) {
         console.error('Error creating appointment:', appointmentError);
-        return NextResponse.json({ error: 'Erro ao reservar horário.' }, { status: 500 });
+        return NextResponse.json({ error: `Erro ao reservar horário: ${appointmentError.message}` }, { status: 500 });
       }
 
       appointmentId = appointment.id;
