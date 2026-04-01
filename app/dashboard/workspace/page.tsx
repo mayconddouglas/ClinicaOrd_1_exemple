@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Calendar, Eye, EyeOff, Key, Save, Plug, Loader2, CheckCircle2, UploadCloud, Info, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +39,43 @@ export default function WorkspacePage() {
   const [isTestingCalendar, setIsTestingCalendar] = useState(false);
   const [calendarTestSuccess, setCalendarTestSuccess] = useState(false);
 
+  const [integrationId, setIntegrationId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   // Dialog State
   const [integrationToDisable, setIntegrationToDisable] = useState<'gmail' | 'calendar' | null>(null);
+
+  useEffect(() => {
+    const fetchIntegrations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('workspace_integrations')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching integrations:', error);
+          return;
+        }
+
+        if (data) {
+          setIntegrationId(data.id);
+          setIsGmailActive(data.is_gmail_active || false);
+          setGmailEmail(data.gmail_email || '');
+          setGmailAppPassword(data.gmail_app_password || '');
+          
+          setIsCalendarActive(data.is_calendar_active || false);
+          setCalendarId(data.calendar_id || '');
+          setCalendarJson(data.calendar_json || '');
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      }
+    };
+
+    fetchIntegrations();
+  }, []);
 
   const handleToggle = (type: 'gmail' | 'calendar', checked: boolean) => {
     if (!checked) {
@@ -66,23 +102,41 @@ export default function WorkspacePage() {
         return;
       }
       setIsTestingGmail(true);
+
+      try {
+        const response = await fetch('/api/email/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: gmailEmail, // Envia para o próprio e-mail da clínica para testar
+            email: gmailEmail,
+            appPassword: gmailAppPassword
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro desconhecido');
+        }
+
+        setIsTestingGmail(false);
+        setGmailTestSuccess(true);
+        toast.success('Conexão com Gmail bem-sucedida! Verifique sua caixa de entrada.');
+        setTimeout(() => setGmailTestSuccess(false), 4000);
+      } catch (error: any) {
+        setIsTestingGmail(false);
+        toast.error(`Falha na conexão: ${error.message}`);
+      }
+
     } else {
       if (!calendarJson || !calendarId) {
         toast.error('Preencha a chave JSON e o ID do Calendário para testar.');
         return;
       }
       setIsTestingCalendar(true);
-    }
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    if (type === 'gmail') {
-      setIsTestingGmail(false);
-      setGmailTestSuccess(true);
-      toast.success('Conexão com Gmail estabelecida com sucesso!');
-      setTimeout(() => setGmailTestSuccess(false), 3000);
-    } else {
+      // Simulate API call for calendar
+      await new Promise(resolve => setTimeout(resolve, 1500));
       setIsTestingCalendar(false);
       setCalendarTestSuccess(true);
       toast.success('Conexão com Google Calendar estabelecida com sucesso!');
@@ -109,8 +163,46 @@ export default function WorkspacePage() {
     reader.readAsText(file);
   };
 
-  const handleSave = () => {
-    toast.success('Configurações salvas com sucesso!');
+  const handleSave = async () => {
+    setIsSaving(true);
+    
+    const payload = {
+      is_gmail_active: isGmailActive,
+      gmail_email: gmailEmail,
+      gmail_app_password: gmailAppPassword,
+      is_calendar_active: isCalendarActive,
+      calendar_id: calendarId,
+      calendar_json: calendarJson,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      let error;
+      
+      if (integrationId) {
+        const { error: updateError } = await supabase
+          .from('workspace_integrations')
+          .update(payload)
+          .eq('id', integrationId);
+        error = updateError;
+      } else {
+        const { data, error: insertError } = await supabase
+          .from('workspace_integrations')
+          .insert([payload])
+          .select()
+          .single();
+        if (data) setIntegrationId(data.id);
+        error = insertError;
+      }
+
+      if (error) throw error;
+      toast.success('Configurações salvas com sucesso no banco de dados!');
+    } catch (error) {
+      console.error('Error saving integrations:', error);
+      toast.error('Erro ao salvar as configurações.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

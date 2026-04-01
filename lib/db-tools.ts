@@ -62,11 +62,17 @@ export async function checkPatientRegistration(cpf?: string, nome?: string, tele
   }
 }
 
-export async function registerPatient(nome: string, cpf: string, telefone?: string, data_nascimento?: string) {
+export async function registerPatient(nome: string, cpf: string, telefone?: string, email?: string, data_nascimento?: string) {
   try {
     const { data, error } = await supabase
       .from('pacientes')
-      .insert([{ nome, cpf, telefone, data_nascimento }])
+      .insert([{ 
+        nome, 
+        cpf, 
+        telefone, 
+        email,
+        data_nascimento 
+      }])
       .select()
       .single();
 

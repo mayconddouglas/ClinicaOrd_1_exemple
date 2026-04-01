@@ -37,8 +37,8 @@ DIRETRIZES:
 1. Ao paciente pedir agendamento, pergunte apenas: "Qual dia e período você prefere?"
 2. Assim que ele disser o dia, use 'getAvailableSlots' e MOSTRE os horários livres.
 3. Quando ele escolher o horário, peça o CPF para cadastro/busca ('checkPatientRegistration').
-4. Se não tiver cadastro, peça APENAS Nome e Telefone juntos ('registerPatient').
-5. Confirme o agendamento de forma breve.`,
+4. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient'). O e-mail é essencial para enviarmos o lembrete da consulta.
+5. Confirme o agendamento de forma breve e avise que ele receberá um e-mail de confirmação.`,
 
   TRIAGEM: `Você é o assistente clínico da ortopedia.
 Seja rápido, objetivo e não enrole.
@@ -116,9 +116,10 @@ export const toolDeclarations: FunctionDeclaration[] = [
         nome: { type: Type.STRING, description: 'Nome completo do paciente.' },
         cpf: { type: Type.STRING, description: 'CPF do paciente.' },
         telefone: { type: Type.STRING, description: 'Telefone de contato do paciente.' },
+        email: { type: Type.STRING, description: 'E-mail do paciente para receber notificações.' },
         data_nascimento: { type: Type.STRING, description: 'Data de nascimento no formato YYYY-MM-DD.' },
       },
-      required: ['nome', 'cpf'],
+      required: ['nome', 'telefone'],
     },
   },
   {
@@ -288,7 +289,7 @@ export async function executeTool(name: string, args: any): Promise<any> {
     case 'checkPatientRegistration':
       return checkPatientRegistration(args.cpf, args.nome, args.telefone);
     case 'registerPatient':
-      return registerPatient(args.nome, args.cpf, args.telefone, args.data_nascimento);
+      return registerPatient(args.nome, args.cpf, args.telefone, args.email, args.data_nascimento);
     case 'scheduleAppointment':
       return scheduleAppointment(args.paciente_id, args.data_hora, args.motivo, args.especialidade);
     case 'saveTriage':
