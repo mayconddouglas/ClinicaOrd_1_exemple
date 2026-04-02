@@ -90,7 +90,10 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
 2. Use 'getDoctorsBySpecialty' ou 'getAvailableDoctors' para encontrar o profissional.
    - Se o médico pedido estiver com (disponivel: false), avise que a agenda dele está fechada e ofereça outro.
    - Se não houver a especialidade pedida, liste os profissionais reais que TEMOS disponíveis.
-3. Mostre os horários disponíveis usando 'getAvailableSlots' (use a data de HOJE como referência, nunca datas passadas).
+3. Mostre os horários disponíveis usando 'getAvailableSlots' (use a data de HOJE como referência).
+   - IMPORTANTE: Antes de listar os horários, pergunte ao paciente: "Você prefere pela manhã ou à tarde?".
+   - Use a ferramenta 'getAvailableSlots' enviando a data E o parâmetro 'period' (manha, tarde ou noite) para receber uma lista filtrada.
+   - A ferramenta retornará no máximo 4 opções ideais. Apresente-as em um menu numerado curto.
 4. Após ele escolher o horário, peça o CPF para verificar o cadastro ('checkPatientRegistration').
 5. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient').
 6. PROIBIÇÃO ABSOLUTA DE UPSELL DE SERVIÇOS NÃO SOLICITADOS. Apenas guie-o para a avaliação ou para o serviço exato que ele deseja.
@@ -233,11 +236,12 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'getAvailableSlots',
-      description: 'Busca todos os horários disponíveis em uma data específica.',
+      description: 'Busca horários disponíveis em uma data específica. Se o paciente disser manhã, tarde ou noite, passe o parâmetro period.',
       parameters: {
         type: 'object',
         properties: {
           date: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
+          period: { type: 'string', description: 'Turno desejado: manha, tarde ou noite.', enum: ['manha', 'tarde', 'noite'] }
         },
         required: ['date'],
       },
@@ -535,9 +539,9 @@ export async function executeTool(name: string, args: any): Promise<any> {
         return await checkAvailability(validArgs.data_hora);
       }
       case 'getAvailableSlots': {
-        const schema = z.object({ date: z.string() });
+        const schema = z.object({ date: z.string(), period: z.enum(['manha', 'tarde', 'noite']).optional() });
         const validArgs = schema.parse(args);
-        return await getAvailableSlots(validArgs.date);
+        return await getAvailableSlots(validArgs.date, validArgs.period);
       }
       case 'getPatientAppointments': {
         const schema = z.object({ paciente_id: z.string() });

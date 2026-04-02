@@ -738,7 +738,7 @@ export async function registerPatientAlert(paciente_id: string, message: string,
   }
 }
 
-export async function getAvailableSlots(dateStr: string) {
+export async function getAvailableSlots(dateStr: string, period?: 'manha' | 'tarde' | 'noite') {
   try {
     // 1. Parse date and get day of week safely (avoid timezone shift)
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -904,13 +904,48 @@ export async function getAvailableSlots(dateStr: string) {
       currentSlot = new Date(currentSlot.getTime() + slotDurationMs);
     }
 
-    return { 
-      success: true, 
+    let filteredSlots = availableSlots;
+    let fallbackMessage = '';
+
+    if (period) {
+      const isManha = (time: string) => { const h = parseInt(time.split(':')[0]); return h < 12; };
+      const isTarde = (time: string) => { const h = parseInt(time.split(':')[0]); return h >= 12 && h < 18; };
+      const isNoite = (time: string) => { const h = parseInt(time.split(':')[0]); return h >= 18; };
+
+      let condition = isManha;
+      if (period === 'tarde') condition = isTarde;
+      if (period === 'noite') condition = isNoite;
+
+      const exactMatches = availableSlots.filter(condition);
+
+      if (exactMatches.length > 0) {
+        filteredSlots = exactMatches;
+      } else if (availableSlots.length > 0) {
+        // Fallback: não achou no turno, mas achou em outros turnos
+        filteredSlots = availableSlots;
+        fallbackMessage = `Não há horários disponíveis no período da ${period}, mas encontrei estas alternativas:`;
+      }
+    }
+
+    // Limit to 4 options to avoid overwhelming the user
+    const limit = 4;
+    const hasMore = filteredSlots.length > limit;
+    filteredSlots = filteredSlots.slice(0, limit);
+
+    let finalMessage = fallbackMessage || (filteredSlots.length > 0 
+      ? `Encontrei ${filteredSlots.length} horários ideais para você.` 
+      : 'Nenhum horário disponível para esta data.');
+
+    if (hasMore) {
+      finalMessage += ' (Existem mais horários disponíveis se nenhum destes servir)';
+    }
+
+    return {
+      success: true,
       date: dateStr.split('T')[0],
-      availableSlots,
-      message: availableSlots.length > 0 
-        ? `Encontrados ${availableSlots.length} horários disponíveis.` 
-        : 'Nenhum horário disponível para esta data.'
+      period_requested: period || 'qualquer',
+      availableSlots: filteredSlots,
+      message: finalMessage
     };
 
   } catch (err: any) {
