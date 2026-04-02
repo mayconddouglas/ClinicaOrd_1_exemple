@@ -496,6 +496,8 @@ export async function scheduleReturnAlert(paciente_id: string, days_from_now: nu
     return { error: err.message };
   }
 }
+
+export async function saveTriage(paciente_id: string, pain_scale: number, symptoms: string, red_flags?: string, urgency_classification?: string) {
   try {
     const { data, error } = await supabase
       .from('triages')
