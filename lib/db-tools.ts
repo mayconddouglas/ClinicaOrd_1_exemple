@@ -262,6 +262,40 @@ export async function sendClinicLocation() {
   }
 }
 
+export async function getPatientContext(telefone: string) {
+  try {
+    // 1. Encontra o paciente pelo telefone (ignorando formatação especial se possível)
+    const cleanPhone = telefone.replace(/\D/g, '');
+    const { data: pacientes, error: patientError } = await supabase
+      .from('pacientes')
+      .select('*')
+      .ilike('telefone', `%${cleanPhone.slice(-8)}%`) // Busca pelos últimos 8 digitos
+      .limit(1);
+
+    if (patientError || !pacientes || pacientes.length === 0) {
+      return null;
+    }
+
+    const paciente = pacientes[0];
+
+    // 2. Busca a última consulta dele (se houver) para contexto
+    const { data: appointments } = await supabase
+      .from('agendamentos')
+      .select('*, medicos(nome, especialidade)')
+      .eq('paciente_id', paciente.id)
+      .order('data_hora', { ascending: false })
+      .limit(1);
+
+    return {
+      paciente,
+      ultima_consulta: appointments && appointments.length > 0 ? appointments[0] : null
+    };
+  } catch (err) {
+    console.error('Erro ao buscar contexto do paciente:', err);
+    return null;
+  }
+}
+
 export async function checkPatientRegistration(cpf?: string, nome?: string, telefone?: string) {
   try {
     let query = supabase.from('pacientes').select('*');

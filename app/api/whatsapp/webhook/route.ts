@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSetting, getWhatsappHistory, appendChatMessages } from '@/lib/db-tools';
+import { getSetting, getWhatsappHistory, appendChatMessages, getPatientContext } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
   getUniversalPatientPrompt,
@@ -113,8 +113,11 @@ export async function POST(req: NextRequest) {
     const history = await getWhatsappHistory(senderPhone);
     await logStep('HISTORY_LOADED', { historyLength: history.length });
 
+    // 2.5 Get Patient Context (Caller ID)
+    const patientContext = await getPatientContext(senderPhone);
+
     // 3. Universal Agent Logic
-    const AGENT_INSTRUCTION = await getUniversalPatientPrompt();
+    const AGENT_INSTRUCTION = await getUniversalPatientPrompt(patientContext);
     const agentTools = toolDeclarations.filter(t => t.function?.name && PATIENT_TOOLS_NAMES.includes(t.function.name));
 
     const openai = getOpenAI();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSetting, getTelegramHistory, appendChatMessages } from '@/lib/db-tools';
+import { getSetting, getTelegramHistory, appendChatMessages, getPatientContext } from '@/lib/db-tools';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
   getUniversalPatientPrompt,
@@ -110,9 +110,15 @@ export async function POST(req: NextRequest) {
     const history = await getTelegramHistory(chatId.toString());
     await logStep('HISTORY_LOADED', { historyLength: history.length });
 
+    // 2.5 Get Patient Context (Caller ID) - Try to get phone from contact if available
+    let patientContext = null;
+    if (message.contact && message.contact.phone_number) {
+      patientContext = await getPatientContext(message.contact.phone_number);
+    }
+
     // 3. Agent Logic
     const openai = getOpenAI();
-    const AGENT_INSTRUCTION = await getUniversalPatientPrompt();
+    const AGENT_INSTRUCTION = await getUniversalPatientPrompt(patientContext);
     const agentTools = toolDeclarations.filter(t => t.function?.name && PATIENT_TOOLS_NAMES.includes(t.function.name));
 
     // Converter histórico

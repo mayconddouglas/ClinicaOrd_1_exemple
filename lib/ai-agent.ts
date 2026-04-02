@@ -44,18 +44,38 @@ export const ADMIN_TOOLS_NAMES = [
   'createInvoiceLink', 'sendAppointmentSummary', 'getFinancialMetrics', 'getAppointmentsMetrics', 'blockDoctorAgenda', 'cancelPendingInvoices', 'saveLearnedAnswer'
 ];
 
-export async function getUniversalPatientPrompt() {
+export async function getUniversalPatientPrompt(patientContext?: any) {
   const settings = await getClinicSettings();
   const clinicName = settings?.clinic_name || 'Clínica de Ortopedia';
   const welcomeMessage = settings?.welcome_message || 'Olá! Como posso ajudar?';
-  
+
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', dateStyle: 'full', timeStyle: 'short' };
   const brDateTime = new Intl.DateTimeFormat('pt-BR', options).format(now);
   const brDateIso = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo' }).format(now);
 
+  let callerIdContext = '';
+  if (patientContext && patientContext.paciente) {
+    callerIdContext = `\n=== INFORMAÇÕES DO PACIENTE (CALLER ID) ===
+Você já reconheceu este paciente pelo número de telefone! Use isso para dar uma saudação hiper-personalizada.
+- Nome: ${patientContext.paciente.nome}
+- ID do Paciente: ${patientContext.paciente.id}
+`;
+    if (patientContext.ultima_consulta) {
+      const ultima = patientContext.ultima_consulta;
+      callerIdContext += `- Última Consulta: ${ultima.data_hora} com Dr(a). ${ultima.medicos?.nome} (Especialidade: ${ultima.medicos?.especialidade})\n`;
+      callerIdContext += `Se for a primeira mensagem do dia, surpreenda o paciente chamando-o pelo nome e, se fizer sentido, pergunte se o contato é referente ao acompanhamento da última consulta ou uma nova queixa.`;
+    } else {
+      callerIdContext += `Se for a primeira mensagem do dia, surpreenda o paciente chamando-o pelo nome e agradeça por escolher a ${clinicName}.`;
+    }
+  } else {
+    callerIdContext = `\n=== INFORMAÇÕES DO PACIENTE ===
+Paciente novo ou não reconhecido pelo número. Seja educado, apresente-se como assistente da clínica e pergunte o nome dele para iniciar o atendimento.`;
+  }
+
   return `Você é o assistente virtual principal e recepcionista da ${clinicName}.
 HOJE É: ${brDateTime} (Data ISO atual: ${brDateIso}).
+${callerIdContext}
 
 Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendamento) de forma fluida, educada e contínua. Você NUNCA perde o contexto da conversa. Se o paciente perguntar algo no meio de um agendamento, responda a dúvida e volte a pedir o dado que faltava.
 

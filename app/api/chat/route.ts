@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getPatientContext } from '../../../lib/db-tools';
 import {
   getUniversalPatientPrompt,
   PATIENT_TOOLS_NAMES,
@@ -35,7 +36,11 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    const AGENT_INSTRUCTION = await getUniversalPatientPrompt();
+    // Simulando um telefone para o chat web se possível, ou deixando null
+    const simulatedPhone = "5511999999999"; // TODO: Pegar o telefone real se o paciente estiver logado no futuro
+    const patientContext = await getPatientContext(simulatedPhone);
+
+    const AGENT_INSTRUCTION = await getUniversalPatientPrompt(patientContext);
     const agentTools = toolDeclarations.filter(t => t.function?.name && PATIENT_TOOLS_NAMES.includes(t.function.name));
 
     // Converter histórico para o formato OpenAI
