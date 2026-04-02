@@ -110,8 +110,8 @@ export async function POST(request: Request) {
                   serviceName: invoiceData.description,
                   amount: Number(paymentInfo.transaction_amount),
                   items: invoiceData.items,
-                  appointmentDate: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[0] : undefined,
-                  appointmentTime: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[1].substring(0, 5) : undefined,
+                  appointmentDate: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short' }).format(new Date(String((invoiceData.agendamentos as any).data_hora))) : undefined,
+                  appointmentTime: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', timeStyle: 'short' }).format(new Date(String((invoiceData.agendamentos as any).data_hora))) : undefined,
                   appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos)
                     ? ((invoiceData.agendamentos as any).medicos?.nome
                         ? `Dr(a). ${(invoiceData.agendamentos as any).medicos.nome} (${(invoiceData.agendamentos as any).especialidade})`

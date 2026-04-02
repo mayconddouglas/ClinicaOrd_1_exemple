@@ -1134,12 +1134,14 @@ export async function sendAppointmentSummary(appointment_id: string) {
             },
           });
 
+          const dataHoraBR = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(data.data_hora));
+
           const mailOptions = {
             from: `"${clinicName}" <${smtpUser}>`,
             to: paciente.email,
             subject: 'Confirmação de Agendamento - ' + clinicName,
-            text: `Olá ${paciente.nome},\n\nSua consulta está confirmada para ${new Date(data.data_hora).toLocaleString('pt-BR')}.\nEspecialidade: ${data.especialidade || 'Não informada'}\n\nObrigado!`,
-            html: `<p>Olá <strong>${paciente.nome}</strong>,</p><p>Sua consulta está confirmada para <strong>${new Date(data.data_hora).toLocaleString('pt-BR')}</strong>.</p><p>Especialidade: ${data.especialidade || 'Não informada'}</p><br/><p>Obrigado, equipe ${clinicName}!</p>`
+            text: `Olá ${paciente.nome},\n\nSua consulta está confirmada para ${dataHoraBR}.\nEspecialidade: ${data.especialidade || 'Não informada'}\n\nObrigado!`,
+            html: `<p>Olá <strong>${paciente.nome}</strong>,</p><p>Sua consulta está confirmada para <strong>${dataHoraBR}</strong>.</p><p>Especialidade: ${data.especialidade || 'Não informada'}</p><br/><p>Obrigado, equipe ${clinicName}!</p>`
           };
 
           await transporter.sendMail(mailOptions);
