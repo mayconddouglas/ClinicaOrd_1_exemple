@@ -29,7 +29,7 @@ const INITIAL_MESSAGE: Message = {
 const SUGGESTED_PROMPTS = [
   { icon: Activity, text: "Resuma as triagens urgentes de hoje" },
   { icon: Zap, text: "Quais médicos estão disponíveis agora?" },
-  { icon: ArrowRight, text: "Mostre as consultas pendentes" },
+  { icon: ArrowRight, text: "Gere atestado para uma consulta" },
 ];
 
 const TypingIndicator = () => (

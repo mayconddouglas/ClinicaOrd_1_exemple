@@ -26,6 +26,7 @@ import {
   sendClinicLocation,
   savePatientFeedback,
   scheduleReturnAlert,
+  generateAttendanceCertificate,
 } from './db-tools';
 
 // === NOVA ARQUITETURA ENTERPRISE: AGENTE UNIVERSAL ===
@@ -35,7 +36,7 @@ export const PATIENT_TOOLS_NAMES = [
   'searchLearnedAnswers', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments',
   'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
   'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert',
-  'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert'
+  'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert', 'generateAttendanceCertificate'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
@@ -120,7 +121,13 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
   2. Use a ferramenta 'savePatientFeedback' com a nota fornecida. Repasse a mensagem gerada pela ferramenta para o paciente (se a nota for 9 ou 10, peça avaliação no Google).
   3. Pergunte: "O Doutor pediu para você retornar ou mostrar algum exame daqui a alguns dias?"
   4. Se sim, use 'scheduleReturnAlert' passando a quantidade de dias (ex: 15) e o motivo. Diga ao paciente que você mesma entrará em contato para lembrá-lo.
-- Se o paciente relatar piora ou dúvidas urgentes após um procedimento, use 'registerPatientAlert' para notificar os médicos e avise o paciente que a equipe já foi alertada.`;
+- Se o paciente relatar piora ou dúvidas urgentes após um procedimento, use 'registerPatientAlert' para notificar os médicos e avise o paciente que a equipe já foi alertada.
+
+=== WORKFLOW 7: EMISSÃO DE DOCUMENTOS ===
+- Se o paciente pedir um **atestado** ou **declaração de comparecimento** (para o trabalho, escola, etc.):
+  1. Use 'getPatientAppointments' para encontrar a consulta realizada do paciente.
+  2. Use a ferramenta 'generateAttendanceCertificate' passando o ID dessa consulta.
+  3. A ferramenta retornará a declaração formatada. Entregue essa declaração diretamente no chat para o paciente. Diga que ele pode imprimir ou salvar em PDF.`;
 }
 
 export async function getAdminPrompt() {
@@ -137,6 +144,7 @@ Ferramentas exclusivas:
 - blockDoctorAgenda: Bloquear agendas de médicos e cancelar consultas em massa.
 - cancelPendingInvoices: Limpar faturas não pagas antigas.
 - saveLearnedAnswer: Salvar novas respostas de FAQ.
+- generateAttendanceCertificate: Gerar atestados/declarações de comparecimento para pacientes.
 Você também tem acesso a todas as ferramentas de pacientes (agendar, gerar links, etc).
 
 Regras:
@@ -390,6 +398,24 @@ export const toolDeclarations = [
       },
     }
   },
+  {
+    type: 'function',
+    function: {
+      name: 'generateAttendanceCertificate',
+      description: 'Gera uma declaração de comparecimento formatada em Markdown para um paciente que compareceu à clínica.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'O ID (UUID) da consulta que foi realizada pelo paciente.' },
+        },
+        required: ['appointment_id'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendClinicLocation',
       description: 'Envia o endereço completo e o link do Google Maps da clínica para ajudar o paciente a chegar.',
       parameters: {
         type: 'object',
@@ -624,6 +650,11 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const schema = z.object({ paciente_id: z.string(), days_from_now: z.number(), reason: z.string() });
         const validArgs = schema.parse(args);
         return await scheduleReturnAlert(validArgs.paciente_id, validArgs.days_from_now, validArgs.reason);
+      }
+      case 'generateAttendanceCertificate': {
+        const schema = z.object({ appointment_id: z.string() });
+        const validArgs = schema.parse(args);
+        return await generateAttendanceCertificate(validArgs.appointment_id);
       }
       case 'getClinicServices':
         return await getClinicServices();

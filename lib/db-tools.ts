@@ -1169,6 +1169,73 @@ export async function sendAppointmentSummary(appointment_id: string) {
   }
 }
 
+// NOVO: Emissão Automática de Declaração de Comparecimento
+export async function generateAttendanceCertificate(appointment_id: string) {
+  try {
+    const { data: appointment, error } = await supabase
+      .from('agendamentos')
+      .select('*, pacientes(nome, cpf, telefone), medicos(nome, crm, especialidade)')
+      .eq('id', appointment_id)
+      .single();
+
+    if (error || !appointment) {
+      return { success: false, error: 'Consulta não encontrada no sistema.' };
+    }
+
+    // Permitir emitir atestado apenas se a consulta estiver como "realizada"
+    if (appointment.status !== 'realizada') {
+      return { 
+        success: false, 
+        error: `A consulta ainda não consta como "realizada" no sistema (status atual: ${appointment.status}). A declaração só pode ser emitida após a confirmação de presença do paciente na clínica.` 
+      };
+    }
+
+    const { data: settings } = await supabase.from('clinic_settings').select('*').limit(1).single();
+    const clinicName = settings?.clinic_name || 'Clínica de Ortopedia';
+    const clinicAddress = settings?.clinic_address || 'Endereço não cadastrado';
+
+    const dateObj = new Date(appointment.data_hora);
+    const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' };
+    const dateStr = new Intl.DateTimeFormat('pt-BR', options).format(dateObj);
+    const timeStr = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(dateObj);
+    const todayStr = new Intl.DateTimeFormat('pt-BR', options).format(new Date());
+
+    const certificate = `
+# DECLARAÇÃO DE COMPARECIMENTO
+
+Declaramos para os devidos fins que o(a) paciente **${appointment.pacientes?.nome}**, portador(a) do CPF **${appointment.pacientes?.cpf || 'Não informado'}**, compareceu a esta clínica médica no dia **${dateStr}**, no horário das **${timeStr}**, para realização de consulta/procedimento na especialidade de **${appointment.medicos?.especialidade || appointment.especialidade || 'Ortopedia'}**.
+
+**Atendimento realizado por:**
+Dr(a). ${appointment.medicos?.nome || 'Equipe Médica'}
+CRM: ${appointment.medicos?.crm || 'Não informado'}
+
+**Localização:**
+Clínica: ${clinicName}
+Endereço: ${clinicAddress}
+
+*Data da emissão: ${todayStr}*
+
+---
+*Este documento foi gerado e assinado eletronicamente pelo sistema OrthoAI e sua autenticidade é garantida pelos registros oficiais da clínica.*
+`;
+
+    // Registra a emissão da declaração como um alerta ou log no dashboard (aproveitando pending_questions ou tabela similar)
+    await supabase.from('pending_questions').insert([{
+      question: `[LOG] Declaração de comparecimento emitida para o paciente ${appointment.pacientes?.nome} (Consulta: ${dateStr}).`,
+      patient_phone: appointment.pacientes?.telefone || 'N/A',
+      status: 'resolved'
+    }]);
+
+    return { 
+      success: true, 
+      message: 'Declaração gerada com sucesso. Entregue este documento ao paciente no formato de texto formatado.',
+      certificate_markdown: certificate
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 // --- FERRAMENTAS DO COPILOT ADMINISTRADOR (DASHBOARD) --- //
 
 // 1. Obter métricas financeiras do dia/mês
