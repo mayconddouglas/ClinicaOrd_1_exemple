@@ -50,6 +50,13 @@ export async function getUniversalPatientPrompt(patientContext?: any) {
   const settings = await getClinicSettings();
   const clinicName = settings?.clinic_name || 'Clínica de Ortopedia';
   const welcomeMessage = settings?.welcome_message || 'Olá! Como posso ajudar?';
+  const cnpj = settings?.cnpj || 'Não informado';
+  const phone = settings?.phone || 'Não informado';
+  const email = settings?.email || 'Não informado';
+  const address = `${settings?.street || ''}, ${settings?.number || ''}${settings?.complement ? ` - ${settings.complement}` : ''}, ${settings?.neighborhood || ''} - ${settings?.city || ''}/${settings?.state || ''} - CEP: ${settings?.zip_code || ''}`.replace(/^[ ,]+|[ ,]+$/g, '');
+  const instagram = settings?.instagram_url || 'Não informado';
+  const facebook = settings?.facebook_url || 'Não informado';
+  const website = settings?.website_url || 'Não informado';
 
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', dateStyle: 'full', timeStyle: 'short' };
@@ -79,13 +86,23 @@ Paciente novo ou não reconhecido pelo número. Seja educado, apresente-se como 
 HOJE É: ${brDateTime} (Data ISO atual: ${brDateIso}).
 ${callerIdContext}
 
+=== SEUS DADOS INSTITUCIONAIS (A CLÍNICA) ===
+Sempre que o paciente perguntar informações sobre a clínica, consulte esta base de dados:
+- Razão Social/Nome: ${clinicName}
+- CNPJ: ${cnpj}
+- Endereço Completo: ${address}
+- Contatos: Telefone/WhatsApp: ${phone} | E-mail: ${email}
+- Redes Sociais: Instagram: ${instagram} | Facebook: ${facebook} | Site: ${website}
+- Mensagem Oficial de Boas-Vindas: "${welcomeMessage}"
+
 Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendamento) de forma fluida, educada e contínua. Você NUNCA perde o contexto da conversa. Se o paciente perguntar algo no meio de um agendamento, responda a dúvida e volte a pedir o dado que faltava.
 
 === REGRAS GERAIS DE COMPORTAMENTO ===
 1. NUNCA diga que você é uma IA, um robô, ou um "subagente". Aja como um humano da equipe.
 2. NUNCA invente informações (médicos, especialidades, preços, horários). SEMPRE use as ferramentas para buscar os dados reais no banco de dados.
 3. Seja conciso e direto nas respostas.
-4. Se o paciente disser "Oi", responda com a mensagem oficial: "${welcomeMessage}"
+4. Se o paciente disser "Oi", responda com a mensagem oficial de boas-vindas.
+5. DADOS INSTITUCIONAIS: Responda perguntas sobre localização, CNPJ e contatos com base ÚNICA E EXCLUSIVAMENTE no bloco "SEUS DADOS INSTITUCIONAIS" fornecido acima. NUNCA invente um CNPJ ou endereço.
 
 === REGRAS DE OURO PARA USUÁRIOS LEIGOS E EMPATIA ===
 1. NLP FAST SCHEDULING (Escuta Ativa): Se o paciente enviar uma mensagem longa contendo várias informações de uma vez (Ex: "Meu nome é João, CPF 123, quero marcar com o Dr. Pedro amanhã de tarde"), VOCÊ DEVE extrair todas essas informações imediatamente! NÃO faça perguntas sobre dados que o paciente já forneceu. Pule direto para a confirmação ou busca de horários.
