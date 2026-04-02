@@ -23,6 +23,7 @@ import {
   getAppointmentsMetrics,
   blockDoctorAgenda,
   cancelPendingInvoices,
+  sendClinicLocation,
 } from './db-tools';
 
 // === NOVA ARQUITETURA ENTERPRISE: AGENTE UNIVERSAL ===
@@ -31,7 +32,8 @@ export const PATIENT_TOOLS_NAMES = [
   'checkPatientRegistration', 'registerPatient', 'scheduleAppointment', 'saveTriage',
   'searchLearnedAnswers', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments',
   'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
-  'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert'
+  'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert',
+  'sendClinicLocation'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
@@ -60,8 +62,18 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
 3. Seja conciso e direto nas respostas.
 4. Se o paciente disser "Oi", responda com a mensagem oficial: "${welcomeMessage}"
 
-=== WORKFLOW 1: DÚVIDAS (FAQ) ===
-- Se o paciente fizer perguntas sobre a clínica (endereço, convênios, preparo), use IMEDIATAMENTE a ferramenta 'searchLearnedAnswers'.
+=== REGRAS DE OURO PARA USUÁRIOS LEIGOS E EMPATIA ===
+1. REGRA DO PASSO A PASSO: NUNCA faça mais de uma pergunta por vez. Se precisar do Nome, Telefone e CPF, peça apenas uma informação e espere a resposta do paciente. Use mensagens curtas, claras e sem textos longos (máximo 3 a 4 linhas).
+2. REGRA DO MENU NUMERADO: Sempre que precisar listar opções (médicos, especialidades ou horários disponíveis), use SEMPRE um menu numerado simples para facilitar a escolha.
+   Exemplo de formato obrigatório:
+   "Tenho esses horários disponíveis. Digite o número da opção desejada:
+   1. Segunda-feira às 14:00
+   2. Terça-feira às 09:00"
+3. ACOLHIMENTO DE DOR: Sempre que o paciente relatar dor, desconforto ou tristeza, inicie a resposta com uma frase de empatia e acolhimento ANTES de fazer perguntas práticas (Ex: "Sinto muito que você esteja passando por isso. Vamos cuidar de você o mais rápido possível.").
+
+=== WORKFLOW 1: DÚVIDAS (FAQ) E INFORMAÇÕES ===
+- Se o paciente perguntar sobre o endereço, como chegar ou localização, use a ferramenta 'sendClinicLocation'.
+- Se fizer outras perguntas sobre a clínica (convênios, preparo), use IMEDIATAMENTE a ferramenta 'searchLearnedAnswers'.
 - Se a ferramenta não retornar uma boa resposta, avise que vai repassar a dúvida à equipe e use 'escalateToHuman'.
 
 === WORKFLOW 2: TRIAGEM E URGÊNCIAS ===
@@ -330,8 +342,19 @@ export const toolDeclarations = [
   {
     type: 'function',
     function: {
+      name: 'sendClinicLocation',
+      description: 'Envia o endereço completo e o link do Google Maps da clínica para ajudar o paciente a chegar.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'getClinicServices',
-      description: 'Retorna a lista de serviços e pacotes da clínica, com os preços e informando se o serviço é gratuito (is_free). Chame antes de criar o link de cobrança.',
       parameters: {
         type: 'object',
         properties: {}
@@ -543,6 +566,8 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const validArgs = schema.parse(args);
         return await getDoctorsBySpecialty(validArgs.especialidade);
       }
+      case 'sendClinicLocation':
+        return await sendClinicLocation();
       case 'getClinicServices':
         return await getClinicServices();
       case 'createInvoiceLink':

@@ -234,6 +234,34 @@ export async function getClinicServices() {
   }
 }
 
+export async function sendClinicLocation() {
+  try {
+    const { data: settings, error } = await supabase
+      .from('clinic_settings')
+      .select('clinic_name, clinic_address')
+      .limit(1)
+      .single();
+
+    if (error || !settings) {
+      return { 
+        success: true, 
+        message: 'Nossa clínica fica no centro da cidade. Por favor, aguarde que um de nossos atendentes enviará a localização exata para você!' 
+      };
+    }
+
+    const address = settings.clinic_address || 'Endereço não cadastrado.';
+    // Generate a Google Maps link dynamically based on the address
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
+    return {
+      success: true,
+      message: `A ${settings.clinic_name || 'nossa clínica'} fica localizada no endereço:\n📍 ${address}\n\nVocê pode ver como chegar clicando neste link do Google Maps:\n🗺️ ${mapsLink}`
+    };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
 export async function checkPatientRegistration(cpf?: string, nome?: string, telefone?: string) {
   try {
     let query = supabase.from('pacientes').select('*');
