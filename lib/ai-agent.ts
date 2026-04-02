@@ -44,11 +44,18 @@ export const ADMIN_TOOLS_NAMES = [
   'createInvoiceLink', 'sendAppointmentSummary', 'getFinancialMetrics', 'getAppointmentsMetrics', 'blockDoctorAgenda', 'cancelPendingInvoices', 'saveLearnedAnswer'
 ];
 
-export async function getUniversalPatientPrompt() {
+export async function getUniversalPatientPrompt(patientContext?: any) {
   const settings = await getClinicSettings();
   const clinicName = settings?.clinic_name || 'Clínica de Ortopedia';
   const welcomeMessage = settings?.welcome_message || 'Olá! Como posso ajudar?';
-  
+  const cnpj = settings?.cnpj || 'Não informado';
+  const phone = settings?.phone || 'Não informado';
+  const email = settings?.email || 'Não informado';
+  const address = `${settings?.street || ''}, ${settings?.number || ''}${settings?.complement ? ` - ${settings.complement}` : ''}, ${settings?.neighborhood || ''} - ${settings?.city || ''}/${settings?.state || ''} - CEP: ${settings?.zip_code || ''}`.replace(/^[ ,]+|[ ,]+$/g, '');
+  const instagram = settings?.instagram_url || 'Não informado';
+  const facebook = settings?.facebook_url || 'Não informado';
+  const website = settings?.website_url || 'Não informado';
+
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', dateStyle: 'full', timeStyle: 'short' };
   const brDateTime = new Intl.DateTimeFormat('pt-BR', options).format(now);
@@ -57,13 +64,23 @@ export async function getUniversalPatientPrompt() {
   return `Você é o assistente virtual principal e recepcionista da ${clinicName}.
 HOJE É: ${brDateTime} (Data ISO atual: ${brDateIso}).
 
+=== SEUS DADOS INSTITUCIONAIS (A CLÍNICA) ===
+Sempre que o paciente perguntar informações sobre a clínica, consulte esta base de dados:
+- Razão Social/Nome: ${clinicName}
+- CNPJ: ${cnpj}
+- Endereço Completo: ${address}
+- Contatos: Telefone/WhatsApp: ${phone} | E-mail: ${email}
+- Redes Sociais: Instagram: ${instagram} | Facebook: ${facebook} | Site: ${website}
+- Mensagem Oficial de Boas-Vindas: "${welcomeMessage}"
+
 Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendamento) de forma fluida, educada e contínua. Você NUNCA perde o contexto da conversa. Se o paciente perguntar algo no meio de um agendamento, responda a dúvida e volte a pedir o dado que faltava.
 
 === REGRAS GERAIS DE COMPORTAMENTO ===
 1. NUNCA diga que você é uma IA, um robô, ou um "subagente". Aja como um humano da equipe.
 2. NUNCA invente informações (médicos, especialidades, preços, horários). SEMPRE use as ferramentas para buscar os dados reais no banco de dados.
 3. Seja conciso e direto nas respostas.
-4. Se o paciente disser "Oi", responda com a mensagem oficial: "${welcomeMessage}"
+4. Se o paciente disser "Oi", responda com a mensagem oficial de boas-vindas.
+5. DADOS INSTITUCIONAIS: Responda perguntas sobre localização, CNPJ e contatos com base ÚNICA E EXCLUSIVAMENTE no bloco "SEUS DADOS INSTITUCIONAIS" fornecido acima. NUNCA invente um CNPJ ou endereço.
 
 === REGRAS DE OURO PARA USUÁRIOS LEIGOS E EMPATIA ===
 1. REGRA DO PASSO A PASSO: NUNCA faça mais de uma pergunta por vez. Se precisar do Nome, Telefone e CPF, peça apenas uma informação e espere a resposta do paciente. Use mensagens curtas, claras e sem textos longos (máximo 3 a 4 linhas).
@@ -588,9 +605,9 @@ export async function executeTool(name: string, args: any): Promise<any> {
         });
       }
       case 'saveTriage': {
-        const schema = z.object({ paciente_id: z.string(), pain_scale: z.number(), symptoms: z.string(), red_flags: z.string().optional(), urgency_classification: z.string().optional() });
+        const schema = z.object({ paciente_id: z.string(), pain_scale: z.number(), symptoms: z.string(), red_flags: z.boolean().optional(), urgency_classification: z.string().optional() });
         const validArgs = schema.parse(args);
-        return await saveTriage(validArgs.paciente_id, validArgs.pain_scale, validArgs.symptoms, validArgs.red_flags, validArgs.urgency_classification);
+        return await saveTriage(validArgs.paciente_id, validArgs.pain_scale, validArgs.symptoms, validArgs.red_flags || false, validArgs.urgency_classification || 'normal');
       }
       case 'searchLearnedAnswers': {
         const schema = z.object({ keyword: z.string() });
