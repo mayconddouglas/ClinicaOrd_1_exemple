@@ -118,7 +118,7 @@ export async function createInvoiceLink(params: {
           data_hora: params.appointment_date_time,
           motivo: description,
           especialidade: params.appointment_especialidade || 'Consulta',
-          status: isFree ? 'confirmada' : 'pendente'
+          status: isFree ? 'confirmada' : 'pendente' // <-- SE FOR PAGO, FICA PENDENTE
         }])
         .select()
         .single();
