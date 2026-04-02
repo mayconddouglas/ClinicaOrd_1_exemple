@@ -367,22 +367,31 @@ export async function scheduleAppointment(params: {
       
     if (appt) {
       appointmentId = appt.id;
-      try {
-        console.log('[scheduleAppointment] Disparando sendAppointmentSummary...');
-        await sendAppointmentSummary(appointmentId);
-        console.log('[scheduleAppointment] sendAppointmentSummary ok.');
-      } catch (emailErr) {
-        console.error('Auto-email trigger failed:', emailErr);
+      // SÓ DISPARA O EMAIL AGORA SE FOR GRATUITO.
+      // SE FOR PAGO, O EMAIL SERÁ DISPARADO PELO WEBHOOK DO MERCADO PAGO APÓS A CONFIRMAÇÃO.
+      if (result.is_free) {
+        try {
+          console.log('[scheduleAppointment] Disparando sendAppointmentSummary...');
+          await sendAppointmentSummary(appointmentId);
+          console.log('[scheduleAppointment] sendAppointmentSummary ok.');
+        } catch (emailErr) {
+          console.error('Auto-email trigger failed:', emailErr);
+        }
+      } else {
+        console.log('[scheduleAppointment] Serviço pago. E-mail de confirmação será enviado após pagamento.');
       }
     }
 
     if (result.success) {
       console.log('[scheduleAppointment] Sucesso total.');
+      const isFree = result.is_free;
       return { 
         success: true, 
-        message: 'Agendamento finalizado com sucesso. Email enviado.', 
+        message: isFree 
+          ? 'Agendamento finalizado com sucesso. E-mail de confirmação enviado.'
+          : 'Sua vaga está pré-reservada. O link de pagamento foi gerado. Diga para o paciente que a vaga está garantida aguardando apenas o pagamento do link. A confirmação oficial do agendamento será enviada automaticamente para o e-mail dele assim que o sistema reconhecer o pagamento.', 
         payment_link: result.payment_link,
-        is_free: result.is_free,
+        is_free: isFree,
         appointment_id: appointmentId
       };
     } else {

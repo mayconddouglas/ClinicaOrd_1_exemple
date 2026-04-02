@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendReceiptEmail } from '@/lib/email';
+import { sendAppointmentSummary } from '@/lib/db-tools';
 
 export async function POST(request: Request) {
   try {
@@ -111,16 +112,23 @@ export async function POST(request: Request) {
                   items: invoiceData.items,
                   appointmentDate: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[0] : undefined,
                   appointmentTime: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) ? String((invoiceData.agendamentos as any).data_hora).split('T')[1].substring(0, 5) : undefined,
-                  appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos) 
-                    ? ((invoiceData.agendamentos as any).medicos?.nome 
-                        ? `Dr(a). ${(invoiceData.agendamentos as any).medicos.nome} (${(invoiceData.agendamentos as any).especialidade})` 
-                        : (invoiceData.agendamentos as any).especialidade) 
+                  appointmentEspecialidade: invoiceData.agendamentos && !Array.isArray(invoiceData.agendamentos)
+                    ? ((invoiceData.agendamentos as any).medicos?.nome
+                        ? `Dr(a). ${(invoiceData.agendamentos as any).medicos.nome} (${(invoiceData.agendamentos as any).especialidade})`
+                        : (invoiceData.agendamentos as any).especialidade)
                     : undefined
                 }
               );
               console.log(`[Email Service] Recibo enviado com sucesso!`);
+              
+              // Se tiver um appointment_id, dispara também o e-mail de resumo do agendamento (agora confirmado)
+              if (invoiceData.appointment_id) {
+                console.log(`[Email Service] Enviando também o e-mail de resumo do agendamento confirmado...`);
+                await sendAppointmentSummary(invoiceData.appointment_id);
+              }
+              
             } catch (emailError) {
-              console.error(`[Email Service] Erro ao enviar recibo:`, emailError);
+              console.error(`[Email Service] Erro ao enviar recibo ou confirmação de agendamento:`, emailError);
             }
           }
         }
