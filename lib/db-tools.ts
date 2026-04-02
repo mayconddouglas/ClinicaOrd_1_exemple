@@ -1195,9 +1195,10 @@ export async function getPatientAppointments(paciente_id: string) {
   try {
     const { data, error } = await supabase
       .from('agendamentos')
-      .select('*')
+      .select('*, medicos(nome, especialidade)')
       .eq('paciente_id', paciente_id)
       .neq('status', 'canceled')
+      .gte('data_hora', new Date().toISOString()) // Traz apenas consultas futuras para evitar confusão no reagendamento
       .order('data_hora', { ascending: true });
 
     if (error) {
@@ -1205,7 +1206,21 @@ export async function getPatientAppointments(paciente_id: string) {
       return { error: 'Erro ao buscar consultas do paciente.' };
     }
 
-    return { success: true, appointments: data };
+    // O Supabase retorna em UTC. Vamos adicionar um campo amigável em fuso BR para o Agente não alucinar o horário.
+    const appointmentsFormatted = data.map(app => {
+      const dateObj = new Date(app.data_hora);
+      const optionsDate: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' };
+      const optionsTime: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' };
+      
+      return {
+        ...app,
+        data_formatada_br: new Intl.DateTimeFormat('pt-BR', optionsDate).format(dateObj),
+        hora_formatada_br: new Intl.DateTimeFormat('pt-BR', optionsTime).format(dateObj),
+        medico_nome: app.medicos?.nome || 'Médico não informado'
+      };
+    });
+
+    return { success: true, appointments: appointmentsFormatted };
   } catch (err: any) {
     return { error: err.message };
   }
