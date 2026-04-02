@@ -169,11 +169,27 @@ export default function AgendamentosPage() {
           schema: 'public',
           table: 'agendamentos'
         },
-        () => {
+        (payload) => {
           fetchAgendamentos();
-          toast.info('A lista de agendamentos foi atualizada.', {
-            icon: <Calendar className="h-4 w-4" />
-          });
+          
+          if (payload.eventType === 'INSERT') {
+            toast.success('Nova consulta agendada pelo assistente!', {
+              icon: <Plus className="h-4 w-4" />,
+              description: 'A lista foi atualizada.'
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            toast.info('O status de uma consulta foi alterado.', {
+              icon: <Clock className="h-4 w-4" />
+            });
+          } else if (payload.eventType === 'DELETE') {
+            toast.error('Uma consulta foi cancelada.', {
+              icon: <XCircle className="h-4 w-4" />
+            });
+          } else {
+            toast.info('A lista de agendamentos foi atualizada.', {
+              icon: <Calendar className="h-4 w-4" />
+            });
+          }
         }
       )
       .subscribe();
