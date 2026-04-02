@@ -171,7 +171,7 @@ export const toolDeclarations = [
         type: 'object',
         properties: {
           paciente_id: { type: 'string', description: 'O ID (UUID) do paciente.' },
-          data_hora: { type: 'string', description: 'Data e hora no formato ISO 8601.' },
+          data_hora: { type: 'string', description: 'MUITO IMPORTANTE: Data e hora EXATAS escolhidas pelo paciente no formato ISO 8601 (ex: 2026-04-03T14:30:00-03:00). Nunca envie datas genéricas ou nulas.' },
           motivo: { type: 'string', description: 'Motivo da consulta.' },
           especialidade: { type: 'string', description: 'Especialidade médica desejada.' },
           medico_id: { type: 'string', description: 'O ID (UUID) do médico escolhido (opcional, mas recomendado).' },
