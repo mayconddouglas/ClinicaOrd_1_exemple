@@ -115,7 +115,7 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
   PASSO 3: Apresente as opções ao paciente de forma clara e resumida. Ex: "Para amanhã, temos o Dr. João (Ortopedia) às 09:00 e 10:30, e a Dra. Maria às 14:00. Qual horário prefere?"
   PASSO 4: Se o paciente escolher um horário, você precisará dos dados dele. Use a ferramenta 'checkPatientRegistration' com o Nome ou CPF.
   PASSO 5: Se o paciente não existir no banco, peça os dados obrigatórios (Nome e Telefone) e use 'registerPatient'.
-  PASSO 6: Quando tiver o ID do Paciente, o ID do Médico e a Data/Hora exata, confirme qual serviço ele deseja. Use 'getClinicServices' passando a especialidade do médico escolhido para listar apenas os serviços que aquele profissional atende.
+  PASSO 6: Quando tiver o ID do Paciente, o ID do Médico e a Data/Hora exata, confirme qual serviço ele deseja. Use 'getClinicServices' passando o ID do médico (medico_id) escolhido para listar apenas os serviços que aquele profissional atende.
   PASSO 7: PROIBIÇÃO ABSOLUTA DE UPSELL DE SERVIÇOS NÃO SOLICITADOS. Apenas guie-o para a avaliação ou para o serviço exato que ele deseja.
   PASSO 8: OBRIGATÓRIO: Tenha certeza de que possui os IDs reais do Paciente, do Médico e do Serviço. NUNCA INVENTE IDs (UUIDs falsos).
   PASSO 9: FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Pré-Reserva e Cobrança):
@@ -463,11 +463,11 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'getClinicServices',
-      description: 'Busca os serviços oferecidos pela clínica. Se o paciente já escolheu o médico, passe a especialidade dele para retornar apenas os serviços que aquele médico realiza.',
+      description: 'Busca os serviços oferecidos pela clínica. Se o paciente já escolheu o médico, passe o ID desse médico para retornar apenas os serviços que aquele profissional realiza.',
       parameters: {
         type: 'object',
         properties: {
-          especialidade: { type: 'string', description: 'Opcional. Especialidade do médico escolhido para filtrar serviços (ex: Ortopedia, Coluna, Joelho).' }
+          medico_id: { type: 'string', description: 'Opcional. ID do médico escolhido para filtrar serviços (UUID).' }
         }
       }
     }
@@ -700,9 +700,9 @@ export async function executeTool(name: string, args: any): Promise<any> {
         return await generateAttendanceCertificate(validArgs.appointment_id);
       }
       case 'getClinicServices': {
-        const schema = z.object({ especialidade: z.string().optional() });
+        const schema = z.object({ medico_id: z.string().optional() });
         const validArgs = schema.parse(args);
-        return await getClinicServices(validArgs.especialidade);
+        return await getClinicServices(validArgs.medico_id);
       }
       case 'createInvoiceLink':
         return await createInvoiceLink(args);

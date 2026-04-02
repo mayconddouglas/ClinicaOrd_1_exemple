@@ -20,11 +20,13 @@ interface Service {
   active: boolean;
   is_free: boolean;
   especialidade_obrigatoria: string | null;
+  medico_id: string | null;
+  medicos?: { nome: string } | null;
 }
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
-  const [especialidades, setEspecialidades] = useState<string[]>([]);
+  const [medicosList, setMedicosList] = useState<{ id: string, nome: string, especialidade: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,28 +38,26 @@ export default function ServicesPage() {
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('30');
   const [isFree, setIsFree] = useState(false);
-  const [especialidadeObrigatoria, setEspecialidadeObrigatoria] = useState<string>('');
+  const [medicoIdObrigatorio, setMedicoIdObrigatorio] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchServices();
-    fetchEspecialidades();
+    fetchMedicosList();
   }, []);
 
-  const fetchEspecialidades = async () => {
+  const fetchMedicosList = async () => {
     try {
       const { data, error } = await supabase
         .from('medicos')
-        .select('especialidade')
-        .eq('disponivel', true);
+        .select('id, nome, especialidade')
+        .eq('disponivel', true)
+        .order('nome');
 
       if (error) throw error;
-
-      // Extract unique specialties
-      const uniqueSpecialties = Array.from(new Set(data.map(m => m.especialidade).filter(Boolean)));
-      setEspecialidades(uniqueSpecialties as string[]);
+      setMedicosList(data || []);
     } catch (error) {
-      console.error('Error fetching especialidades:', error);
+      console.error('Error fetching medicos:', error);
     }
   };
 
@@ -65,14 +65,14 @@ export default function ServicesPage() {
     try {
       const { data, error } = await supabase
         .from('services')
-        .select('*')
-        .order('name', { ascending: true });
-
+        .select('*, medicos(nome)')
+        .order('name');
+      
       if (error) throw error;
       setServices(data || []);
     } catch (error) {
       console.error('Error fetching services:', error);
-      toast.error('Erro ao carregar o catálogo de serviços');
+      toast.error('Erro ao carregar serviços');
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +92,7 @@ export default function ServicesPage() {
         price: isFree ? 0 : parseFloat(price),
         duration_minutes: parseInt(duration),
         is_free: isFree,
-        especialidade_obrigatoria: especialidadeObrigatoria || null,
+        medico_id: medicoIdObrigatorio || null,
         active: true
       };
 
@@ -124,7 +124,7 @@ export default function ServicesPage() {
     setPrice(service.price.toString());
     setDuration(service.duration_minutes.toString());
     setIsFree(service.is_free);
-    setEspecialidadeObrigatoria(service.especialidade_obrigatoria || '');
+    setMedicoIdObrigatorio(service.medico_id || '');
     setIsDialogOpen(true);
   };
 
@@ -150,7 +150,7 @@ export default function ServicesPage() {
     setPrice('');
     setDuration('30');
     setIsFree(false);
-    setEspecialidadeObrigatoria('');
+    setMedicoIdObrigatorio('');
   };
 
   const formatCurrency = (value: number) => {
@@ -250,23 +250,23 @@ export default function ServicesPage() {
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="especialidade" className="text-right">
-                  Especialidade Restrita
+                <Label htmlFor="medico" className="text-right">
+                  Médico Responsável
                 </Label>
                 <div className="col-span-3">
                   <select
-                    id="especialidade"
+                    id="medico"
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    value={especialidadeObrigatoria}
-                    onChange={(e) => setEspecialidadeObrigatoria(e.target.value)}
+                    value={medicoIdObrigatorio}
+                    onChange={(e) => setMedicoIdObrigatorio(e.target.value)}
                   >
-                    <option value="">Nenhuma (Qualquer médico)</option>
-                    {especialidades.map((esp, index) => (
-                      <option key={index} value={esp}>{esp}</option>
+                    <option value="">Nenhum (Qualquer médico pode realizar)</option>
+                    {medicosList.map((med) => (
+                      <option key={med.id} value={med.id}>{med.nome} ({med.especialidade})</option>
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Se preenchido, apenas médicos com esta especialidade poderão realizar o serviço.
+                    Se preenchido, apenas este médico poderá realizar o serviço.
                   </p>
                 </div>
               </div>
@@ -319,7 +319,7 @@ export default function ServicesPage() {
                   <tr>
                     <th className="px-6 py-4 font-medium">Serviço</th>
                     <th className="px-6 py-4 font-medium">Duração</th>
-                    <th className="px-6 py-4 font-medium">Especialidade</th>
+                    <th className="px-6 py-4 font-medium">Médico Responsável</th>
                     <th className="px-6 py-4 font-medium">Valor Padrão</th>
                     <th className="px-6 py-4 font-medium text-right">Ações</th>
                   </tr>
@@ -337,12 +337,12 @@ export default function ServicesPage() {
                         {service.duration_minutes} min
                       </td>
                       <td className="px-6 py-4">
-                        {service.especialidade_obrigatoria ? (
+                        {service.medico_id ? (
                           <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">
-                            {service.especialidade_obrigatoria}
+                            Dr(a). {service.medicos?.nome || 'Desconhecido'}
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Geral</span>
+                          <span className="text-muted-foreground text-sm">Geral (Todos)</span>
                         )}
                       </td>
                       <td className="px-6 py-4 font-medium">

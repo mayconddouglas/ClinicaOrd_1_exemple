@@ -218,17 +218,17 @@ export async function createInvoiceLink(params: {
     };
   }
 }
-export async function getClinicServices(especialidade?: string) {
+export async function getClinicServices(medico_id?: string) {
   try {
     let query = supabase
       .from('services')
-      .select('id, name, description, price, is_free, duration_minutes, especialidade_obrigatoria')
+      .select('id, name, description, price, is_free, duration_minutes, especialidade_obrigatoria, medico_id, medicos(nome)')
       .eq('active', true)
       .order('name');
 
-    if (especialidade) {
-      // Retorna serviços que NÃO tem restrição OU que a restrição bata com a especialidade do médico
-      query = query.or(`especialidade_obrigatoria.is.null,especialidade_obrigatoria.ilike.%${especialidade}%`);
+    if (medico_id) {
+      // Retorna serviços que NÃO tem restrição OU que a restrição bata com o ID do médico
+      query = query.or(`medico_id.is.null,medico_id.eq.${medico_id}`);
     }
 
     const { data, error } = await query;
