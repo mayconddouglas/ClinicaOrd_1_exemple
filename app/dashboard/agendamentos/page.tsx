@@ -14,7 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope, Mail } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
+import { format, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
+import { toDate } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -287,7 +288,7 @@ export default function AgendamentosPage() {
     // 3. Date Filter
     let matchesDate = true;
     if (dateFilter !== 'todos' && agendamento.data_hora) {
-      const dataObj = parseISO(agendamento.data_hora);
+      const dataObj = toDate(agendamento.data_hora, { timeZone: 'America/Sao_Paulo' });
       if (dateFilter === 'hoje') matchesDate = isToday(dataObj);
       if (dateFilter === 'amanha') matchesDate = isTomorrow(dataObj);
       if (dateFilter === 'semana') matchesDate = isThisWeek(dataObj, { weekStartsOn: 0 }); // Domingo
@@ -593,7 +594,7 @@ export default function AgendamentosPage() {
                 </TableRow>
               ) : (
                 filteredAgendamentos.map((agendamento) => {
-                  const dataObj = agendamento.data_hora ? parseISO(agendamento.data_hora) : null;
+                  const dataObj = agendamento.data_hora ? toDate(agendamento.data_hora, { timeZone: 'America/Sao_Paulo' }) : null;
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
                   const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
