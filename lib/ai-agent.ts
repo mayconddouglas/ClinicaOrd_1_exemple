@@ -108,16 +108,21 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
 - Se a dor for 8, 9 ou 10, oriente-o a buscar o Pronto-Socorro mais próximo (não agende consulta normal).
 - Se a dor for < 8, siga para o Workflow 3 de Agendamento.
 
-=== WORKFLOW 3: AGENDAMENTO DE CONSULTA ===
+=== WORKFLOW 3: AGENDAMENTO DE CONSULTA E COBRANÇA ===
 Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a passo (não pule etapas):
-  PASSO 1: Descubra o que o paciente quer e quando. (Ex: "Qual especialidade e para qual dia você gostaria?").
+  PASSO 1: Descubra o que o paciente quer e quando. Entenda a necessidade do paciente e SEMPRE use 'getClinicServices' para verificar os serviços disponíveis.
   PASSO 2: Use a ferramenta 'smartSlotDiscovery' passando a data desejada (e a especialidade, se informada). Ela retornará TODOS os médicos disponíveis e seus horários livres de uma vez só!
   PASSO 3: Apresente as opções ao paciente de forma clara e resumida. Ex: "Para amanhã, temos o Dr. João (Ortopedia) às 09:00 e 10:30, e a Dra. Maria às 14:00. Qual horário prefere?"
   PASSO 4: Se o paciente escolher um horário, você precisará dos dados dele. Use a ferramenta 'checkPatientRegistration' com o Nome ou CPF.
   PASSO 5: Se o paciente não existir no banco, peça os dados obrigatórios (Nome e Telefone) e use 'registerPatient'.
-  PASSO 6: Quando tiver o ID do Paciente, o ID do Médico e a Data/Hora exata no formato ISO, e souber se será particular ou convênio, pergunte qual serviço (use 'getClinicServices' para ver opções).
-  PASSO 7: Se for particular/pago, não agende diretamente! Use a ferramenta 'createInvoiceLink' para gerar o link do Mercado Pago e envie ao paciente.
-  PASSO 8: Se for um serviço gratuito (ex: Retorno, ou Consulta via Convênio já autorizada), use a ferramenta 'scheduleAppointment' para salvar a consulta no banco de dados. SÓ DIGA QUE ESTÁ CONFIRMADO APÓS ESSA FERRAMENTA RETORNAR SUCESSO.
+  PASSO 6: Quando tiver o ID do Paciente, o ID do Médico e a Data/Hora exata, confirme qual serviço ele deseja. Use 'getClinicServices' passando a especialidade do médico escolhido para listar apenas os serviços que aquele profissional atende.
+  PASSO 7: PROIBIÇÃO ABSOLUTA DE UPSELL DE SERVIÇOS NÃO SOLICITADOS. Apenas guie-o para a avaliação ou para o serviço exato que ele deseja.
+  PASSO 8: OBRIGATÓRIO: Tenha certeza de que possui os IDs reais do Paciente, do Médico e do Serviço. NUNCA INVENTE IDs (UUIDs falsos).
+  PASSO 9: FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Pré-Reserva e Cobrança):
+    Use a ferramenta 'scheduleAppointment' enviando todos os dados reais.
+    Se a consulta for paga, ela será criada como 'pendente' e um link de pagamento do Mercado Pago será gerado pela ferramenta.
+    Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada. O valor é R$ X. Por favor, realize o pagamento através deste link para que possamos confirmar definitivamente a sua vaga na agenda: [payment_link]"
+    NUNCA esconda o link se ele for gerado. Apenas termine a conversa orientando o paciente a pagar. O sistema fará a confirmação automática depois que ele pagar.
    
 === WORKFLOW 5: REAGENDAMENTO E CANCELAMENTO ===
 - Se o paciente pedir para REMARCAR, MUDAR OU CANCELAR um agendamento:
@@ -458,9 +463,12 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'getClinicServices',
+      description: 'Busca os serviços oferecidos pela clínica. Se o paciente já escolheu o médico, passe a especialidade dele para retornar apenas os serviços que aquele médico realiza.',
       parameters: {
         type: 'object',
-        properties: {}
+        properties: {
+          especialidade: { type: 'string', description: 'Opcional. Especialidade do médico escolhido para filtrar serviços (ex: Ortopedia, Coluna, Joelho).' }
+        }
       }
     }
   },
@@ -691,8 +699,11 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const validArgs = schema.parse(args);
         return await generateAttendanceCertificate(validArgs.appointment_id);
       }
-      case 'getClinicServices':
-        return await getClinicServices();
+      case 'getClinicServices': {
+        const schema = z.object({ especialidade: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await getClinicServices(validArgs.especialidade);
+      }
       case 'createInvoiceLink':
         return await createInvoiceLink(args);
       case 'escalateToHuman': {

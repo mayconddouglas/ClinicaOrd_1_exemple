@@ -19,14 +19,16 @@ interface Service {
   duration_minutes: number;
   active: boolean;
   is_free: boolean;
+  especialidade_obrigatoria: string | null;
 }
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -34,11 +36,30 @@ export default function ServicesPage() {
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('30');
   const [isFree, setIsFree] = useState(false);
+  const [especialidadeObrigatoria, setEspecialidadeObrigatoria] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchServices();
+    fetchEspecialidades();
   }, []);
+
+  const fetchEspecialidades = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medicos')
+        .select('especialidade')
+        .eq('disponivel', true);
+
+      if (error) throw error;
+
+      // Extract unique specialties
+      const uniqueSpecialties = Array.from(new Set(data.map(m => m.especialidade).filter(Boolean)));
+      setEspecialidades(uniqueSpecialties as string[]);
+    } catch (error) {
+      console.error('Error fetching especialidades:', error);
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -71,6 +92,7 @@ export default function ServicesPage() {
         price: isFree ? 0 : parseFloat(price),
         duration_minutes: parseInt(duration),
         is_free: isFree,
+        especialidade_obrigatoria: especialidadeObrigatoria || null,
         active: true
       };
 
@@ -102,6 +124,7 @@ export default function ServicesPage() {
     setPrice(service.price.toString());
     setDuration(service.duration_minutes.toString());
     setIsFree(service.is_free);
+    setEspecialidadeObrigatoria(service.especialidade_obrigatoria || '');
     setIsDialogOpen(true);
   };
 
@@ -127,6 +150,7 @@ export default function ServicesPage() {
     setPrice('');
     setDuration('30');
     setIsFree(false);
+    setEspecialidadeObrigatoria('');
   };
 
   const formatCurrency = (value: number) => {
@@ -216,13 +240,34 @@ export default function ServicesPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="duration">Duração (Minutos)</Label>
-                  <Input 
-                    id="duration" 
-                    type="number" 
-                    placeholder="30" 
+                  <Input
+                    id="duration"
+                    type="number"
+                    placeholder="30"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="especialidade" className="text-right">
+                  Especialidade Restrita
+                </Label>
+                <div className="col-span-3">
+                  <select
+                    id="especialidade"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={especialidadeObrigatoria}
+                    onChange={(e) => setEspecialidadeObrigatoria(e.target.value)}
+                  >
+                    <option value="">Nenhuma (Qualquer médico)</option>
+                    {especialidades.map((esp, index) => (
+                      <option key={index} value={esp}>{esp}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se preenchido, apenas médicos com esta especialidade poderão realizar o serviço.
+                  </p>
                 </div>
               </div>
             </div>
@@ -274,6 +319,7 @@ export default function ServicesPage() {
                   <tr>
                     <th className="px-6 py-4 font-medium">Serviço</th>
                     <th className="px-6 py-4 font-medium">Duração</th>
+                    <th className="px-6 py-4 font-medium">Especialidade</th>
                     <th className="px-6 py-4 font-medium">Valor Padrão</th>
                     <th className="px-6 py-4 font-medium text-right">Ações</th>
                   </tr>
@@ -289,6 +335,15 @@ export default function ServicesPage() {
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">
                         {service.duration_minutes} min
+                      </td>
+                      <td className="px-6 py-4">
+                        {service.especialidade_obrigatoria ? (
+                          <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">
+                            {service.especialidade_obrigatoria}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Geral</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 font-medium">
                         {service.is_free ? (
