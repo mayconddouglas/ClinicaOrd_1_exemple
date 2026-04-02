@@ -8,6 +8,7 @@ import {
   saveLearnedAnswer,
   checkAvailability,
   getAvailableSlots,
+  smartSlotDiscovery,
   getPatientAppointments,
   cancelAppointment,
   rescheduleAppointment,
@@ -36,7 +37,8 @@ export const PATIENT_TOOLS_NAMES = [
   'searchLearnedAnswers', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments',
   'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
   'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert',
-  'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert', 'generateAttendanceCertificate'
+  'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert', 'generateAttendanceCertificate',
+  'smartSlotDiscovery'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
@@ -105,27 +107,16 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
 - Se a dor for 8, 9 ou 10, oriente-o a buscar o Pronto-Socorro mais próximo (não agende consulta normal).
 - Se a dor for < 8, siga para o Workflow 3 de Agendamento.
 
-=== WORKFLOW 3: AGENDAMENTO CONSULTIVO E COBRANÇA ===
-Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a passo:
-1. Entenda a necessidade do paciente e SEMPRE use 'getClinicServices' para verificar os serviços disponíveis.
-   - Se o paciente JÁ SOUBER o que quer (ex: "Consulta de Joelho"), informe o valor encontrado no banco e siga em frente.
-   - Se o paciente NÃO SOUBER o que quer ou estiver em dúvida sobre qual serviço comprar, sugira realizar uma "Avaliação Gratuita" (busque no banco o ID desse serviço).
-2. Use 'getDoctorsBySpecialty' ou 'getAvailableDoctors' para encontrar o profissional.
-   - Se o médico pedido estiver com (disponivel: false), avise que a agenda dele está fechada e ofereça outro.
-   - Se não houver a especialidade pedida, liste os profissionais reais que TEMOS disponíveis.
-3. Mostre os horários disponíveis usando 'getAvailableSlots' (use a data de HOJE como referência).
-   - IMPORTANTE: Antes de listar os horários, pergunte ao paciente: "Você prefere pela manhã ou à tarde?".
-   - Use a ferramenta 'getAvailableSlots' enviando a data E o parâmetro 'period' (manha, tarde ou noite) para receber uma lista filtrada.
-   - A ferramenta retornará no máximo 4 opções ideais. Apresente-as em um menu numerado curto.
-4. Após ele escolher o horário, peça o CPF para verificar o cadastro ('checkPatientRegistration').
-5. Se não tiver cadastro, peça Nome, Telefone e E-mail ('registerPatient').
-6. PROIBIÇÃO ABSOLUTA DE UPSELL DE SERVIÇOS NÃO SOLICITADOS. Apenas guie-o para a avaliação ou para o serviço exato que ele deseja.
-7. OBRIGATÓRIO: Tenha certeza de que possui os IDs reais do Paciente, do Médico e do Serviço. NUNCA INVENTE IDs (UUIDs falsos).
-8. FLUXO OBRIGATÓRIO DE ENCERRAMENTO (Pré-Reserva e Cobrança):
-   Use a ferramenta 'scheduleAppointment' enviando todos os dados reais.
-   Se a consulta for paga, ela será criada como 'pendente' e um link de pagamento do Mercado Pago será gerado pela ferramenta.
-   Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada. O valor é R$ X. Por favor, realize o pagamento através deste link para que possamos confirmar definitivamente a sua vaga na agenda: [payment_link]"
-   NUNCA esconda o link se ele for gerado. Apenas termine a conversa orientando o paciente a pagar. O sistema fará a confirmação automática depois que ele pagar.
+=== WORKFLOW 3: AGENDAMENTO DE CONSULTA ===
+Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a passo (não pule etapas):
+  PASSO 1: Descubra o que o paciente quer e quando. (Ex: "Qual especialidade e para qual dia você gostaria?").
+  PASSO 2: Use a ferramenta 'smartSlotDiscovery' passando a data desejada (e a especialidade, se informada). Ela retornará TODOS os médicos disponíveis e seus horários livres de uma vez só!
+  PASSO 3: Apresente as opções ao paciente de forma clara e resumida. Ex: "Para amanhã, temos o Dr. João (Ortopedia) às 09:00 e 10:30, e a Dra. Maria às 14:00. Qual horário prefere?"
+  PASSO 4: Se o paciente escolher um horário, você precisará dos dados dele. Use a ferramenta 'checkPatientRegistration' com o Nome ou CPF.
+  PASSO 5: Se o paciente não existir no banco, peça os dados obrigatórios (Nome e Telefone) e use 'registerPatient'.
+  PASSO 6: Quando tiver o ID do Paciente, o ID do Médico e a Data/Hora exata no formato ISO, e souber se será particular ou convênio, pergunte qual serviço (use 'getClinicServices' para ver opções).
+  PASSO 7: Se for particular/pago, não agende diretamente! Use a ferramenta 'createInvoiceLink' para gerar o link do Mercado Pago e envie ao paciente.
+  PASSO 8: Se for um serviço gratuito (ex: Retorno, ou Consulta via Convênio já autorizada), use a ferramenta 'scheduleAppointment' para salvar a consulta no banco de dados. SÓ DIGA QUE ESTÁ CONFIRMADO APÓS ESSA FERRAMENTA RETORNAR SUCESSO.
    
 === WORKFLOW 5: REAGENDAMENTO E CANCELAMENTO ===
 - Se o paciente pedir para REMARCAR, MUDAR OU CANCELAR um agendamento:
@@ -279,12 +270,28 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'getAvailableSlots',
-      description: 'Busca horários disponíveis em uma data específica. Se o paciente disser manhã, tarde ou noite, passe o parâmetro period.',
+      description: 'DEPRECATED: Use smartSlotDiscovery em vez desta ferramenta.',
       parameters: {
         type: 'object',
         properties: {
           date: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
           period: { type: 'string', description: 'Turno desejado: manha, tarde ou noite.', enum: ['manha', 'tarde', 'noite'] }
+        },
+        required: ['date'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'smartSlotDiscovery',
+      description: 'Busca inteligente e rápida de horários. Traz a matriz completa de médicos e seus horários livres para um dia específico. Use esta ferramenta como primeira opção ao invés de getAvailableSlots.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
+          especialidade: { type: 'string', description: 'Opcional. Filtra por especialidade (ex: Ortopedia, Joelho).' },
+          medico_id: { type: 'string', description: 'Opcional. Filtra por um médico específico.' }
         },
         required: ['date'],
       },
@@ -631,6 +638,11 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const schema = z.object({ date: z.string(), period: z.enum(['manha', 'tarde', 'noite']).optional() });
         const validArgs = schema.parse(args);
         return await getAvailableSlots(validArgs.date, validArgs.period);
+      }
+      case 'smartSlotDiscovery': {
+        const schema = z.object({ date: z.string(), especialidade: z.string().optional(), medico_id: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await smartSlotDiscovery(validArgs.date, validArgs.especialidade, validArgs.medico_id);
       }
       case 'getPatientAppointments': {
         const schema = z.object({ paciente_id: z.string() });

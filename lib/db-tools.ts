@@ -836,6 +836,127 @@ export async function registerPatientAlert(paciente_id: string, message: string,
   }
 }
 
+export async function smartSlotDiscovery(dateStr: string, especialidade?: string, medico_id?: string) {
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    if (isNaN(date.getTime())) return { error: 'Data inválida. Use o formato YYYY-MM-DD.' };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date.getTime() < today.getTime()) {
+      return { error: 'Não é possível agendar em datas passadas.' };
+    }
+
+    const dayOfWeek = date.getDay();
+
+    // 1. Busca horário de funcionamento
+    let { data: hoursData } = await supabase.from('business_hours').select('*').eq('day_of_week', dayOfWeek).single();
+    if (!hoursData) {
+      if (dayOfWeek === 0) return { success: true, message: 'A clínica está fechada aos domingos.', availableSlots: [] };
+      hoursData = { open_time: '08:00:00', close_time: '18:00:00', lunch_start: '12:00:00', lunch_end: '13:00:00', is_closed: false, slot_duration: 30 };
+    }
+    if (hoursData.is_closed) return { success: true, message: 'A clínica está fechada neste dia.', availableSlots: [] };
+
+    // 2. Busca médicos ativos (filtrando se necessário)
+    let medicosQuery = supabase.from('medicos').select('id, nome, especialidade').eq('disponivel', true);
+    if (especialidade) medicosQuery = medicosQuery.ilike('especialidade', `%${especialidade}%`);
+    if (medico_id) medicosQuery = medicosQuery.eq('id', medico_id);
+    
+    const { data: medicos } = await medicosQuery;
+    if (!medicos || medicos.length === 0) return { error: 'Nenhum médico encontrado para os critérios informados.' };
+
+    // 3. Busca agendamentos do dia
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data: appointments } = await supabase
+      .from('agendamentos')
+      .select('data_hora, medico_id')
+      .gte('data_hora', startOfDay.toISOString())
+      .lte('data_hora', endOfDay.toISOString())
+      .neq('status', 'canceled');
+
+    // 4. Busca bloqueios do dia
+    const { data: blocks } = await supabase
+      .from('schedule_blocks')
+      .select('start_time, end_time, medico_id')
+      .eq('block_date', dateStr);
+
+    // 5. Gera a grade de horários para cada médico
+    const slotDuration = hoursData.slot_duration || 30;
+    const [openH, openM] = hoursData.open_time.split(':').map(Number);
+    const [closeH, closeM] = hoursData.close_time.split(':').map(Number);
+    
+    const openTimeMinutes = openH * 60 + openM;
+    const closeTimeMinutes = closeH * 60 + closeM;
+    
+    let lunchStartMinutes = -1, lunchEndMinutes = -1;
+    if (hoursData.lunch_start && hoursData.lunch_end) {
+      const [lsh, lsm] = hoursData.lunch_start.split(':').map(Number);
+      const [leh, lem] = hoursData.lunch_end.split(':').map(Number);
+      lunchStartMinutes = lsh * 60 + lsm;
+      lunchEndMinutes = leh * 60 + lem;
+    }
+
+    const isToday = date.toDateString() === new Date().toDateString();
+    const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+
+    const doctorSlots = medicos.map(medico => {
+      const slots = [];
+      for (let time = openTimeMinutes; time + slotDuration <= closeTimeMinutes; time += slotDuration) {
+        // Pula se for almoço
+        if (lunchStartMinutes !== -1 && time >= lunchStartMinutes && time < lunchEndMinutes) continue;
+        
+        // Pula se já passou (se for hoje)
+        if (isToday && time <= currentMinutes + 30) continue; // 30 min de margem
+
+        const slotTimeStr = `${String(Math.floor(time / 60)).padStart(2, '0')}:${String(time % 60).padStart(2, '0')}:00`;
+        const slotDateTimeIso = `${dateStr}T${slotTimeStr}-03:00`; // Considerando fuso do Brasil
+
+        // Checa bloqueios gerais ou do médico específico
+        const isBlocked = blocks?.some(b => {
+          if (b.medico_id && b.medico_id !== medico.id) return false;
+          return slotTimeStr >= b.start_time && slotTimeStr < b.end_time;
+        });
+        if (isBlocked) continue;
+
+        // Checa consultas marcadas para ESTE médico neste horário
+        const isBooked = appointments?.some(a => {
+          if (a.medico_id !== medico.id) return false;
+          const apptTime = new Date(a.data_hora);
+          const apptMinutes = apptTime.getHours() * 60 + apptTime.getMinutes();
+          return time === apptMinutes;
+        });
+        if (isBooked) continue;
+
+        slots.push(`${String(Math.floor(time / 60)).padStart(2, '0')}:${String(time % 60).padStart(2, '0')}`);
+      }
+      return {
+        medico_id: medico.id,
+        medico_nome: medico.nome,
+        especialidade: medico.especialidade,
+        horarios_livres: slots
+      };
+    });
+
+    // Filtra médicos que não têm nenhum horário livre
+    const availableDoctors = doctorSlots.filter(d => d.horarios_livres.length > 0);
+
+    return { 
+      success: true, 
+      date: dateStr,
+      availableSlotsPerDoctor: availableDoctors,
+      message: availableDoctors.length === 0 ? 'Não há horários disponíveis para esta data com os critérios informados.' : 'Horários encontrados com sucesso.'
+    };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
 export async function getAvailableSlots(dateStr: string, period?: 'manha' | 'tarde' | 'noite') {
   try {
     // 1. Parse date and get day of week safely (avoid timezone shift)
