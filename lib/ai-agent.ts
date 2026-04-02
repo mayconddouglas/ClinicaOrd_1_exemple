@@ -24,6 +24,8 @@ import {
   blockDoctorAgenda,
   cancelPendingInvoices,
   sendClinicLocation,
+  savePatientFeedback,
+  scheduleReturnAlert,
 } from './db-tools';
 
 // === NOVA ARQUITETURA ENTERPRISE: AGENTE UNIVERSAL ===
@@ -33,7 +35,7 @@ export const PATIENT_TOOLS_NAMES = [
   'searchLearnedAnswers', 'getAvailableSlots', 'checkAvailability', 'getPatientAppointments',
   'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
   'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert',
-  'sendClinicLocation'
+  'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
@@ -104,7 +106,12 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
    Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada. O valor é R$ X. Por favor, realize o pagamento através deste link para que possamos confirmar definitivamente a sua vaga na agenda: [payment_link]"
    NUNCA esconda o link se ele for gerado. Apenas termine a conversa orientando o paciente a pagar. O sistema fará a confirmação automática depois que ele pagar.
    
-=== WORKFLOW 4: PÓS-CONSULTA ===
+=== WORKFLOW 4: PÓS-CONSULTA E FIDELIZAÇÃO ===
+- Após uma consulta ser concluída ou se o paciente relatar que acabou de sair da clínica, atue proativamente:
+  1. Pergunte: "Como foi o seu atendimento hoje? De 0 a 10, qual nota você daria?"
+  2. Use a ferramenta 'savePatientFeedback' com a nota fornecida. Repasse a mensagem gerada pela ferramenta para o paciente (se a nota for 9 ou 10, peça avaliação no Google).
+  3. Pergunte: "O Doutor pediu para você retornar ou mostrar algum exame daqui a alguns dias?"
+  4. Se sim, use 'scheduleReturnAlert' passando a quantidade de dias (ex: 15) e o motivo. Diga ao paciente que você mesma entrará em contato para lembrá-lo.
 - Se o paciente relatar piora ou dúvidas urgentes após um procedimento, use 'registerPatientAlert' para notificar os médicos e avise o paciente que a equipe já foi alertada.`;
 }
 
@@ -346,7 +353,35 @@ export const toolDeclarations = [
   {
     type: 'function',
     function: {
-      name: 'sendClinicLocation',
+      name: 'savePatientFeedback',
+      description: 'Salva a nota de avaliação (NPS) do paciente sobre o atendimento.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'ID do paciente' },
+          score: { type: 'number', description: 'Nota de 0 a 10 dada pelo paciente' },
+          comments: { type: 'string', description: 'Comentários extras (opcional)' }
+        },
+        required: ['paciente_id', 'score'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'scheduleReturnAlert',
+      description: 'Programa um alerta no sistema para a clínica entrar em contato com o paciente daqui a N dias para marcar um retorno.',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string', description: 'ID do paciente' },
+          days_from_now: { type: 'number', description: 'Daqui a quantos dias o alerta deve disparar (ex: 15)' },
+          reason: { type: 'string', description: 'Motivo do retorno (ex: Mostrar exames, Retirar gesso)' }
+        },
+        required: ['paciente_id', 'days_from_now', 'reason'],
+      },
+    }
+  },
       description: 'Envia o endereço completo e o link do Google Maps da clínica para ajudar o paciente a chegar.',
       parameters: {
         type: 'object',
@@ -572,6 +607,16 @@ export async function executeTool(name: string, args: any): Promise<any> {
       }
       case 'sendClinicLocation':
         return await sendClinicLocation();
+      case 'savePatientFeedback': {
+        const schema = z.object({ paciente_id: z.string(), score: z.number(), comments: z.string().optional() });
+        const validArgs = schema.parse(args);
+        return await savePatientFeedback(validArgs.paciente_id, validArgs.score, validArgs.comments);
+      }
+      case 'scheduleReturnAlert': {
+        const schema = z.object({ paciente_id: z.string(), days_from_now: z.number(), reason: z.string() });
+        const validArgs = schema.parse(args);
+        return await scheduleReturnAlert(validArgs.paciente_id, validArgs.days_from_now, validArgs.reason);
+      }
       case 'getClinicServices':
         return await getClinicServices();
       case 'createInvoiceLink':

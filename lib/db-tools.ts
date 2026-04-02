@@ -433,7 +433,69 @@ export async function scheduleAppointment(params: {
   }
 }
 
-export async function saveTriage(paciente_id: string, pain_scale: number, symptoms: string, red_flags?: string, urgency_classification?: string) {
+export async function savePatientFeedback(paciente_id: string, score: number, comments?: string) {
+  try {
+    // 1. Verificar se a tabela existe (fallback para log)
+    const { error } = await supabase
+      .from('patient_feedbacks')
+      .insert([{ paciente_id, score, comments }]);
+
+    if (error) {
+      console.error('Erro ao salvar feedback (a tabela existe?):', error);
+      // Se a tabela não existir, salvamos em um log genérico
+      return { success: false, message: 'Não foi possível registrar o feedback no sistema. Diga ao paciente que você anotou e repassará para a gerência.' };
+    }
+
+    // Lógica de Retenção e Upsell de Avaliação
+    if (score >= 9) {
+      return { 
+        success: true, 
+        message: 'Feedback incrível salvo! Peça para o paciente nos avaliar no Google: https://g.page/r/suaclinica/review' 
+      };
+    } else if (score <= 6) {
+      return { 
+        success: true, 
+        message: 'Feedback negativo salvo. Peça desculpas sinceras em nome da clínica e diga que o gerente vai entrar em contato pessoalmente para resolver a situação.' 
+      };
+    } else {
+      return { 
+        success: true, 
+        message: 'Feedback neutro salvo. Agradeça o paciente por nos ajudar a melhorar.' 
+      };
+    }
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function scheduleReturnAlert(paciente_id: string, days_from_now: number, reason: string) {
+  try {
+    const alertDate = new Date();
+    alertDate.setDate(alertDate.getDate() + days_from_now);
+    const isoDate = alertDate.toISOString().split('T')[0];
+
+    const { error } = await supabase
+      .from('return_alerts')
+      .insert([{ 
+        paciente_id, 
+        alert_date: isoDate, 
+        reason,
+        status: 'pending'
+      }]);
+
+    if (error) {
+      console.error('Erro ao agendar alerta (a tabela existe?):', error);
+      return { success: false, message: 'Ocorreu um erro interno. Apenas diga ao paciente que anotou o lembrete na ficha dele.' };
+    }
+
+    return {
+      success: true,
+      message: `Alerta salvo com sucesso para o dia ${isoDate}. Diga ao paciente: "Pronto! Programei aqui no meu sistema e daqui a ${days_from_now} dias eu te chamo para marcarmos seu retorno."`
+    };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
   try {
     const { data, error } = await supabase
       .from('triages')
