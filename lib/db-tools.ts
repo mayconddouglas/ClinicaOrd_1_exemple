@@ -1088,7 +1088,11 @@ export async function rescheduleAppointment(appointment_id: string, new_data_hor
       return { error: 'Erro ao reagendar consulta.' };
     }
 
-    return { success: true, appointment: data };
+    return { 
+      success: true, 
+      message: 'Agendamento remarcado com sucesso na mesma ficha, sem duplicar cobranças.',
+      appointment: data 
+    };
   } catch (err: any) {
     return { error: err.message };
   }

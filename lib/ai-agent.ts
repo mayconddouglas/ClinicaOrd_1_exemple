@@ -106,7 +106,15 @@ Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica, passo a 
    Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada. O valor é R$ X. Por favor, realize o pagamento através deste link para que possamos confirmar definitivamente a sua vaga na agenda: [payment_link]"
    NUNCA esconda o link se ele for gerado. Apenas termine a conversa orientando o paciente a pagar. O sistema fará a confirmação automática depois que ele pagar.
    
-=== WORKFLOW 4: PÓS-CONSULTA E FIDELIZAÇÃO ===
+=== WORKFLOW 5: REAGENDAMENTO E CANCELAMENTO ===
+- Se o paciente pedir para REMARCAR, MUDAR OU CANCELAR um agendamento:
+  1. Use 'checkPatientRegistration' (com o telefone ou CPF) para encontrar o ID do paciente.
+  2. Use 'getPatientAppointments' para listar os agendamentos dele.
+  3. Se ele quiser cancelar, use a ferramenta 'cancelAppointment' passando o ID do agendamento.
+  4. Se ele quiser REAGENDAR (mudar a data/hora), NUNCA crie um novo agendamento. Use a ferramenta 'rescheduleAppointment' passando o ID do agendamento existente e a nova data/hora. Isso evita duplicidade no banco e no financeiro.
+  5. Após reagendar, confirme com o paciente o novo horário.
+
+=== WORKFLOW 6: PÓS-CONSULTA E FIDELIZAÇÃO ===
 - Após uma consulta ser concluída ou se o paciente relatar que acabou de sair da clínica, atue proativamente:
   1. Pergunte: "Como foi o seu atendimento hoje? De 0 a 10, qual nota você daria?"
   2. Use a ferramenta 'savePatientFeedback' com a nota fornecida. Repasse a mensagem gerada pela ferramenta para o paciente (se a nota for 9 ou 10, peça avaliação no Google).
@@ -300,12 +308,12 @@ export const toolDeclarations = [
     type: 'function',
     function: {
       name: 'rescheduleAppointment',
-      description: 'Reagenda uma consulta para um novo horário.',
+      description: 'Reagenda (Muda a data e hora) de uma consulta. USE SEMPRE ESTA FERRAMENTA PARA REAGENDAMENTOS, nunca crie um novo agendamento para evitar duplicidade financeira.',
       parameters: {
         type: 'object',
         properties: {
           appointment_id: { type: 'string', description: 'O ID (UUID) da consulta.' },
-          new_data_hora: { type: 'string', description: 'Nova data e hora no formato ISO 8601.' },
+          new_data_hora: { type: 'string', description: 'Nova data e hora EXATA no formato ISO 8601 (ex: 2026-04-03T14:30:00-03:00).' },
         },
         required: ['appointment_id', 'new_data_hora'],
       },
