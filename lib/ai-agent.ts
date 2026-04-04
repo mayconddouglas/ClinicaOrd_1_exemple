@@ -80,7 +80,7 @@ Você já reconheceu este paciente pelo número de telefone! Use isso para dar u
     }
   } else {
     callerIdContext = `\n=== INFORMAÇÕES DO PACIENTE ===
-Paciente novo ou não reconhecido pelo número. Seja extremamente acolhedor. Apresente-se e diga: "Olá! Que bom ter você aqui. Para agilizar, pode me mandar uma foto da sua CNH/RG ou apenas digitar seu Nome Completo e CPF na mesma mensagem?" (Use a ferramenta 'smartOnboarding' assim que ele responder).`;
+Paciente novo ou não reconhecido pelo número. Seja extremamente acolhedor. Apresente-se e diga: "Olá! Que bom ter você aqui. Para agilizar, pode me mandar uma foto da sua CNH/RG ou apenas digitar seu Nome Completo, CPF e E-mail na mesma mensagem?" (Use a ferramenta 'smartOnboarding' assim que ele responder).`;
   }
 
   return `Você é o assistente virtual principal e recepcionista da ${clinicName}.
@@ -134,7 +134,7 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
 Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica:
   PASSO 1: Use a ferramenta 'superSlotDiscovery' (NÃO use a getAvailableSlots) passando a data desejada (e a especialidade, se informada). Ela já traz as opções mais próximas e traduzidas.
   PASSO 2: Apresente as opções em menu numerado, de forma clara. Ex: "Para amanhã, temos a Dra. Ana às 09:00 e o Dr. Carlos às 16:00. Qual prefere?"
-  PASSO 3: Se ele escolher um horário e NÃO tiver cadastro, use o 'smartOnboarding' pedindo nome e CPF na mesma mensagem. Se já tiver, pule esta etapa.
+  PASSO 3: Se ele escolher um horário e NÃO tiver cadastro, use o 'smartOnboarding' pedindo Nome, CPF e E-mail na mesma mensagem. Se já tiver, pule esta etapa.
   PASSO 4: Com o ID do Paciente, do Médico e o Serviço definidos, USE A FERRAMENTA 'seamlessCheckout'.
   PASSO 5: A ferramenta 'seamlessCheckout' fará a reserva e gerará a cobrança. Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada! 📅 O valor é R$ X. 💳 Por favor, realize o pagamento através deste link PIX/MercadoPago para garantir 100% a sua vaga: [payment_link]"
    
@@ -201,7 +201,7 @@ export const toolDeclarations = [
           nome: { type: 'string', description: 'Opcional. Nome já estruturado.' },
           cpf: { type: 'string', description: 'Opcional. CPF já estruturado.' },
           telefone: { type: 'string', description: 'Opcional. Telefone já estruturado.' },
-          email: { type: 'string', description: 'Opcional. E-mail já estruturado.' },
+          email: { type: 'string', description: 'OBRIGATÓRIO. E-mail extraído da conversa ou estruturado.' },
           data_nascimento: { type: 'string', description: 'Opcional. Data de nascimento em YYYY-MM-DD.' },
         },
       },
@@ -304,7 +304,7 @@ export const toolDeclarations = [
           email: { type: 'string', description: 'E-mail do paciente para receber notificações.' },
           data_nascimento: { type: 'string', description: 'Data de nascimento no formato YYYY-MM-DD.' },
         },
-        required: ['nome', 'telefone'],
+        required: ['nome', 'telefone', 'email'],
       },
     }
   },
@@ -710,26 +710,32 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const text = validArgs.raw_input || '';
         const extractedCpf = (text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/) || [])[0]?.replace(/\D/g, '');
         const extractedPhone = (text.match(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9?\d{4})-?\d{4}/) || [])[0]?.replace(/\D/g, '');
+        const extractedEmail = (text.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/) || [])[0];
         const normalizedName = validArgs.nome || text.split(',')[0]?.trim();
         const cpf = validArgs.cpf?.replace(/\D/g, '') || extractedCpf;
         const telefone = validArgs.telefone?.replace(/\D/g, '') || extractedPhone;
+        const emailToSave = validArgs.email || extractedEmail;
         const nome = normalizedName && normalizedName.length >= 3 ? normalizedName : undefined;
 
-        if (!nome && !cpf && !telefone) {
-          return { error: 'Dados insuficientes para onboarding. Informe nome, CPF ou telefone.' };
+        if (!nome && !cpf && !telefone && !emailToSave) {
+          return { error: 'Dados insuficientes para onboarding. Informe Nome, CPF, Telefone ou E-mail.' };
         }
 
         const existing = await checkPatientRegistration(cpf, nome, telefone);
         if (existing?.registered) {
-          return { success: true, flow: 'already_registered', ...existing, extracted: { nome, cpf, telefone } };
+          return { success: true, flow: 'already_registered', ...existing, extracted: { nome, cpf, telefone, email: emailToSave } };
         }
 
         if (!nome) {
-          return { error: 'Não consegui identificar o nome completo para concluir o cadastro.', extracted: { cpf, telefone } };
+          return { error: 'Não consegui identificar o nome completo para concluir o cadastro. Por favor, forneça seu nome.', extracted: { cpf, telefone, email: emailToSave } };
         }
 
-        const created = await registerPatient(nome, cpf || '', telefone, validArgs.email, validArgs.data_nascimento);
-        return { flow: 'registered_now', extracted: { nome, cpf, telefone }, ...created };
+        if (!emailToSave) {
+          return { error: 'O E-mail é obrigatório para realizar o cadastro. Por favor, me informe seu e-mail para continuarmos.', extracted: { nome, cpf, telefone } };
+        }
+
+        const created = await registerPatient(nome, cpf || '', telefone, emailToSave, validArgs.data_nascimento);
+        return { flow: 'registered_now', extracted: { nome, cpf, telefone, email: emailToSave }, ...created };
       }
       case 'serviceMatcher': {
         const schema = z.object({ symptoms: z.string(), paciente_id: z.string().optional(), pain_scale: z.number().optional() });
