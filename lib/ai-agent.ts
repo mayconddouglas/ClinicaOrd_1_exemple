@@ -54,7 +54,7 @@ export async function getUniversalPatientPrompt(patientContext?: any) {
   const cnpj = settings?.cnpj || 'Não informado';
   const phone = settings?.phone || 'Não informado';
   const email = settings?.email || 'Não informado';
-  const address = `${settings?.street || ''}, ${settings?.number || ''}${settings?.complement ? ` - ${settings.complement}` : ''}, ${settings?.neighborhood || ''} - ${settings?.city || ''}/${settings?.state || ''} - CEP: ${settings?.zip_code || ''}`.replace(/^[ ,]+|[ ,]+$/g, '');
+  const address = `${settings?.rua || ''}, ${settings?.numero || ''}${settings?.complemento ? ` - ${settings.complemento}` : ''}, ${settings?.bairro || ''} - ${settings?.cidade || ''}/${settings?.estado || ''} - CEP: ${settings?.cep || ''}`.replace(/^[ ,]+|[ ,]+$/g, '');
   const instagram = settings?.instagram_url || 'Não informado';
   const facebook = settings?.facebook_url || 'Não informado';
   const website = settings?.website_url || 'Não informado';

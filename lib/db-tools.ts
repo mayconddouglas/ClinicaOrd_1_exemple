@@ -245,24 +245,26 @@ export async function sendClinicLocation() {
   try {
     const { data: settings, error } = await supabase
       .from('clinic_settings')
-      .select('clinic_name, clinic_address')
+      .select('clinic_name, rua, numero, bairro, cidade, estado, cep')
       .limit(1)
       .single();
 
     if (error || !settings) {
-      return { 
-        success: true, 
-        message: 'Nossa clínica fica no centro da cidade. Por favor, aguarde que um de nossos atendentes enviará a localização exata para você!' 
+      return {
+        success: true,
+        message: 'Nossa clínica fica no centro da cidade. Por favor, aguarde que um de nossos atendentes enviará a localização exata para você!'
       };
     }
 
-    const address = settings.clinic_address || 'Endereço não cadastrado.';
+    const address = `${settings.rua || ''}, ${settings.numero || ''} - ${settings.bairro || ''}, ${settings.cidade || ''}/${settings.estado || ''} - CEP: ${settings.cep || ''}`.replace(/^[ ,-]+|[ ,-]+$/g, '');
+    const finalAddress = address.length > 5 ? address : 'Endereço não cadastrado.';
+    
     // Generate a Google Maps link dynamically based on the address
-    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalAddress)}`;
 
     return {
       success: true,
-      message: `A ${settings.clinic_name || 'nossa clínica'} fica localizada no endereço:\n📍 ${address}\n\nVocê pode ver como chegar clicando neste link do Google Maps:\n🗺️ ${mapsLink}`
+      message: `A ${settings.clinic_name || 'nossa clínica'} fica localizada no endereço:\n📍 ${finalAddress}\n\nVocê pode ver como chegar clicando neste link do Google Maps:\n🗺️ ${mapsLink}`
     };
   } catch (err: any) {
     return { error: err.message };
@@ -1371,7 +1373,12 @@ export async function generateAttendanceCertificate(appointment_id: string) {
 
     const { data: settings } = await supabase.from('clinic_settings').select('*').limit(1).single();
     const clinicName = settings?.clinic_name || 'Clínica de Ortopedia';
-    const clinicAddress = settings?.clinic_address || 'Endereço não cadastrado';
+    
+    let clinicAddress = 'Endereço não cadastrado';
+    if (settings) {
+      const addr = `${settings.rua || ''}, ${settings.numero || ''}${settings.complemento ? ` - ${settings.complemento}` : ''}, ${settings.bairro || ''} - ${settings.cidade || ''}/${settings.estado || ''} - CEP: ${settings.cep || ''}`.replace(/^[ ,-]+|[ ,-]+$/g, '');
+      if (addr.length > 5) clinicAddress = addr;
+    }
 
     const dateObj = new Date(appointment.data_hora);
     const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' };
