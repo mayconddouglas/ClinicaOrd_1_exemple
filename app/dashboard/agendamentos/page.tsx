@@ -65,6 +65,7 @@ interface Agendamento {
 
 export default function AgendamentosPage() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [novosAgendamentosIds, setNovosAgendamentosIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -127,7 +128,6 @@ export default function AgendamentosPage() {
           id,
           paciente_id,
           data_hora,
-          created_at,
           motivo,
           especialidade,
           status,
@@ -180,8 +180,9 @@ export default function AgendamentosPage() {
         },
         (payload) => {
           fetchAgendamentos();
-          
+
           if (payload.eventType === 'INSERT') {
+            setNovosAgendamentosIds(prev => new Set(prev).add(payload.new.id));
             toast.success('Nova consulta agendada pelo assistente!', {
               icon: <Plus className="h-4 w-4" />,
               description: 'A lista foi atualizada.'
@@ -703,7 +704,7 @@ export default function AgendamentosPage() {
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
                   const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
-                  const isNovo = agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false;
+                  const isNovo = novosAgendamentosIds.has(agendamento.id) || (agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false);
                   
                   return (
                     <TableRow 
@@ -858,7 +859,7 @@ export default function AgendamentosPage() {
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
                   const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
-                  const isNovo = agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false;
+                  const isNovo = novosAgendamentosIds.has(agendamento.id) || (agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false);
 
                   return (
                     <Card key={agendamento.id} className={`overflow-hidden flex flex-col transition-all hover:shadow-md ${isPendenteAtrasado ? 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10' : ''}`}>
