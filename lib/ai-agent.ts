@@ -80,7 +80,7 @@ Você já reconheceu este paciente pelo número de telefone! Use isso para dar u
     }
   } else {
     callerIdContext = `\n=== INFORMAÇÕES DO PACIENTE ===
-Paciente novo ou não reconhecido pelo número. Seja extremamente acolhedor. Apresente-se e diga: "Olá! Que bom ter você aqui. Para agilizar, pode me mandar uma foto da sua CNH/RG ou apenas digitar seu Nome Completo, CPF e E-mail na mesma mensagem?" (Use a ferramenta 'smartOnboarding' assim que ele responder).`;
+Paciente novo ou não reconhecido pelo número. Seja extremamente acolhedor. Apresente-se e diga: "Olá! Que bom ter você aqui. Para agilizar, pode me mandar uma foto da sua CNH/RG ou apenas digitar seu Nome Completo, CPF, E-mail e Telefone na mesma mensagem?" (Use a ferramenta 'smartOnboarding' assim que ele responder).`;
   }
 
   return `Você é o assistente virtual principal e recepcionista da ${clinicName}.
@@ -134,7 +134,7 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
 Para marcar consultas, você DEVE seguir EXATAMENTE esta ordem lógica:
   PASSO 1: Use a ferramenta 'superSlotDiscovery' (NÃO use a getAvailableSlots) passando a data desejada (e a especialidade, se informada). Ela já traz as opções mais próximas e traduzidas.
   PASSO 2: Apresente as opções em menu numerado, de forma clara. Ex: "Para amanhã, temos a Dra. Ana às 09:00 e o Dr. Carlos às 16:00. Qual prefere?"
-  PASSO 3: Se ele escolher um horário e NÃO tiver cadastro, use o 'smartOnboarding' pedindo Nome, CPF e E-mail na mesma mensagem. Se já tiver, pule esta etapa.
+  PASSO 3: Se ele escolher um horário e NÃO tiver cadastro, use o 'smartOnboarding' pedindo Nome, CPF, Telefone e E-mail na mesma mensagem. Se já tiver, pule esta etapa.
   PASSO 4: Com o ID do Paciente, do Médico e o Serviço definidos, USE A FERRAMENTA 'seamlessCheckout'.
   PASSO 5: A ferramenta 'seamlessCheckout' fará a reserva e gerará a cobrança. Na sua resposta final, você DEVE dizer: "Sua vaga está pré-reservada! 📅 O valor é R$ X. 💳 Por favor, realize o pagamento através deste link PIX/MercadoPago para garantir 100% a sua vaga: [payment_link]"
    
@@ -200,7 +200,7 @@ export const toolDeclarations = [
           raw_input: { type: 'string', description: 'Mensagem livre enviada pelo paciente contendo dados misturados.' },
           nome: { type: 'string', description: 'Opcional. Nome já estruturado.' },
           cpf: { type: 'string', description: 'Opcional. CPF já estruturado.' },
-          telefone: { type: 'string', description: 'Opcional. Telefone já estruturado.' },
+          telefone: { type: 'string', description: 'OBRIGATÓRIO. Telefone extraído da conversa ou estruturado.' },
           email: { type: 'string', description: 'OBRIGATÓRIO. E-mail extraído da conversa ou estruturado.' },
           data_nascimento: { type: 'string', description: 'Opcional. Data de nascimento em YYYY-MM-DD.' },
         },
@@ -728,6 +728,10 @@ export async function executeTool(name: string, args: any): Promise<any> {
 
         if (!nome) {
           return { error: 'Não consegui identificar o nome completo para concluir o cadastro. Por favor, forneça seu nome.', extracted: { cpf, telefone, email: emailToSave } };
+        }
+
+        if (!telefone) {
+          return { error: 'O número de Telefone é obrigatório para realizar o cadastro. Por favor, me informe seu telefone com DDD.', extracted: { nome, cpf, email: emailToSave } };
         }
 
         if (!emailToSave) {
