@@ -38,7 +38,8 @@ export const PATIENT_TOOLS_NAMES = [
   'cancelAppointment', 'rescheduleAppointment', 'getAvailableDoctors',
   'getDoctorsBySpecialty', 'getClinicServices', 'escalateToHuman', 'registerPatientAlert',
   'sendClinicLocation', 'savePatientFeedback', 'scheduleReturnAlert', 'generateAttendanceCertificate',
-  'smartSlotDiscovery'
+  'smartSlotDiscovery', 'smartOnboarding', 'serviceMatcher', 'superSlotDiscovery',
+  'seamlessCheckout', 'voiceAnalytics'
 ];
 
 export const ADMIN_TOOLS_NAMES = [
@@ -113,6 +114,10 @@ Sua missão é conduzir toda a jornada do paciente (dúvidas, triagem e agendame
    1. Segunda-feira às 14:00
    2. Terça-feira às 09:00"
 4. ACOLHIMENTO DE DOR: Sempre que o paciente relatar dor, desconforto ou tristeza, inicie a resposta com uma frase de empatia e acolhimento ANTES de fazer perguntas práticas (Ex: "Sinto muito que você esteja passando por isso. Vamos cuidar de você o mais rápido possível.").
+5. FIM DO MEDICALÊS: Traduza termos técnicos para linguagem simples (ex: "Ortopedia Pediátrica" → "médico de osso para crianças").
+6. FRASES CURTAS: Cada mensagem deve ter no máximo 3 linhas curtas.
+7. EMOJIS ESTRATÉGICOS: Use emojis para guiar visualmente (📅 data/horário, 👨‍⚕️ médico, 💳 pagamento, 📍 localização), sem exagero.
+8. SEMPRE DÊ SAÍDA: Se não houver vaga, ofereça lista de espera. Se não houver serviço compatível, ofereça escalonamento humano via 'escalateToHuman'.
 
 === WORKFLOW 1: DÚVIDAS (FAQ) E INFORMAÇÕES ===
 - Se o paciente perguntar sobre o endereço, como chegar ou localização, use a ferramenta 'sendClinicLocation'.
@@ -191,6 +196,92 @@ Regras:
 }
 
 export const toolDeclarations = [
+  {
+    type: 'function',
+    function: {
+      name: 'smartOnboarding',
+      description: 'Onboarding inteligente: extrai Nome/CPF/Telefone de uma mensagem única, valida cadastro existente e cria paciente em um único fluxo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          raw_input: { type: 'string', description: 'Mensagem livre enviada pelo paciente contendo dados misturados.' },
+          nome: { type: 'string', description: 'Opcional. Nome já estruturado.' },
+          cpf: { type: 'string', description: 'Opcional. CPF já estruturado.' },
+          telefone: { type: 'string', description: 'Opcional. Telefone já estruturado.' },
+          email: { type: 'string', description: 'Opcional. E-mail já estruturado.' },
+          data_nascimento: { type: 'string', description: 'Opcional. Data de nascimento em YYYY-MM-DD.' },
+        },
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'serviceMatcher',
+      description: 'Cruza sintomas de triagem com os serviços da clínica e sugere os serviços mais aderentes para pacientes leigos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          symptoms: { type: 'string', description: 'Descrição dos sintomas em linguagem natural.' },
+          paciente_id: { type: 'string', description: 'Opcional. Se informado, salva a triagem.' },
+          pain_scale: { type: 'integer', description: 'Opcional. Escala de dor de 0 a 10.' },
+        },
+        required: ['symptoms'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'superSlotDiscovery',
+      description: 'Versão orientada a experiência do smartSlotDiscovery: retorna agenda consolidada com opções mais próximas e prontas para leitura do paciente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Data no formato YYYY-MM-DD.' },
+          especialidade: { type: 'string', description: 'Opcional. Filtra por especialidade.' },
+          medico_id: { type: 'string', description: 'Opcional. Filtra por médico específico.' }
+        },
+        required: ['date'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'seamlessCheckout',
+      description: 'Orquestra pré-reserva + cobrança com retorno unificado para o chat (status do agendamento e instruções de pagamento).',
+      parameters: {
+        type: 'object',
+        properties: {
+          paciente_id: { type: 'string' },
+          data_hora: { type: 'string', description: 'Data/hora ISO exata da consulta.' },
+          service_id: { type: 'string' },
+          motivo: { type: 'string' },
+          especialidade: { type: 'string' },
+          medico_id: { type: 'string' },
+          patient_name: { type: 'string', description: 'Nome do paciente (necessário se for gerar cobrança avulsa).' },
+          patient_email: { type: 'string' },
+          amount: { type: 'number' },
+          is_free: { type: 'boolean' }
+        },
+        required: ['paciente_id', 'data_hora', 'service_id'],
+      },
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'voiceAnalytics',
+      description: 'Copilot administrativo: consolida métricas financeiras e de agenda para resposta em linguagem natural.',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', description: 'Opcional. "daily" (padrão) ou "raw".' }
+        },
+      },
+    }
+  },
   {
     type: 'function',
     function: {
@@ -613,6 +704,136 @@ export const toolDeclarations = [
 export async function executeTool(name: string, args: any): Promise<any> {
   try {
     switch (name) {
+      case 'smartOnboarding': {
+        const schema = z.object({
+          raw_input: z.string().optional(),
+          nome: z.string().optional(),
+          cpf: z.string().optional(),
+          telefone: z.string().optional(),
+          email: z.string().optional(),
+          data_nascimento: z.string().optional()
+        });
+        const validArgs = schema.parse(args);
+        const text = validArgs.raw_input || '';
+        const extractedCpf = (text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/) || [])[0]?.replace(/\D/g, '');
+        const extractedPhone = (text.match(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9?\d{4})-?\d{4}/) || [])[0]?.replace(/\D/g, '');
+        const normalizedName = validArgs.nome || text.split(',')[0]?.trim();
+        const cpf = validArgs.cpf?.replace(/\D/g, '') || extractedCpf;
+        const telefone = validArgs.telefone?.replace(/\D/g, '') || extractedPhone;
+        const nome = normalizedName && normalizedName.length >= 3 ? normalizedName : undefined;
+
+        if (!nome && !cpf && !telefone) {
+          return { error: 'Dados insuficientes para onboarding. Informe nome, CPF ou telefone.' };
+        }
+
+        const existing = await checkPatientRegistration(cpf, nome, telefone);
+        if (existing?.registered) {
+          return { success: true, flow: 'already_registered', ...existing, extracted: { nome, cpf, telefone } };
+        }
+
+        if (!nome) {
+          return { error: 'Não consegui identificar o nome completo para concluir o cadastro.', extracted: { cpf, telefone } };
+        }
+
+        const created = await registerPatient(nome, cpf || '', telefone, validArgs.email, validArgs.data_nascimento);
+        return { flow: 'registered_now', extracted: { nome, cpf, telefone }, ...created };
+      }
+      case 'serviceMatcher': {
+        const schema = z.object({ symptoms: z.string(), paciente_id: z.string().optional(), pain_scale: z.number().optional() });
+        const validArgs = schema.parse(args);
+        const [servicesResult, triageResult] = await Promise.all([
+          getClinicServices(),
+          validArgs.paciente_id
+            ? saveTriage(validArgs.paciente_id, validArgs.pain_scale ?? 0, validArgs.symptoms)
+            : Promise.resolve({ skipped: true })
+        ]);
+
+        const services = servicesResult?.services || [];
+        const symptomTokens = validArgs.symptoms.toLowerCase().split(/\s+/).filter((token) => token.length > 2);
+        const ranked = services
+          .map((service: any) => {
+            const blob = `${service.nome || ''} ${service.descricao || ''} ${service.especialidade || ''}`.toLowerCase();
+            const score = symptomTokens.reduce((acc, token) => acc + (blob.includes(token) ? 1 : 0), 0);
+            return { service, score };
+          })
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 3)
+          .map((item: any) => item.service);
+
+        return {
+          success: true,
+          suggested_services: ranked.length > 0 ? ranked : services.slice(0, 3),
+          triage: triageResult
+        };
+      }
+      case 'superSlotDiscovery': {
+        const schema = z.object({ date: z.string(), especialidade: z.string().optional(), medico_id: z.string().optional() });
+        const validArgs = schema.parse(args);
+        const discovery = await smartSlotDiscovery(validArgs.date, validArgs.especialidade, validArgs.medico_id);
+        return {
+          ...discovery,
+          mode: 'super_slot_discovery',
+          patient_friendly_hint: 'Priorize sempre as vagas mais próximas e retorne no máximo 3 opções por médico.'
+        };
+      }
+      case 'seamlessCheckout': {
+        const schema = z.object({
+          paciente_id: z.string(),
+          data_hora: z.string(),
+          service_id: z.string(),
+          motivo: z.string().optional(),
+          especialidade: z.string().optional(),
+          medico_id: z.string().optional(),
+          patient_name: z.string().optional(),
+          patient_email: z.string().optional(),
+          amount: z.number().optional(),
+          is_free: z.boolean().optional()
+        });
+        const validArgs = schema.parse(args);
+        const appointment = await scheduleAppointment({
+          paciente_id: validArgs.paciente_id,
+          data_hora: validArgs.data_hora,
+          motivo: validArgs.motivo,
+          especialidade: validArgs.especialidade,
+          medico_id: validArgs.medico_id,
+          service_id: validArgs.service_id
+        });
+
+        let invoiceFallback = null;
+        if (!appointment?.payment_link && validArgs.patient_name && validArgs.amount !== undefined) {
+          invoiceFallback = await createInvoiceLink({
+            patient_id: validArgs.paciente_id,
+            patient_name: validArgs.patient_name,
+            patient_email: validArgs.patient_email,
+            service_id: validArgs.service_id,
+            service_name: validArgs.especialidade || validArgs.motivo || 'Consulta',
+            amount: validArgs.amount,
+            is_free: validArgs.is_free
+          });
+        }
+
+        return {
+          success: !appointment?.error,
+          appointment,
+          invoice: invoiceFallback,
+          payment_link: appointment?.payment_link || invoiceFallback?.payment_link || null
+        };
+      }
+      case 'voiceAnalytics': {
+        const schema = z.object({ mode: z.enum(['daily', 'raw']).optional() });
+        const validArgs = schema.parse(args);
+        const [financial, appointments] = await Promise.all([getFinancialMetrics(), getAppointmentsMetrics()]);
+        if (validArgs.mode === 'raw') return { financial, appointments };
+        return {
+          success: true,
+          summary:
+            `Resumo rápido: faturamento hoje ${financial?.todayRevenueFormatted || 'N/A'}; ` +
+            `pendentes ${financial?.pendingAmountFormatted || 'N/A'}; ` +
+            `consultas hoje ${appointments?.today_total ?? 0} (confirmadas: ${appointments?.confirmed ?? 0}, pendentes: ${appointments?.pending ?? 0}).`,
+          financial,
+          appointments
+        };
+      }
       case 'checkPatientRegistration': {
         const schema = z.object({ cpf: z.string().optional(), nome: z.string().optional(), telefone: z.string().optional() });
         const validArgs = schema.parse(args);
