@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope, Mail, LayoutGrid, List, ArrowUpDown, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
+import { format, isToday, isTomorrow, isThisWeek, isPast, differenceInHours } from 'date-fns';
 import { toDate } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
@@ -55,6 +55,7 @@ interface Agendamento {
   id: string;
   paciente_id: string;
   data_hora: string;
+  created_at?: string;
   motivo: string;
   especialidade: string;
   status: string;
@@ -126,6 +127,7 @@ export default function AgendamentosPage() {
           id,
           paciente_id,
           data_hora,
+          created_at,
           motivo,
           especialidade,
           status,
@@ -701,6 +703,7 @@ export default function AgendamentosPage() {
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
                   const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
+                  const isNovo = agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false;
                   
                   return (
                     <TableRow 
@@ -719,9 +722,16 @@ export default function AgendamentosPage() {
                             {agendamento.pacientes?.nome?.charAt(0)?.toUpperCase() || 'P'}
                           </div>
                           <div className="flex flex-col">
-                            <span className={`truncate max-w-[150px] ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`} title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
-                              {agendamento.pacientes?.nome || 'Paciente não identificado'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`truncate max-w-[150px] ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`} title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
+                                {agendamento.pacientes?.nome || 'Paciente não identificado'}
+                              </span>
+                              {isNovo && (
+                                <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[9px] uppercase px-1.5 py-0 h-4 border-0 animate-pulse">
+                                  Novo
+                                </Badge>
+                              )}
+                            </div>
                             {isPendenteAtrasado && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -848,14 +858,22 @@ export default function AgendamentosPage() {
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
                   const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
+                  const isNovo = agendamento.created_at ? differenceInHours(new Date(), new Date(agendamento.created_at)) < 24 : false;
 
                   return (
                     <Card key={agendamento.id} className={`overflow-hidden flex flex-col transition-all hover:shadow-md ${isPendenteAtrasado ? 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10' : ''}`}>
                       <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
-                        <div className="flex flex-col gap-1">
-                          <CardTitle className="text-base truncate" title={agendamento.pacientes?.nome}>
-                            {agendamento.pacientes?.nome || 'Paciente não identificado'}
-                          </CardTitle>
+                        <div className="flex flex-col gap-1 w-full mr-2">
+                          <div className="flex items-center justify-between w-full">
+                            <CardTitle className="text-base truncate" title={agendamento.pacientes?.nome}>
+                              {agendamento.pacientes?.nome || 'Paciente não identificado'}
+                            </CardTitle>
+                            {isNovo && (
+                              <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[9px] uppercase px-1.5 py-0 h-4 border-0 animate-pulse flex-shrink-0 ml-2">
+                                Novo
+                              </Badge>
+                            )}
+                          </div>
                           {isPendenteAtrasado && (
                             <span className="text-[10px] text-red-500 flex items-center font-medium">
                               <AlertTriangle className="h-3 w-3 mr-1" />
