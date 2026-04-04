@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       iterations++;
 
       const generateParams: any = {
-        model: 'qwen/qwen-2.5-coder-32b-instruct', // qwen/qwen3.6-plus:free is invalid, using qwen-2.5-coder-32b-instruct which is free on openrouter
+        model: 'qwen/qwen-2.5-72b-instruct:free',
         messages: openRouterMessages,
         temperature: 0.1,
       };
