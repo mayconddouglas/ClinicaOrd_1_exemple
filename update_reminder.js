@@ -1,82 +1,6 @@
-import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
-import { supabaseServer } from '@/lib/supabase-server';
+const fs = require('fs');
 
-// Esta rota deve ser chamada por um CRON JOB (ex: a cada hora)
-// Pode ser configurado no Vercel Cron ou em um serviço externo como cron-job.org
-export async function GET(req: Request) {
-  try {
-    // 1. Verificar se a integração do Gmail está ativa
-    const { data: config, error: configError } = await supabaseServer
-      .from('workspace_integrations')
-      .select('is_gmail_active, gmail_email, gmail_app_password')
-      .single();
-
-    if (configError || !config?.is_gmail_active || !config.gmail_email || !config.gmail_app_password) {
-      return NextResponse.json({ error: 'Integração do Gmail não está ativa ou configurada.' }, { status: 400 });
-    }
-
-    // 2. Buscar agendamentos do dia todo (como o Cron da Vercel Free é diário)
-    // Calcula a janela de tempo: (Agora) até (Fim do dia)
-    const now = new Date();
-    
-    // Configura para o fim do dia atual (23:59:59)
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const { data: agendamentos, error: agendamentosError } = await supabaseServer
-      .from('agendamentos')
-      .select(`
-        id,
-        data_hora,
-        especialidade,
-        pacientes!inner (
-          nome,
-          email
-        )
-      `)
-      .eq('status', 'pendente')
-      .gte('data_hora', now.toISOString())
-      .lte('data_hora', endOfDay.toISOString());
-
-    if (agendamentosError) {
-      throw agendamentosError;
-    }
-
-    if (!agendamentos || agendamentos.length === 0) {
-      return NextResponse.json({ message: 'Nenhum lembrete para enviar no momento.' });
-    }
-
-    // 3. Configurar Nodemailer
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: config.gmail_email,
-        pass: config.gmail_app_password,
-      },
-    });
-
-    const results = [];
-
-    // 4. Enviar e-mails
-    for (const agendamento of agendamentos) {
-      const paciente = Array.isArray(agendamento.pacientes) ? agendamento.pacientes[0] : agendamento.pacientes;
-      
-      // Pula se o paciente não tiver e-mail
-      if (!paciente || !paciente.email) continue;
-
-      const dataObj = new Date(agendamento.data_hora);
-      const dataFormatada = dataObj.toLocaleDateString('pt-BR');
-      const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-      // Link simulado de confirmação
-      const confirmLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/appointments/confirm?id=${agendamento.id}`;
-
-      const mailOptions = {
-        from: `"Clínica Ortopedia" <${config.gmail_email}>`,
-        to: paciente.email,
-        subject: `Lembrete de Consulta: Hoje às ${horaFormatada}`,
-        html: `
+const htmlTemplate = `\`
           <!DOCTYPE html>
           <html lang="pt-BR">
           <head>
@@ -117,28 +41,28 @@ export async function GET(req: Request) {
                 </div>
                 
                 <div class="content">
-                  <p class="greeting">Olá, ${paciente.nome}! 👋</p>
+                  <p class="greeting">Olá, \${paciente.nome}! 👋</p>
                   
                   <p>Este é um lembrete amigável de que você tem uma consulta marcada conosco <strong>hoje</strong>.</p>
                   
                   <div class="details-card">
                     <div class="detail-row">
                       <span class="detail-label">Data e Hora</span>
-                      <p class="detail-value">📅 ${dataFormatada} às ${horaFormatada}</p>
+                      <p class="detail-value">📅 \${dataFormatada} às \${horaFormatada}</p>
                     </div>
                     
                     <div class="divider"></div>
                     
                     <div class="detail-row">
                       <span class="detail-label">Especialidade / Motivo</span>
-                      <p class="detail-value">🩺 ${agendamento.especialidade || 'Consulta Geral'}</p>
+                      <p class="detail-value">🩺 \${agendamento.especialidade || 'Consulta Geral'}</p>
                     </div>
                   </div>
 
                   <p style="text-align: center; margin-top: 32px;">Por favor, confirme sua presença clicando no botão abaixo:</p>
 
                   <div class="btn-container">
-                    <a href="${confirmLink}" class="btn" style="color: #ffffff;">Confirmar Presença</a>
+                    <a href="\${confirmLink}" class="btn" style="color: #ffffff;">Confirmar Presença</a>
                   </div>
                 </div>
                 
@@ -150,27 +74,13 @@ export async function GET(req: Request) {
             </div>
           </body>
           </html>
-        `,
-      };
+        \``;
 
-      try {
-        await transporter.sendMail(mailOptions);
-        results.push({ id: agendamento.id, status: 'success', email: paciente.email });
-      } catch (err: any) {
-        console.error(`Erro ao enviar email para ${paciente.email}:`, err);
-        results.push({ id: agendamento.id, status: 'error', email: paciente.email, error: err.message });
-      }
-    }
+const fileContent = fs.readFileSync('app/api/email/reminder/route.ts', 'utf8');
 
-    return NextResponse.json({ 
-      success: true, 
-      processed: agendamentos.length,
-      sent: results.filter(r => r.status === 'success').length,
-      results 
-    });
+const regex = /html: `[\s\S]*?`,\n\s*};/m;
 
-  } catch (error: any) {
-    console.error('Erro na rotina de lembretes:', error);
-    return NextResponse.json({ error: 'Falha interna do servidor', details: error.message }, { status: 500 });
-  }
-}
+const updatedContent = fileContent.replace(regex, 'html: ' + htmlTemplate + ',\n      };');
+
+fs.writeFileSync('app/api/email/reminder/route.ts', updatedContent);
+console.log('Reminder template updated successfully!');
