@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       iterations++;
 
       const generateParams: any = {
-        model: 'qwen/qwen-2.5-72b-instruct:free',
+        model: 'qwen/qwen3.6-plus:free',
         messages: openRouterMessages,
         temperature: 0.1,
       };
