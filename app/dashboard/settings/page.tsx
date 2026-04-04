@@ -623,7 +623,7 @@ export default function SettingsPage() {
                             <ol className="list-decimal list-inside space-y-1 ml-1 opacity-90">
                               <li>Acesse as <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="underline font-medium hover:text-indigo-800 dark:hover:text-indigo-300">Configurações de Segurança do Google</a> com a conta da clínica.</li>
                               <li>Ative a <strong>Verificação em Duas Etapas</strong> (se não estiver ativa).</li>
-                              <li>Vá em <strong>Senhas de App</strong> (ou App Passwords) e crie uma nova senha para "App de Faturamento".</li>
+                              <li>Vá em <strong>Senhas de App</strong> (ou App Passwords) e crie uma nova senha para &quot;App de Faturamento&quot;.</li>
                               <li>Copie a senha de 16 letras gerada e cole abaixo.</li>
                             </ol>
                           </div>

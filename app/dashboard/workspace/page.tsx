@@ -346,8 +346,8 @@ export default function WorkspacePage() {
                       <li className="pl-2">Vá na aba <strong>Segurança</strong> no menu lateral esquerdo.</li>
                       <li className="pl-2">Certifique-se de que a <strong>Verificação em duas etapas</strong> esteja ativada.</li>
                       <li className="pl-2">Busque por <strong>Senhas de app</strong> (ou App passwords) na barra de pesquisa.</li>
-                      <li className="pl-2">Crie uma nova senha com o nome "Sistema Clínica" e copie o código de 16 letras gerado.</li>
-                      <li className="pl-2">Cole o código no campo "Senha de Aplicativo" na aba Credenciais.</li>
+                      <li className="pl-2">Crie uma nova senha com o nome &quot;Sistema Clínica&quot; e copie o código de 16 letras gerado.</li>
+                      <li className="pl-2">Cole o código no campo &quot;Senha de Aplicativo&quot; na aba Credenciais.</li>
                     </ol>
                   </div>
                 </TabsContent>
@@ -511,11 +511,11 @@ export default function WorkspacePage() {
                     <h3 className="text-lg font-medium text-foreground mb-4">Como obter as credenciais do Calendar</h3>
                     <ol className="space-y-4 list-decimal list-inside ml-4">
                       <li className="pl-2">Acesse o <strong>Google Cloud Console</strong> e crie um novo projeto.</li>
-                      <li className="pl-2">No menu "APIs e Serviços", busque e ative a <strong>Google Calendar API</strong>.</li>
-                      <li className="pl-2">Vá em "Credenciais", clique em "Criar Credenciais" e escolha <strong>Conta de Serviço</strong> (Service Account).</li>
-                      <li className="pl-2">Após criar a conta, clique nela, vá na aba "Chaves" e crie uma nova chave no formato <strong>JSON</strong>.</li>
+                      <li className="pl-2">No menu &quot;APIs e Serviços&quot;, busque e ative a <strong>Google Calendar API</strong>.</li>
+                      <li className="pl-2">Vá em &quot;Credenciais&quot;, clique em &quot;Criar Credenciais&quot; e escolha <strong>Conta de Serviço</strong> (Service Account).</li>
+                      <li className="pl-2">Após criar a conta, clique nela, vá na aba &quot;Chaves&quot; e crie uma nova chave no formato <strong>JSON</strong>.</li>
                       <li className="pl-2">O arquivo será baixado. Volte aqui e clique em <strong>Importar arquivo .json</strong> na aba Credenciais.</li>
-                      <li className="pl-2">Por fim, vá no seu Google Calendar, acesse as configurações do calendário que deseja usar e adicione o e-mail da Conta de Serviço (que está dentro do JSON) com permissão para "Fazer alterações em eventos". Copie o ID do calendário e cole no campo acima.</li>
+                      <li className="pl-2">Por fim, vá no seu Google Calendar, acesse as configurações do calendário que deseja usar e adicione o e-mail da Conta de Serviço (que está dentro do JSON) com permissão para &quot;Fazer alterações em eventos&quot;. Copie o ID do calendário e cole no campo acima.</li>
                     </ol>
                   </div>
                 </TabsContent>

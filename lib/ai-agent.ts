@@ -748,11 +748,11 @@ export async function executeTool(name: string, args: any): Promise<any> {
             : Promise.resolve({ skipped: true })
         ]);
 
-        const services = servicesResult?.services || [];
+        const services = Array.isArray(servicesResult) ? servicesResult : [];
         const symptomTokens = validArgs.symptoms.toLowerCase().split(/\s+/).filter((token) => token.length > 2);
         const ranked = services
           .map((service: any) => {
-            const blob = `${service.nome || ''} ${service.descricao || ''} ${service.especialidade || ''}`.toLowerCase();
+            const blob = `${service.name || ''} ${service.description || ''} ${service.especialidade_obrigatoria || ''}`.toLowerCase();
             const score = symptomTokens.reduce((acc, token) => acc + (blob.includes(token) ? 1 : 0), 0);
             return { service, score };
           })
@@ -824,12 +824,16 @@ export async function executeTool(name: string, args: any): Promise<any> {
         const validArgs = schema.parse(args);
         const [financial, appointments] = await Promise.all([getFinancialMetrics(), getAppointmentsMetrics()]);
         if (validArgs.mode === 'raw') return { financial, appointments };
+        
+        const faturamentoHoje = financial?.data?.faturamento_hoje ? `R$ ${financial.data.faturamento_hoje.toFixed(2)}` : 'N/A';
+        const pendentes = financial?.data?.recebiveis_pendentes ? `R$ ${financial.data.recebiveis_pendentes.toFixed(2)}` : 'N/A';
+        
         return {
           success: true,
           summary:
-            `Resumo rápido: faturamento hoje ${financial?.todayRevenueFormatted || 'N/A'}; ` +
-            `pendentes ${financial?.pendingAmountFormatted || 'N/A'}; ` +
-            `consultas hoje ${appointments?.today_total ?? 0} (confirmadas: ${appointments?.confirmed ?? 0}, pendentes: ${appointments?.pending ?? 0}).`,
+            `Resumo rápido: faturamento hoje ${faturamentoHoje}; ` +
+            `pendentes ${pendentes}; ` +
+            `consultas hoje ${appointments?.data?.total_hoje ?? 0} (confirmadas: ${appointments?.data?.confirmados ?? 0}, pendentes: ${appointments?.data?.pendentes ?? 0}).`,
           financial,
           appointments
         };

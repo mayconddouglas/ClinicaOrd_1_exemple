@@ -540,7 +540,7 @@ export default function FinancePage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Faturas com status "Pago"
+              Faturas com status &quot;Pago&quot;
             </p>
           </CardContent>
         </Card>

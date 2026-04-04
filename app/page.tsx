@@ -423,6 +423,7 @@ export default function OrthoAI() {
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {message.attachments.map((file, idx) => (
                                   <div key={idx} className="relative group">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={file.url} alt="Anexo" className="w-32 md:w-48 h-32 md:h-48 object-cover rounded-xl border border-border/50 shadow-sm transition-transform hover:scale-[1.02] cursor-zoom-in" />
                                   </div>
                                 ))}
