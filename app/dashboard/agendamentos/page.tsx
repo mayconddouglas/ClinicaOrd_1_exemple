@@ -13,13 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope, Mail } from 'lucide-react';
+import { Search, Calendar, Clock, User, Phone, Plus, Filter, MoreHorizontal, CheckCircle2, XCircle, Clock4, CalendarX2, FileText, Stethoscope, Mail, LayoutGrid, List, ArrowUpDown, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isToday, isTomorrow, isThisWeek, isPast } from 'date-fns';
 import { toDate } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,12 @@ export default function AgendamentosPage() {
   // Filters State
   const [dateFilter, setDateFilter] = useState<'todos' | 'hoje' | 'amanha' | 'semana'>('todos');
   const [statusFilter, setStatusFilter] = useState<string[]>(['pendente', 'confirmada']);
+  
+  // View & Pagination State
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'data_hora', direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
   
   // Sheet State
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -313,6 +320,43 @@ export default function AgendamentosPage() {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter, statusFilter]);
+
+  // 4. Sorting
+  const sortedAgendamentos = [...filteredAgendamentos].sort((a, b) => {
+    let valA: any = a[sortConfig.key as keyof Agendamento];
+    let valB: any = b[sortConfig.key as keyof Agendamento];
+
+    if (sortConfig.key === 'paciente') {
+      valA = a.pacientes?.nome || '';
+      valB = b.pacientes?.nome || '';
+    } else if (sortConfig.key === 'data_hora') {
+      valA = new Date(a.data_hora).getTime();
+      valB = new Date(b.data_hora).getTime();
+    }
+
+    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // 5. Pagination
+  const totalPages = Math.ceil(sortedAgendamentos.length / itemsPerPage);
+  const paginatedAgendamentos = sortedAgendamentos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const toggleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-7xl mx-auto pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -326,6 +370,24 @@ export default function AgendamentosPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex bg-muted p-1 rounded-md">
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="px-3"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="px-3"
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 relative w-full sm:w-auto justify-center">
@@ -544,19 +606,44 @@ export default function AgendamentosPage() {
         </div>
 
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead className="w-[200px]">Paciente</TableHead>
-                <TableHead>Data e Hora</TableHead>
-                <TableHead>Especialidade / Motivo</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          {viewMode === 'list' ? (
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead 
+                    className="w-[200px] cursor-pointer hover:bg-muted/50"
+                    onClick={() => toggleSort('paciente')}
+                  >
+                    <div className="flex items-center">
+                      Paciente
+                      {sortConfig.key === 'paciente' && <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => toggleSort('data_hora')}
+                  >
+                    <div className="flex items-center">
+                      Data e Hora
+                      {sortConfig.key === 'data_hora' && <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead>Especialidade / Motivo</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => toggleSort('status')}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      {sortConfig.key === 'status' && <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
                 // Skeleton Rows
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
@@ -573,7 +660,7 @@ export default function AgendamentosPage() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 rounded-md ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : filteredAgendamentos.length === 0 ? (
+              ) : paginatedAgendamentos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-[400px] text-center p-0">
                     <div className="flex flex-col items-center justify-center h-full w-full bg-muted/10 relative overflow-hidden">
@@ -609,7 +696,7 @@ export default function AgendamentosPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAgendamentos.map((agendamento) => {
+                paginatedAgendamentos.map((agendamento) => {
                   const dataObj = agendamento.data_hora ? toDate(agendamento.data_hora, { timeZone: 'America/Sao_Paulo' }) : null;
                   const isHoje = dataObj ? isToday(dataObj) : false;
                   const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
@@ -631,9 +718,26 @@ export default function AgendamentosPage() {
                           }`}>
                             {agendamento.pacientes?.nome?.charAt(0)?.toUpperCase() || 'P'}
                           </div>
-                          <span className={`truncate max-w-[150px] ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`} title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
-                            {agendamento.pacientes?.nome || 'Paciente não identificado'}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className={`truncate max-w-[150px] ${isPendenteAtrasado ? 'text-muted-foreground' : ''}`} title={agendamento.pacientes?.nome || 'Paciente não identificado'}>
+                              {agendamento.pacientes?.nome || 'Paciente não identificado'}
+                            </span>
+                            {isPendenteAtrasado && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center text-[10px] text-red-500 mt-0.5 cursor-help">
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                      Atrasado
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Agendamento pendente em horário que já passou.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -716,6 +820,114 @@ export default function AgendamentosPage() {
               )}
             </TableBody>
           </Table>
+          ) : (
+            // GRID VIEW
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 bg-muted/10">
+              {isLoading ? (
+                Array.from({ length: 8 }).map((_, index) => (
+                  <Card key={`grid-skel-${index}`} className="overflow-hidden">
+                    <CardHeader className="p-4 pb-2"><Skeleton className="h-5 w-3/4" /></CardHeader>
+                    <CardContent className="p-4 pt-2 space-y-3">
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-8 w-24 rounded-full mt-4" />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : paginatedAgendamentos.length === 0 ? (
+                <div className="col-span-full h-[300px] flex flex-col items-center justify-center text-center">
+                  <CalendarX2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">Nenhum agendamento encontrado</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mt-1">
+                    Não encontramos resultados na visão de calendário com os filtros atuais.
+                  </p>
+                </div>
+              ) : (
+                paginatedAgendamentos.map((agendamento) => {
+                  const dataObj = agendamento.data_hora ? toDate(agendamento.data_hora, { timeZone: 'America/Sao_Paulo' }) : null;
+                  const isHoje = dataObj ? isToday(dataObj) : false;
+                  const isPassado = dataObj ? isPast(dataObj) && !isHoje : false;
+                  const isPendenteAtrasado = isPassado && (agendamento.status?.toLowerCase() === 'pendente');
+
+                  return (
+                    <Card key={agendamento.id} className={`overflow-hidden flex flex-col transition-all hover:shadow-md ${isPendenteAtrasado ? 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10' : ''}`}>
+                      <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
+                        <div className="flex flex-col gap-1">
+                          <CardTitle className="text-base truncate" title={agendamento.pacientes?.nome}>
+                            {agendamento.pacientes?.nome || 'Paciente não identificado'}
+                          </CardTitle>
+                          {isPendenteAtrasado && (
+                            <span className="text-[10px] text-red-500 flex items-center font-medium">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Atrasado
+                            </span>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 -mt-1 -mr-2">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(agendamento.id, 'confirmada')}>
+                              <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" /> Confirmar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(agendamento.id, 'cancelada')}>
+                              <XCircle className="mr-2 h-4 w-4 text-red-500" /> Cancelar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2 flex-1 flex flex-col gap-3 text-sm">
+                        <div className={`flex items-center gap-2 ${isHoje ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-muted-foreground'}`}>
+                          <Calendar className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{dataObj ? format(dataObj, "dd 'de' MMM", { locale: ptBR }) : '--'} às {dataObj ? format(dataObj, "HH:mm") : '--'}</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-muted-foreground">
+                          <Stethoscope className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                          <div className="flex flex-col line-clamp-2">
+                            <span className="font-medium text-foreground">{agendamento.medicos?.nome ? `Dr. ${agendamento.medicos.nome}` : agendamento.especialidade}</span>
+                            <span className="text-xs" title={agendamento.motivo}>{agendamento.motivo}</span>
+                          </div>
+                        </div>
+                        <div className="mt-auto pt-3 flex items-center justify-between">
+                          {getStatusBadge(agendamento.status)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t flex items-center justify-between bg-muted/10">
+              <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                >
+                  Próximo <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
