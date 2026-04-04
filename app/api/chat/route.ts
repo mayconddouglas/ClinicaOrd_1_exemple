@@ -63,12 +63,12 @@ export async function POST(req: NextRequest) {
     let finalText = '';
     let iterations = 0;
     const MAX_ITERATIONS = 8;
-    
+
     while (iterations < MAX_ITERATIONS) {
       iterations++;
-      
+
       const generateParams: any = {
-        model: 'openai/gpt-4o-mini',
+        model: 'qwen/qwen-2.5-coder-32b-instruct', // qwen/qwen3.6-plus:free is invalid, using qwen-2.5-coder-32b-instruct which is free on openrouter
         messages: openRouterMessages,
         temperature: 0.1,
       };
