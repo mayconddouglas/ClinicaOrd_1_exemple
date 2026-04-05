@@ -385,6 +385,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </DropdownMenu>
               </SidebarMenuItem>
             </SidebarMenu>
+
+            {/* Branding Footer */}
+            <div className="mt-4 pt-4 border-t border-border/50 flex flex-col items-center justify-center opacity-40 hover:opacity-100 transition-opacity">
+              <a 
+                href="https://www.instagram.com/brazeo.ai?igsh=N3NqZXZoMnA1bGc=" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 no-underline"
+                title="Conheça a Brazeo AI"
+              >
+                <svg width="70" height="20" viewBox="0 0 120 30" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-foreground">
+                  <path d="M22 5V25" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  <path d="M22 5C30 5 33 10 26 14C35 15 32 25 22 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M16 10L8 5" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  <path d="M16 15L6 15" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  <path d="M16 20L8 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  <text x="40" y="22" fill="currentColor" fontSize="22" fontWeight="600" fontFamily="system-ui, sans-serif" letterSpacing="-0.5">brazeo</text>
+                </svg>
+                <span className="text-[10px] text-muted-foreground font-medium tracking-wide">
+                  feito com amor ❤️
+                </span>
+              </a>
+            </div>
           </SidebarFooter>
         </Sidebar>
 
